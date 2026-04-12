@@ -24,7 +24,7 @@ from .operations import add_instrument, refresh_instrument, refresh_all
 
 _SHORT_MAP = {
     "-ni":  "--non-interactive",
-    "-nc":  "--ncurses",
+    "-tui": "--textual-ui",
     "-dc":  "--delete-cache",
     "-rc":  "--refresh-cache",
 }
@@ -198,12 +198,12 @@ json import format (for 'import --file'):
 
 interface modes:
   -i,  --interactive     REPL with typed commands
-  -nc, --ncurses         full-screen TUI (arrow keys, Enter, Esc)
+  -tui, --textual-ui     full-screen TUI (arrow keys, Enter, Esc)
   -ni, --non-interactive one-shot commands (scriptable)
 
 examples:
   lynx --configure
-  lynx --production-mode -nc
+  lynx --production-mode -tui
   lynx --production-mode -i
   lynx --production-mode -ni add --ticker NESN.SW --shares 50 --avg-price 110
   lynx --production-mode -ni add --isin CH0038863350 --shares 50 --avg-price 110
@@ -243,7 +243,7 @@ examples:
     imode = parser.add_mutually_exclusive_group()
     imode.add_argument("-i",  "--interactive",     action="store_true", help="Interactive REPL mode")
     imode.add_argument("-ni", "--non-interactive",  action="store_true", help="Non-interactive (command) mode")
-    imode.add_argument("-nc", "--ncurses",          action="store_true", help="Full-screen TUI mode (keyboard-driven)")
+    imode.add_argument("-tui", "--textual-ui",       action="store_true", dest="textual_ui", help="Full-screen TUI mode (keyboard-driven)")
 
     # Cache control ───────────────────────────────────────────────────────────
     parser.add_argument("-dc", "--delete-cache",  action="store_true",
@@ -373,7 +373,7 @@ def run() -> None:
         _start_auto_refresh(args.auto_refresh)
 
     # ── mode ─────────────────────────────────────────────────────────────
-    if args.ncurses:
+    if args.textual_ui:
         from .tui import LynxApp
         LynxApp().run()
         return

@@ -10,7 +10,7 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 ## [Unreleased]
 
 ### Added
-- **Full-screen TUI mode** (`-nc` / `--ncurses`): keyboard-driven interface built
+- **Full-screen TUI mode** (`-tui` / `--textual-ui`): keyboard-driven interface built
   with [Textual](https://textual.textualize.io/), the modern Python TUI framework
   from the Rich team.
   - Portfolio table with arrow-key navigation, zebra-striped rows, and row selection.
