@@ -13,6 +13,7 @@ dependencies    = [
     "yfinance>=0.2.36",
     "requests>=2.31.0",
     "rich>=13.7.0",
+    "textual>=1.0.0",
 ]
 
 [project.scripts]

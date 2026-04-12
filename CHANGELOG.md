@@ -9,7 +9,18 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ## [Unreleased]
 
-_(no changes yet)_
+### Added
+- **Full-screen TUI mode** (`-nc` / `--ncurses`): keyboard-driven interface built
+  with [Textual](https://textual.textualize.io/), the modern Python TUI framework
+  from the Rich team.
+  - Portfolio table with arrow-key navigation, zebra-striped rows, and row selection.
+  - Press **Enter** on a row to see the detailed instrument view.
+  - **Keybindings**: `a` Add, `d` Delete, `e` Edit, `r` Refresh, `R` Refresh All,
+    `i` Import JSON, `c` Clear Cache, `q` Quit, `Esc` Back.
+  - Add / Edit / Import screens with form inputs and async background API calls.
+  - Confirmation dialog for delete (Yes/No or `y`/`n`).
+  - Header with clock, footer showing all available keybindings.
+  - Color scheme: cyan accents, green/red P&L, yellow warnings, magenta highlights.
 
 ---
 
