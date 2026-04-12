@@ -18,6 +18,8 @@ from textual.widgets import (
     Select, LoadingIndicator,
 )
 
+from textual.theme import BUILTIN_THEMES
+
 from . import database, cache, config, forex
 from .display import _split_shares, _shares_str
 from .operations import (
@@ -798,6 +800,31 @@ class ImportScreen(Screen):
 # Main Textual App
 # ---------------------------------------------------------------------------
 
+# Curated list of popular themes shipped with Textual, ordered for cycling.
+_THEME_NAMES = [
+    "tokyo-night",
+    "dracula",
+    "monokai",
+    "catppuccin-mocha",
+    "nord",
+    "gruvbox",
+    "rose-pine",
+    "solarized-dark",
+    "textual-dark",
+    "catppuccin-frappe",
+    "catppuccin-macchiato",
+    "rose-pine-moon",
+    "atom-one-dark",
+    "flexoki",
+    "textual-light",
+    "solarized-light",
+    "catppuccin-latte",
+    "atom-one-light",
+    "rose-pine-dawn",
+    "textual-ansi",
+]
+
+
 class LynxApp(App):
     """Lynx Portfolio Manager — Full-screen TUI."""
 
@@ -807,7 +834,23 @@ class LynxApp(App):
 
     BINDINGS = [
         Binding("q", "quit", "Quit"),
+        Binding("t", "cycle_theme", "Theme"),
     ]
 
     def on_mount(self) -> None:
+        # Register all built-in themes so the user can cycle through them.
+        for name, theme_obj in BUILTIN_THEMES.items():
+            self.register_theme(theme_obj)
+        # Default to tokyo-night — a popular, easy-on-the-eyes dark theme.
+        self.theme = "tokyo-night"
         self.push_screen(PortfolioScreen())
+
+    def action_cycle_theme(self) -> None:
+        """Cycle to the next theme in the curated list."""
+        try:
+            idx = _THEME_NAMES.index(self.theme)
+        except ValueError:
+            idx = -1
+        next_idx = (idx + 1) % len(_THEME_NAMES)
+        self.theme = _THEME_NAMES[next_idx]
+        self.notify(f"Theme: {self.theme}", severity="information")
