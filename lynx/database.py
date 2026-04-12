@@ -1,0 +1,235 @@
+"""
+SQLite database layer for Lynx Portfolio.
+Stores portfolio positions and instrument cache.
+"""
+
+import os
+import sqlite3
+from datetime import datetime
+from typing import Optional, List, Dict, Any
+
+DB_PATH = os.environ.get(
+    "LYNX_DB_PATH",
+    os.path.expanduser("~/.lynx/portfolio.db")
+)
+
+ALLOWED_UPDATE_FIELDS = {
+    "isin", "name", "shares", "avg_purchase_price",
+    "currency", "sector", "industry", "description",
+    "current_price", "updated_at",
+}
+
+
+def get_db_path() -> str:
+    return DB_PATH
+
+
+def _ensure_dir() -> None:
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+
+def get_connection() -> sqlite3.Connection:
+    _ensure_dir()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def init_db() -> None:
+    conn = get_connection()
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS portfolio (
+            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+            isin               TEXT,
+            ticker             TEXT NOT NULL,
+            name               TEXT,
+            shares             REAL NOT NULL,
+            avg_purchase_price REAL NOT NULL,
+            current_price      REAL,
+            currency           TEXT,
+            sector             TEXT,
+            industry           TEXT,
+            description        TEXT,
+            created_at         TEXT DEFAULT (datetime('now')),
+            updated_at         TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_portfolio_ticker
+            ON portfolio(ticker);
+
+        CREATE TABLE IF NOT EXISTS instrument_cache (
+            ticker      TEXT PRIMARY KEY,
+            isin        TEXT,
+            name        TEXT,
+            price       REAL,
+            currency    TEXT,
+            sector      TEXT,
+            industry    TEXT,
+            description TEXT,
+            cached_at   TEXT DEFAULT (datetime('now'))
+        );
+    """)
+    conn.commit()
+    conn.close()
+
+
+def add_instrument(
+    ticker: str,
+    shares: float,
+    avg_purchase_price: float,
+    isin: Optional[str] = None,
+    name: Optional[str] = None,
+    current_price: Optional[float] = None,
+    currency: Optional[str] = None,
+    sector: Optional[str] = None,
+    industry: Optional[str] = None,
+    description: Optional[str] = None,
+) -> bool:
+    """Returns True on success, False if ticker already exists."""
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO portfolio
+                (ticker, isin, name, shares, avg_purchase_price, current_price,
+                 currency, sector, industry, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (ticker.upper(), isin, name, shares, avg_purchase_price,
+             current_price, currency, sector, industry, description),
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+    finally:
+        conn.close()
+
+
+def update_instrument(ticker: str, **kwargs: Any) -> bool:
+    """Update arbitrary fields on an instrument row."""
+    if not kwargs:
+        return False
+    invalid = set(kwargs) - ALLOWED_UPDATE_FIELDS
+    if invalid:
+        raise ValueError(f"Invalid field(s) for update: {invalid}")
+    kwargs["updated_at"] = datetime.now().isoformat(timespec="seconds")
+    conn = get_connection()
+    try:
+        fields = ", ".join(f"{k} = ?" for k in kwargs)
+        values = list(kwargs.values()) + [ticker.upper()]
+        conn.execute(f"UPDATE portfolio SET {fields} WHERE ticker = ?", values)
+        conn.commit()
+        return conn.total_changes > 0
+    finally:
+        conn.close()
+
+
+def get_all_instruments() -> List[Dict]:
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM portfolio ORDER BY ticker"
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_instrument(ticker: str) -> Optional[Dict]:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM portfolio WHERE ticker = ?", (ticker.upper(),)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def delete_instrument(ticker: str) -> bool:
+    conn = get_connection()
+    try:
+        conn.execute("DELETE FROM portfolio WHERE ticker = ?", (ticker.upper(),))
+        conn.commit()
+        return conn.total_changes > 0
+    finally:
+        conn.close()
+
+
+def apply_cache_to_portfolio(ticker: str, data: Dict) -> None:
+    """Push fetched data into the portfolio row."""
+    update_instrument(
+        ticker,
+        name=data.get("name"),
+        current_price=data.get("current_price"),
+        currency=data.get("currency"),
+        sector=data.get("sector"),
+        industry=data.get("industry"),
+        description=data.get("description"),
+    )
+
+
+# ---------- cache table ----------
+
+def cache_get(ticker: str) -> Optional[Dict]:
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM instrument_cache WHERE ticker = ?", (ticker.upper(),)
+        ).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def cache_put(ticker: str, data: Dict) -> None:
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO instrument_cache
+                (ticker, isin, name, price, currency, sector, industry, description, cached_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                ticker.upper(),
+                data.get("isin"),
+                data.get("name"),
+                data.get("current_price"),
+                data.get("currency"),
+                data.get("sector"),
+                data.get("industry"),
+                data.get("description"),
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def cache_delete(ticker: Optional[str] = None) -> int:
+    """Delete cache for one ticker or all. Returns rows deleted."""
+    conn = get_connection()
+    try:
+        if ticker:
+            conn.execute(
+                "DELETE FROM instrument_cache WHERE ticker = ?", (ticker.upper(),)
+            )
+        else:
+            conn.execute("DELETE FROM instrument_cache")
+        conn.commit()
+        return conn.total_changes
+    finally:
+        conn.close()
+
+
+def cache_age_seconds(ticker: str) -> Optional[float]:
+    """Seconds since this ticker was cached, or None if not cached."""
+    row = cache_get(ticker)
+    if not row or not row.get("cached_at"):
+        return None
+    cached_at = datetime.fromisoformat(row["cached_at"])
+    return (datetime.now() - cached_at).total_seconds()

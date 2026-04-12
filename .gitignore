@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Lynx runtime data (stored in ~/.lynx/, not tracked)
+*.db
+*.db-shm
+*.db-wal
+
+# Environment
+.env
+.env.*
