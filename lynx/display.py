@@ -190,10 +190,11 @@ def display_portfolio(instruments: List[Dict]) -> None:
     table.add_column("Curr Price", justify="right",     width=11)
     table.add_column("CCY",                             width=5,  no_wrap=True)
     table.add_column("Mkt Value",  justify="right",     width=13)
-    table.add_column("P&L",        justify="right",     width=22)
     if show_eur:
         table.add_column("EUR Val",    justify="right",  width=13)
         table.add_column("EUR P&L",    justify="right",  width=22)
+    else:
+        table.add_column("P&L",        justify="right",  width=22)
 
     total_invested     = 0.0
     total_market       = 0.0
@@ -223,7 +224,6 @@ def display_portfolio(instruments: List[Dict]) -> None:
             total_market += mkt_val
             curr_str = f"{curr:,.2f}"
             mkt_str  = f"{mkt_val:,.2f}"
-            pnl_str  = _pnl_markup(pnl, pct)
 
             if show_eur:
                 mkt_eur = forex.to_eur(mkt_val, ccy)
@@ -238,14 +238,17 @@ def display_portfolio(instruments: List[Dict]) -> None:
                     eur_pnl_str = _pnl_markup(pnl_eur, pct)
                 else:
                     eur_pnl_str = "[dim]N/A[/dim]"
+            else:
+                pnl_str = _pnl_markup(pnl, pct)
         else:
             missing_prices += 1
-            curr_str    = "N/A"
-            mkt_str     = "N/A"
-            pnl_str     = "[dim]N/A[/dim]"
+            curr_str = "N/A"
+            mkt_str  = "N/A"
             if show_eur:
                 eur_mkt_str = "[dim]N/A[/dim]"
                 eur_pnl_str = "[dim]N/A[/dim]"
+            else:
+                pnl_str = "[dim]N/A[/dim]"
 
         exch_disp = (
             inst.get("exchange_display")
@@ -266,10 +269,11 @@ def display_portfolio(instruments: List[Dict]) -> None:
             curr_str,
             inst.get("currency") or "—",
             mkt_str,
-            pnl_str,
         ]
         if show_eur:
             row += [eur_mkt_str, eur_pnl_str]
+        else:
+            row.append(pnl_str)
 
         table.add_row(*row)
 
@@ -283,11 +287,21 @@ def display_portfolio(instruments: List[Dict]) -> None:
     total_pct = (total_pnl / total_invested * 100) if total_invested else 0.0
     color     = "green" if total_pnl >= 0 else "red"
     sign      = "+" if total_pnl >= 0 else ""
-    summary   = (
-        f"Invested: {total_invested:,.2f}  |  "
-        f"Market Value: {total_market:,.2f}  |  "
-        f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]"
-    )
+
+    if show_eur:
+        # When EUR columns are present, the per-currency P&L is meaningless as
+        # a portfolio total (mixed currencies).  Show only Invested / Mkt Value
+        # here; EUR P&L appears on the next line.
+        summary = (
+            f"Invested: {total_invested:,.2f}  |  "
+            f"Market Value: {total_market:,.2f}"
+        )
+    else:
+        summary = (
+            f"Invested: {total_invested:,.2f}  |  "
+            f"Market Value: {total_market:,.2f}  |  "
+            f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]"
+        )
 
     if show_eur:
         total_pnl_eur = total_market_eur - total_invested_eur

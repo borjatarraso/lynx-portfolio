@@ -403,6 +403,17 @@ def fetch_instrument_data(yahoo_symbol: str, isin: Optional[str] = None) -> Opti
 
         description = _first_sentence(info.get("longBusinessSummary") or "") or None
 
+        # Retrieve ISIN from yfinance when the caller didn't supply one.
+        resolved_isin = isin
+        if not resolved_isin:
+            try:
+                fetched_isin = stock.isin
+                # yfinance returns "-" or empty when ISIN is unavailable.
+                if fetched_isin and fetched_isin not in ("-", ""):
+                    resolved_isin = fetched_isin
+            except Exception:
+                pass
+
         return {
             "name":          name,
             "current_price": current_price,
@@ -410,7 +421,7 @@ def fetch_instrument_data(yahoo_symbol: str, isin: Optional[str] = None) -> Opti
             "sector":        sector,
             "industry":      industry,
             "description":   description,
-            "isin":          isin,
+            "isin":          resolved_isin,
             "exchange_code": info.get("exchange"),
             "quote_type":    info.get("quoteType", "").upper() or None,
         }

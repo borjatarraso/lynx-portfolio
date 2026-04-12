@@ -212,7 +212,7 @@ def apply_cache_to_portfolio(ticker: str, data: Dict) -> None:
         k: data[k]
         for k in ("name", "current_price", "currency", "sector",
                   "industry", "description", "exchange_code",
-                  "exchange_display", "quote_type")
+                  "exchange_display", "quote_type", "isin")
         if data.get(k) is not None
     }
     if kwargs:
