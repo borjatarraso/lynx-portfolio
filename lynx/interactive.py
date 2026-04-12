@@ -131,8 +131,10 @@ def run() -> None:
                 _cmd_import(arg)
 
         elif cmd == "clear-cache":
-            n = cache.delete()
-            display.ok(f"Cache cleared ({n} entries removed).")
+            instruments = database.get_all_instruments()
+            if display.confirm_clear_cache(instruments):
+                n = cache.delete()
+                display.ok(f"Cache cleared ({n} entries removed).")
 
         elif cmd == "markets":
             if not arg:

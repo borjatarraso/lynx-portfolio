@@ -382,8 +382,10 @@ def run() -> None:
 
     # ── global cache flags ────────────────────────────────────────────────
     if args.delete_cache:
-        n = cache.delete()
-        display.ok(f"Cache cleared ({n} entries removed).")
+        instruments = database.get_all_instruments()
+        if display.confirm_clear_cache(instruments):
+            n = cache.delete()
+            display.ok(f"Cache cleared ({n} entries removed).")
         if not args.command and not args.interactive:
             return
 

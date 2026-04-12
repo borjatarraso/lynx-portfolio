@@ -506,6 +506,23 @@ def resolve_markets_for_input(
     # Case 3: plain ticker
     if ticker:
         markets = search_markets(ticker)
+        if markets:
+            return markets, ticker
+
+        # Fallback: the plain ticker matched no equities (common for short
+        # tickers that collide with futures or indices, e.g. "NAS" → Oslo).
+        # Try appending the most common exchange suffixes and search again.
+        _FALLBACK_SUFFIXES = (
+            ".OL", ".TO", ".V", ".DE", ".SW", ".PA", ".AS", ".MI",
+            ".MC", ".L", ".ST", ".CO", ".HE", ".AX", ".HK", ".T",
+        )
+        for sfx in _FALLBACK_SUFFIXES:
+            fallback = search_markets(ticker + sfx)
+            if fallback:
+                markets.extend(fallback)
+                break  # stop after first hit to keep latency reasonable
+        if markets:
+            markets.sort(key=lambda x: -x["score"])
         return markets, ticker
 
     return [], None

@@ -403,3 +403,65 @@ def ok(msg: str)   -> None: console.print(f"[green]✓[/green] {msg}"); _flush_c
 def err(msg: str)  -> None: console.print(f"[red]✗[/red] {msg}"); _flush_console()
 def info(msg: str) -> None: console.print(f"[cyan]ℹ[/cyan] {msg}"); _flush_console()
 def warn(msg: str) -> None: console.print(f"[yellow]⚠[/yellow] {msg}"); _flush_console()
+
+
+# ---------------------------------------------------------------------------
+# Clear-cache safety confirmation (used by interactive + CLI modes)
+# ---------------------------------------------------------------------------
+
+def confirm_clear_cache(instruments: List[Dict]) -> bool:
+    """
+    Show a blinking red warning listing all portfolio instruments, ask the user
+    to press Enter to continue, then require explicit confirmation (default is
+    Abort).  Returns True only if the user confirms.
+    """
+    from rich.prompt import Prompt
+
+    if not instruments:
+        console.print("[yellow]Cache is empty — nothing to clear.[/yellow]")
+        _flush_console()
+        return True  # nothing to lose
+
+    # ── Blinking red warning ─────────────────────────────────────────────
+    console.print()
+    console.print(
+        "[blink bold red]⚠  WARNING: YOU ARE ABOUT TO WIPE ALL CACHED DATA  ⚠[/blink bold red]"
+    )
+    console.print()
+    console.print(
+        "[bold red]The following instruments will have their cached live data removed:[/bold red]"
+    )
+    for inst in instruments:
+        ticker = inst.get("ticker", "?")
+        name   = inst.get("name") or "—"
+        console.print(f"  [red]•[/red]  {ticker:14s}  {name}")
+    console.print()
+    console.print(
+        "[bold red]Cached prices, names, and market data will need to be "
+        "re-fetched from Yahoo Finance.[/bold red]"
+    )
+    console.print()
+    _flush_console()
+
+    # ── Press Enter to continue (Esc or Ctrl-C cancels) ──────────────────
+    try:
+        input("[Press Enter to continue or Ctrl-C to cancel] ")
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[cyan]Aborted.[/cyan]")
+        _flush_console()
+        return False
+
+    # ── Final confirmation — default is Abort ────────────────────────────
+    answer = Prompt.ask(
+        "\n[bold red]Confirm cache wipe?[/bold red]",
+        choices=["abort", "continue"],
+        default="abort",
+    )
+    _flush_console()
+
+    if answer != "continue":
+        console.print("[cyan]Aborted — cache was NOT cleared.[/cyan]")
+        _flush_console()
+        return False
+
+    return True

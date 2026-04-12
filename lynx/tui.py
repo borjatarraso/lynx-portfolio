@@ -154,12 +154,13 @@ ModalScreen {
 }
 
 #confirm-dialog {
-    width: 60;
+    width: 70;
     height: auto;
-    max-height: 12;
+    max-height: 80%;
     border: thick $accent;
     background: $surface;
     padding: 1 2;
+    overflow-y: auto;
 }
 
 #confirm-dialog Label {
@@ -224,6 +225,65 @@ class ConfirmDialog(ModalScreen[bool]):
 
     def action_confirm(self) -> None:
         self.dismiss(True)
+
+    def action_cancel(self) -> None:
+        self.dismiss(False)
+
+
+# ---------------------------------------------------------------------------
+# Clear-cache confirmation screen (two-step safety)
+# ---------------------------------------------------------------------------
+
+class ClearCacheScreen(ModalScreen[bool]):
+    """
+    Two-step clear-cache confirmation:
+    1. Blinking red warning listing all instruments → Enter to continue, Esc to cancel.
+    2. Abort / Continue buttons — Abort is focused by default.
+    """
+
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel"),
+    ]
+
+    _step: int = 1  # 1 = warning, 2 = confirm
+
+    def compose(self) -> ComposeResult:
+        instruments = database.get_all_instruments()
+        lines = [f"  • {inst.get('ticker', '?'):14s}  {inst.get('name') or '—'}"
+                 for inst in instruments]
+        listing = "\n".join(lines) if lines else "  (no instruments)"
+
+        with Vertical(id="confirm-dialog"):
+            yield Static(
+                "[blink bold red]⚠  WARNING: WIPE ALL CACHED DATA  ⚠[/blink bold red]\n\n"
+                "[bold red]The following instruments will lose cached data:[/bold red]\n"
+                f"{listing}\n\n"
+                "[bold red]Prices and market data will need to be re-fetched.[/bold red]\n\n"
+                "[dim]Press Enter to continue — Esc to cancel[/dim]",
+                id="cache-warning",
+            )
+            with Horizontal(classes="btn-row", id="cache-confirm-btns"):
+                yield Button("Abort", variant="error", id="btn-abort")
+                yield Button("Continue", variant="warning", id="btn-continue")
+
+    def on_mount(self) -> None:
+        # Hide confirm buttons until the user presses Enter on step 1.
+        self.query_one("#cache-confirm-btns").display = False
+
+    def on_key(self, event) -> None:
+        if self._step == 1 and event.key == "enter":
+            event.prevent_default()
+            self._step = 2
+            self.query_one("#cache-warning", Static).update(
+                "[bold red]Confirm: wipe all cached instrument data?[/bold red]\n\n"
+                "[dim]This cannot be undone. Select Abort or Continue.[/dim]"
+            )
+            self.query_one("#cache-confirm-btns").display = True
+            # Focus the Abort button so a quick Enter press does NOT clear.
+            self.query_one("#btn-abort", Button).focus()
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "btn-continue")
 
     def action_cancel(self) -> None:
         self.dismiss(False)
@@ -411,8 +471,17 @@ class PortfolioScreen(Screen):
         self.app.push_screen(ImportScreen(), callback=self._on_form_dismiss)
 
     def action_clear_cache(self) -> None:
-        n = cache.delete()
-        self.notify(f"Cache cleared ({n} entries)", severity="information")
+        self.app.push_screen(
+            ClearCacheScreen(),
+            callback=self._on_clear_cache_result,
+        )
+
+    def _on_clear_cache_result(self, confirmed: bool) -> None:
+        if confirmed:
+            n = cache.delete()
+            self.notify(f"Cache cleared ({n} entries)", severity="information")
+        else:
+            self.notify("Cache clear aborted", severity="warning")
 
     def action_quit_app(self) -> None:
         self.app.exit()
@@ -821,9 +890,192 @@ _MATRIX = Theme(
     text_alpha=0.95,
 )
 
+_MONOCHROME = Theme(
+    name="monochrome",
+    primary="#FFFFFF",
+    secondary="#AAAAAA",
+    warning="#FFFF00",
+    error="#FF4444",
+    success="#00FF00",
+    accent="#CCCCCC",
+    foreground="#E0E0E0",
+    background="#000000",
+    surface="#111111",
+    panel="#1A1A1A",
+    dark=True,
+)
+
+_AMBER_TERMINAL = Theme(
+    name="amber-terminal",
+    primary="#FFB000",        # warm amber (IBM 3278 / VT220)
+    secondary="#CC8800",
+    warning="#FFCC00",
+    error="#FF3300",
+    success="#FFB000",
+    accent="#FF9500",
+    foreground="#FFB000",
+    background="#000000",
+    surface="#0A0800",
+    panel="#1A1200",
+    dark=True,
+)
+
+_PHOSPHOR_BLUE = Theme(
+    name="phosphor-blue",
+    primary="#33BBFF",        # P1 blue phosphor tube
+    secondary="#1177AA",
+    warning="#66DDFF",
+    error="#FF3355",
+    success="#33FFCC",
+    accent="#2299DD",
+    foreground="#33BBFF",
+    background="#000000",
+    surface="#000A12",
+    panel="#001428",
+    dark=True,
+)
+
+_CYBERPUNK = Theme(
+    name="cyberpunk",
+    primary="#FF2A6D",        # neon pink
+    secondary="#05D9E8",      # electric cyan
+    warning="#FFD319",        # neon yellow
+    error="#FF0044",
+    success="#01F9C6",        # neon teal
+    accent="#05D9E8",
+    foreground="#D1F7FF",
+    background="#0D0221",     # deep midnight blue
+    surface="#150535",
+    panel="#1A0A3E",
+    dark=True,
+)
+
+_OCEAN_DEEP = Theme(
+    name="ocean-deep",
+    primary="#0077B6",
+    secondary="#00B4D8",
+    warning="#F9C74F",
+    error="#E63946",
+    success="#2A9D8F",
+    accent="#48CAE4",
+    foreground="#CAF0F8",
+    background="#03071E",
+    surface="#0A1128",
+    panel="#102040",
+    dark=True,
+)
+
+_SUNSET = Theme(
+    name="sunset",
+    primary="#FF6B35",        # warm orange
+    secondary="#F7C59F",      # pale gold
+    warning="#FFE66D",
+    error="#EF476F",
+    success="#06D6A0",
+    accent="#FF9F1C",
+    foreground="#FFF1E6",
+    background="#1A0A00",
+    surface="#2D1810",
+    panel="#3D2015",
+    dark=True,
+)
+
+_ARCTIC = Theme(
+    name="arctic",
+    primary="#B0E0E6",        # powder blue
+    secondary="#87CEEB",
+    warning="#F0E68C",
+    error="#CD5C5C",
+    success="#90EE90",
+    accent="#ADD8E6",
+    foreground="#F0F8FF",     # alice blue
+    background="#0B1929",
+    surface="#0F2233",
+    panel="#162D44",
+    dark=True,
+)
+
+_SYNTHWAVE = Theme(
+    name="synthwave",
+    primary="#E040FB",        # bright magenta
+    secondary="#7C4DFF",      # deep violet
+    warning="#FFD740",
+    error="#FF1744",
+    success="#00E5FF",
+    accent="#EA80FC",
+    foreground="#F3E5F5",
+    background="#0D0015",
+    surface="#1A0029",
+    panel="#2D004D",
+    dark=True,
+)
+
+_FOREST = Theme(
+    name="forest",
+    primary="#4CAF50",        # material green
+    secondary="#81C784",
+    warning="#FFB74D",
+    error="#E57373",
+    success="#66BB6A",
+    accent="#A5D6A7",
+    foreground="#E8F5E9",
+    background="#0A1A0A",
+    surface="#102010",
+    panel="#1A2E1A",
+    dark=True,
+)
+
+_BLOOD_MOON = Theme(
+    name="blood-moon",
+    primary="#C62828",        # deep red
+    secondary="#EF5350",
+    warning="#FF8F00",
+    error="#FF1744",
+    success="#43A047",
+    accent="#FF5252",
+    foreground="#FFCDD2",
+    background="#0A0000",
+    surface="#1A0505",
+    panel="#2D0A0A",
+    dark=True,
+)
+
+_HIGH_CONTRAST = Theme(
+    name="high-contrast",
+    primary="#FFFFFF",
+    secondary="#00FFFF",
+    warning="#FFFF00",
+    error="#FF0000",
+    success="#00FF00",
+    accent="#FF00FF",
+    foreground="#FFFFFF",
+    background="#000000",
+    surface="#000000",
+    panel="#1A1A1A",
+    dark=True,
+    text_alpha=1.0,
+)
+
+_CUSTOM_THEMES = [
+    _MATRIX, _MONOCHROME, _AMBER_TERMINAL, _PHOSPHOR_BLUE, _CYBERPUNK,
+    _OCEAN_DEEP, _SUNSET, _ARCTIC, _SYNTHWAVE, _FOREST, _BLOOD_MOON,
+    _HIGH_CONTRAST,
+]
+
 # Curated list of popular themes shipped with Textual, ordered for cycling.
 _THEME_NAMES = [
     "matrix",
+    "monochrome",
+    "amber-terminal",
+    "phosphor-blue",
+    "cyberpunk",
+    "ocean-deep",
+    "sunset",
+    "arctic",
+    "synthwave",
+    "forest",
+    "blood-moon",
+    "high-contrast",
     "tokyo-night",
     "dracula",
     "monokai",
@@ -861,7 +1113,8 @@ class LynxApp(App):
 
     def on_mount(self) -> None:
         # Register custom themes first, then all built-in ones.
-        self.register_theme(_MATRIX)
+        for t in _CUSTOM_THEMES:
+            self.register_theme(t)
         for name, theme_obj in BUILTIN_THEMES.items():
             self.register_theme(theme_obj)
         # Default to the Matrix theme — green-on-black hacker terminal style.
