@@ -258,8 +258,10 @@ def _cmd_update(ticker: str) -> None:
         return
 
     if kwargs:
-        database.update_instrument(ticker, **kwargs)
-        display.ok(f"Updated {ticker}.")
+        if database.update_instrument(ticker, **kwargs):
+            display.ok(f"Updated {ticker}.")
+        else:
+            display.err(f"'{ticker}' not found.")
     else:
         display.info("Nothing changed.")
 

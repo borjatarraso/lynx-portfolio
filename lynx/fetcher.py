@@ -134,6 +134,8 @@ SUFFIX_INFO[""] = ("NMS", "US Markets", "USD")
 # Helpers
 # ---------------------------------------------------------------------------
 
+_MAX_SENTENCE_LEN = 300
+
 def _first_sentence(text: str) -> str:
     if not text:
         return ""
@@ -141,7 +143,10 @@ def _first_sentence(text: str) -> str:
     sentence = parts[0].strip()
     if not sentence:
         return ""
-    return sentence if sentence.endswith(".") else sentence + "."
+    sentence = sentence if sentence.endswith(".") else sentence + "."
+    if len(sentence) > _MAX_SENTENCE_LEN:
+        sentence = sentence[:_MAX_SENTENCE_LEN - 3] + "..."
+    return sentence
 
 
 def ticker_has_suffix(ticker: str) -> bool:
@@ -266,6 +271,20 @@ def pick_best_market(
 # OpenFIGI fallback
 # ---------------------------------------------------------------------------
 
+ISIN_COUNTRY_TO_FIGI_PREF: Dict[str, Tuple[str, ...]] = {
+    "US": ("US", "UW", "UN"),
+    "CH": ("SW",),
+    "DE": ("GY",),
+    "GB": ("LN",),
+    "FR": ("FP",),
+    "NL": ("NA",),
+    "IT": ("IM",),
+    "ES": ("SM",),
+}
+
+_FIGI_PREF_DEFAULT = ("US", "UW", "UN", "SW", "GY")
+
+
 def _isin_to_ticker_openfigi(isin: str) -> Optional[str]:
     """Use OpenFIGI to map ISIN → ticker as a fallback."""
     try:
@@ -281,10 +300,11 @@ def _isin_to_ticker_openfigi(isin: str) -> Optional[str]:
         if not data or not data[0].get("data"):
             return None
         items = data[0]["data"]
-        # Prefer US equity tickers (exchCode US/UW/UN), then SW, then first
-        for pref in ("SW", "GY", "US", "UW", "UN"):
+        country = isin[:2].upper() if len(isin) >= 2 else ""
+        pref = ISIN_COUNTRY_TO_FIGI_PREF.get(country, _FIGI_PREF_DEFAULT)
+        for code in pref:
             for item in items:
-                if item.get("exchCode") == pref and item.get("ticker"):
+                if item.get("exchCode") == code and item.get("ticker"):
                     return item["ticker"]
         for item in items:
             if item.get("ticker"):
@@ -307,8 +327,8 @@ def fetch_instrument_data(yahoo_symbol: str, isin: Optional[str] = None) -> Opti
         stock = yf.Ticker(yahoo_symbol)
         info  = stock.info or {}
 
-        if not info.get("longName") and not info.get("shortName") \
-                and not info.get("regularMarketPrice"):
+        if not info or (not info.get("longName") and not info.get("shortName")
+                        and not info.get("regularMarketPrice")):
             return None
 
         current_price = (
@@ -378,7 +398,7 @@ def resolve_markets_for_input(
             "exchange_display": exch_info[1],
             "suffix":           suffix,
             "currency":         exch_info[2],
-            "quote_type":       "EQUITY",
+            "quote_type":       "",
             "longname":         "",
             "shortname":        "",
             "sector":           "",

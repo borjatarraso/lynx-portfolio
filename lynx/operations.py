@@ -64,19 +64,6 @@ def add_instrument(
     chosen: Optional[Dict] = None
 
     if not markets:
-        display.warn(
-            "No markets found via Yahoo Finance search. "
-            "Trying OpenFIGI fallback…"
-        )
-        if isin:
-            resolved = fetcher._isin_to_ticker_openfigi(isin)
-            if resolved:
-                display.info(f"OpenFIGI resolved ISIN {isin} → {resolved}")
-                markets, base_ticker = fetcher.resolve_markets_for_input(
-                    resolved, isin
-                )
-
-    if not markets:
         display.err(
             "Could not find any market listing for this instrument. "
             "Check the ticker/ISIN and try again."

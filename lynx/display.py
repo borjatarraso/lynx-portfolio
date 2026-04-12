@@ -23,7 +23,7 @@ def _pnl_markup(pnl: float, pct: float) -> str:
 
 
 def _price_str(value: Optional[float]) -> str:
-    return f"{value:,.4f}" if value is not None else "N/A"
+    return f"{value:,.2f}" if value is not None else "N/A"
 
 
 def _truncate(text: str, width: int) -> str:
@@ -151,6 +151,7 @@ def display_portfolio(instruments: List[Dict]) -> None:
 
     total_invested = 0.0
     total_market   = 0.0
+    missing_prices = 0
 
     for inst, shares_str in zip(instruments, shares_strs):
         shares    = inst.get("shares") or 0.0
@@ -168,7 +169,7 @@ def display_portfolio(instruments: List[Dict]) -> None:
             mkt_str  = f"{mkt_val:,.2f}"
             pnl_str  = _pnl_markup(pnl, pct)
         else:
-            total_market += invested
+            missing_prices += 1
             curr_str = "N/A"
             mkt_str  = "N/A"
             pnl_str  = "[dim]N/A[/dim]"
@@ -203,6 +204,11 @@ def display_portfolio(instruments: List[Dict]) -> None:
         f"Market Value: {total_market:,.2f}  |  "
         f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]"
     )
+    if missing_prices:
+        summary += (
+            f"\n[dim]{missing_prices} position(s) excluded from "
+            f"Market Value / P&L (no price available)[/dim]"
+        )
     console.print(Panel(summary, title="Summary", border_style="cyan", padding=(0, 2)))
 
 

@@ -3,6 +3,7 @@ Cache management helpers.
 Wraps the instrument_cache table and handles TTL logic.
 """
 
+from datetime import datetime
 from typing import Optional, Dict
 from . import database
 
@@ -11,18 +12,16 @@ DEFAULT_TTL = 3600  # 1 hour
 
 def get(ticker: str, max_age: int = DEFAULT_TTL) -> Optional[Dict]:
     """Return cached data if it exists and is within max_age seconds."""
-    age = database.cache_age_seconds(ticker)
-    if age is None or age > max_age:
-        return None
     row = database.cache_get(ticker)
-    if not row:
+    if not row or not row.get("cached_at"):
+        return None
+    cached_at = datetime.fromisoformat(row["cached_at"])
+    age = (datetime.now() - cached_at).total_seconds()
+    if age > max_age:
         return None
     # Re-map 'price' → 'current_price' for uniform interface
     row["current_price"] = row.pop("price", None)
     return row
-
-
-
 
 def put(ticker: str, data: Dict) -> None:
     database.cache_put(ticker, data)
