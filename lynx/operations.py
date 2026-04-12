@@ -32,7 +32,7 @@ def add_instrument(
     ticker: Optional[str],
     isin: Optional[str],
     shares: float,
-    avg_purchase_price: float,
+    avg_purchase_price: Optional[float] = None,
     preferred_exchange: Optional[str] = None,
     market_selector: Optional[Callable[[List[Dict]], Optional[Dict]]] = None,
 ) -> bool:

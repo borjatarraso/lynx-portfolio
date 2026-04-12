@@ -201,45 +201,55 @@ def display_portfolio(instruments: List[Dict]) -> None:
     total_invested_eur = 0.0
     total_market_eur   = 0.0
     missing_prices     = 0
+    untracked_cost     = 0       # positions without avg_purchase_price
     has_eur_gap        = False   # True if any EUR conversion was unavailable
 
     for inst, shares_str in zip(instruments, shares_strs):
         shares    = inst.get("shares") or 0.0
-        avg_price = inst.get("avg_purchase_price") or 0.0
+        avg_price = inst.get("avg_purchase_price")   # may be None
         curr      = inst.get("current_price")
         ccy       = (inst.get("currency") or "EUR").upper()
-        invested  = shares * avg_price
-        total_invested += invested
 
-        invested_eur = forex.to_eur(invested, ccy)
-        if invested_eur is not None:
-            total_invested_eur += invested_eur
+        has_cost = avg_price is not None
+        if has_cost:
+            invested = shares * avg_price
+            total_invested += invested
+            invested_eur = forex.to_eur(invested, ccy)
+            if invested_eur is not None:
+                total_invested_eur += invested_eur
+            else:
+                has_eur_gap = True
         else:
-            has_eur_gap = True
+            untracked_cost += 1
 
         if curr is not None:
             mkt_val = shares * curr
-            pnl     = mkt_val - invested
-            pct     = (pnl / invested * 100) if invested else 0.0
             total_market += mkt_val
             curr_str = f"{curr:,.2f}"
             mkt_str  = f"{mkt_val:,.2f}"
 
+            if has_cost:
+                pnl = mkt_val - invested
+                pct = (pnl / invested * 100) if invested else 0.0
+            else:
+                pnl = None
+                pct = None
+
             if show_eur:
                 mkt_eur = forex.to_eur(mkt_val, ccy)
-                pnl_eur = forex.to_eur(pnl, ccy)
                 if mkt_eur is not None:
                     total_market_eur += mkt_eur
                     eur_mkt_str = f"{mkt_eur:,.2f}"
                 else:
                     has_eur_gap = True
                     eur_mkt_str = "[dim]N/A[/dim]"
-                if pnl_eur is not None:
-                    eur_pnl_str = _pnl_markup(pnl_eur, pct)
+                if pnl is not None:
+                    pnl_eur = forex.to_eur(pnl, ccy)
+                    eur_pnl_str = _pnl_markup(pnl_eur, pct) if pnl_eur is not None else "[dim]N/A[/dim]"
                 else:
-                    eur_pnl_str = "[dim]N/A[/dim]"
+                    eur_pnl_str = "[dim]—[/dim]"
             else:
-                pnl_str = _pnl_markup(pnl, pct)
+                pnl_str = _pnl_markup(pnl, pct) if pnl is not None else "[dim]—[/dim]"
         else:
             missing_prices += 1
             curr_str = "N/A"
@@ -265,7 +275,7 @@ def display_portfolio(instruments: List[Dict]) -> None:
             _truncate(inst.get("name") or "—", name_w),
             _truncate(exch_disp, exch_w),
             shares_str,
-            f"{avg_price:,.2f}",
+            f"{avg_price:,.2f}" if has_cost else "[dim]—[/dim]",
             curr_str,
             inst.get("currency") or "—",
             mkt_str,
@@ -322,6 +332,11 @@ def display_portfolio(instruments: List[Dict]) -> None:
             f"\n[dim]{missing_prices} position(s) excluded from "
             f"Market Value / P&L (no price available)[/dim]"
         )
+    if untracked_cost:
+        summary += (
+            f"\n[dim]{untracked_cost} position(s) without cost basis "
+            f"(not tracked)[/dim]"
+        )
     console.print(Panel(
         summary, title="Summary", border_style="cyan",
         padding=(0, 2), width=panel_width,
@@ -336,10 +351,10 @@ def display_portfolio(instruments: List[Dict]) -> None:
 def display_instrument(inst: Dict) -> None:
     ticker    = inst.get("ticker", "")
     shares    = inst.get("shares") or 0.0
-    avg_price = inst.get("avg_purchase_price") or 0.0
+    avg_price = inst.get("avg_purchase_price")   # may be None
     curr      = inst.get("current_price")
     ccy       = (inst.get("currency") or "EUR").upper()
-    invested  = shares * avg_price
+    has_cost  = avg_price is not None
 
     t = Table(show_header=False, box=box.SIMPLE, padding=(0, 1), expand=False)
     t.add_column("Field", style="bold cyan", width=22)
@@ -360,30 +375,36 @@ def display_instrument(inst: Dict) -> None:
     t.add_row("Sector",               inst.get("sector") or "—")
     t.add_row("Industry",             inst.get("industry") or "—")
     t.add_row("Shares",               _shares_str(shares, qt))
-    t.add_row("Avg Purchase Price",   f"{avg_price:,.2f}")
+    t.add_row("Avg Purchase Price",   f"{avg_price:,.2f}" if has_cost else "[dim]Not tracked[/dim]")
     t.add_row("Current Price",        _price_str(curr))
-    t.add_row("Total Invested",       f"{invested:,.2f}")
 
-    # EUR equivalent for invested (when non-EUR)
-    if ccy != "EUR":
-        invested_eur = forex.to_eur(invested, ccy)
-        if invested_eur is not None:
-            t.add_row("Total Invested (EUR)", f"{invested_eur:,.2f}")
+    if has_cost:
+        invested = shares * avg_price
+        t.add_row("Total Invested", f"{invested:,.2f}")
+        if ccy != "EUR":
+            invested_eur = forex.to_eur(invested, ccy)
+            if invested_eur is not None:
+                t.add_row("Total Invested (EUR)", f"{invested_eur:,.2f}")
+    else:
+        t.add_row("Total Invested", "[dim]Not tracked[/dim]")
 
     if curr is not None:
         mkt_val = shares * curr
-        pnl     = mkt_val - invested
-        pct     = (pnl / invested * 100) if invested else 0.0
         t.add_row("Market Value", f"{mkt_val:,.2f}")
         if ccy != "EUR":
             mkt_eur = forex.to_eur(mkt_val, ccy)
             if mkt_eur is not None:
                 t.add_row("Market Value (EUR)", f"{mkt_eur:,.2f}")
-        t.add_row("P&L", _pnl_markup(pnl, pct))
-        if ccy != "EUR":
-            pnl_eur = forex.to_eur(pnl, ccy)
-            if pnl_eur is not None:
-                t.add_row("P&L (EUR)", _pnl_markup(pnl_eur, pct))
+        if has_cost:
+            pnl = mkt_val - invested
+            pct = (pnl / invested * 100) if invested else 0.0
+            t.add_row("P&L", _pnl_markup(pnl, pct))
+            if ccy != "EUR":
+                pnl_eur = forex.to_eur(pnl, ccy)
+                if pnl_eur is not None:
+                    t.add_row("P&L (EUR)", _pnl_markup(pnl_eur, pct))
+        else:
+            t.add_row("P&L", "[dim]Not tracked[/dim]")
 
     if inst.get("description"):
         t.add_row("Description", inst["description"])
@@ -415,8 +436,6 @@ def confirm_clear_cache(instruments: List[Dict]) -> bool:
     to press Enter to continue, then require explicit confirmation (default is
     Abort).  Returns True only if the user confirms.
     """
-    from rich.prompt import Prompt
-
     if not instruments:
         console.print("[yellow]Cache is empty — nothing to clear.[/yellow]")
         _flush_console()
@@ -452,12 +471,9 @@ def confirm_clear_cache(instruments: List[Dict]) -> bool:
         return False
 
     # ── Final confirmation — default is Abort ────────────────────────────
-    answer = Prompt.ask(
-        "\n[bold red]Confirm cache wipe?[/bold red]",
-        choices=["abort", "continue"],
-        default="abort",
-    )
+    console.print("\n[bold red]Confirm cache wipe?[/bold red]  (abort/continue, default: abort)")
     _flush_console()
+    answer = input("> ").strip().lower()
 
     if answer != "continue":
         console.print("[cyan]Aborted — cache was NOT cleared.[/cyan]")

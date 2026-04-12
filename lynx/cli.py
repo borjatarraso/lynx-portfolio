@@ -132,17 +132,18 @@ def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
         shares    = entry.get("shares")
         avg_price = entry.get("avg_price")
 
-        if not ticker or shares is None or avg_price is None:
+        if not ticker or shares is None:
             display.warn(
                 f"  [{i}/{total}] Skipping entry — "
-                f"'ticker', 'shares', and 'avg_price' are required."
+                f"'ticker' and 'shares' are required."
             )
             skipped += 1
             continue
 
         try:
             shares    = float(shares)
-            avg_price = float(avg_price)
+            if avg_price is not None:
+                avg_price = float(avg_price)
         except (TypeError, ValueError):
             display.warn(f"  [{i}/{total}] Skipping '{ticker}' — invalid number.")
             skipped += 1
@@ -280,8 +281,9 @@ examples:
     p_add.add_argument("--exchange", "-e",
                        help="Preferred exchange suffix (e.g. SW, DE, PA, AS, MI, L)")
     p_add.add_argument("--shares",    "-s", type=float, required=True, help="Number of shares held")
-    p_add.add_argument("--avg-price", "-p", type=float, required=True,
-                       dest="avg_price", help="Average purchase price per share")
+    p_add.add_argument("--avg-price", "-p", type=float,
+                       dest="avg_price",
+                       help="Average purchase price per share (omit to skip cost tracking)")
 
     # import
     p_imp = sub.add_parser(
@@ -289,8 +291,8 @@ examples:
         help="Bulk-add instruments from a JSON file",
         description=(
             "Import instruments from a JSON file.  The file must contain an array "
-            "of objects with at least 'ticker', 'shares', and 'avg_price'.  "
-            "Optional fields: 'isin', 'exchange'."
+            "of objects with at least 'ticker' and 'shares'.  "
+            "Optional fields: 'avg_price', 'isin', 'exchange'."
         ),
     )
     p_imp.add_argument(
@@ -452,12 +454,14 @@ def run() -> None:
             else:
                 display.err(f"'{ticker}' not found.")
         else:
-            from rich.prompt import Confirm
             inst = database.get_instrument(ticker)
             if not inst:
                 display.err(f"'{ticker}' not found.")
                 return
-            if Confirm.ask(f"Delete [bold]{ticker}[/bold] from portfolio?", default=False):
+            display.console.print(f"Delete [bold]{ticker}[/bold] from portfolio? [y/N]")
+            sys.stdout.flush()
+            answer = input("> ").strip().lower()
+            if answer in ("y", "yes"):
                 database.delete_instrument(ticker)
                 display.ok(f"Deleted {ticker}.")
 

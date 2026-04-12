@@ -345,25 +345,34 @@ class PortfolioScreen(Screen):
 
         for inst in instruments:
             shares    = inst.get("shares") or 0.0
-            avg_price = inst.get("avg_purchase_price") or 0.0
+            avg_price = inst.get("avg_purchase_price")   # may be None
             curr      = inst.get("current_price")
             ccy       = (inst.get("currency") or "EUR").upper()
-            invested  = shares * avg_price
+            has_cost  = avg_price is not None
             qt        = inst.get("quote_type")
             shares_s  = _shares_str(shares, qt)
 
             if curr is not None:
                 mkt_val = shares * curr
-                pnl     = mkt_val - invested
-                pct     = (pnl / invested * 100) if invested else 0.0
                 curr_s  = f"{curr:,.2f}"
                 mkt_s   = f"{mkt_val:,.2f}"
-                pnl_s   = _pnl_text(pnl, pct)
+                if has_cost:
+                    invested = shares * avg_price
+                    pnl = mkt_val - invested
+                    pct = (pnl / invested * 100) if invested else 0.0
+                    pnl_s = _pnl_text(pnl, pct)
+                else:
+                    pnl = None
+                    pct = None
+                    pnl_s = "—"
                 if self._show_eur:
                     mkt_eur = forex.to_eur(mkt_val, ccy)
-                    pnl_eur = forex.to_eur(pnl, ccy)
                     eur_mkt_s = f"{mkt_eur:,.2f}" if mkt_eur is not None else "N/A"
-                    eur_pnl_s = _pnl_text(pnl_eur, pct) if pnl_eur is not None else "N/A"
+                    if pnl is not None:
+                        pnl_eur = forex.to_eur(pnl, ccy)
+                        eur_pnl_s = _pnl_text(pnl_eur, pct) if pnl_eur is not None else "N/A"
+                    else:
+                        eur_pnl_s = "—"
             else:
                 curr_s = "N/A"
                 mkt_s  = "N/A"
@@ -384,7 +393,7 @@ class PortfolioScreen(Screen):
                 (inst.get("name") or "—")[:36],
                 exch[:24],
                 shares_s,
-                f"{avg_price:,.2f}",
+                f"{avg_price:,.2f}" if has_cost else "—",
                 curr_s,
                 inst.get("currency") or "—",
                 mkt_s,
@@ -521,9 +530,9 @@ class DetailScreen(Screen):
             return
 
         shares    = inst.get("shares") or 0.0
-        avg_price = inst.get("avg_purchase_price") or 0.0
+        avg_price = inst.get("avg_purchase_price")   # may be None
         curr      = inst.get("current_price")
-        invested  = shares * avg_price
+        has_cost  = avg_price is not None
         qt        = inst.get("quote_type")
 
         exch = (
@@ -547,32 +556,39 @@ class DetailScreen(Screen):
             f"  [bold cyan]Sector[/bold cyan]              {inst.get('sector') or '—'}",
             f"  [bold cyan]Industry[/bold cyan]            {inst.get('industry') or '—'}",
             f"  [bold cyan]Shares[/bold cyan]              {_shares_str(shares, qt)}",
-            f"  [bold cyan]Avg Purchase Price[/bold cyan]  {avg_price:,.2f}",
+            f"  [bold cyan]Avg Purchase Price[/bold cyan]  {avg_price:,.2f}" if has_cost else f"  [bold cyan]Avg Purchase Price[/bold cyan]  [dim]Not tracked[/dim]",
             f"  [bold cyan]Current Price[/bold cyan]       {curr:,.2f}" if curr is not None else f"  [bold cyan]Current Price[/bold cyan]       N/A",
-            f"  [bold cyan]Total Invested[/bold cyan]      {invested:,.2f}",
         ]
 
-        if ccy != "EUR":
-            inv_eur = forex.to_eur(invested, ccy)
-            if inv_eur is not None:
-                lines.append(f"  [bold cyan]Total Invested (EUR)[/bold cyan] {inv_eur:,.2f}")
+        if has_cost:
+            invested = shares * avg_price
+            lines.append(f"  [bold cyan]Total Invested[/bold cyan]      {invested:,.2f}")
+            if ccy != "EUR":
+                inv_eur = forex.to_eur(invested, ccy)
+                if inv_eur is not None:
+                    lines.append(f"  [bold cyan]Total Invested (EUR)[/bold cyan] {inv_eur:,.2f}")
+        else:
+            lines.append(f"  [bold cyan]Total Invested[/bold cyan]      [dim]Not tracked[/dim]")
 
         if curr is not None:
             mkt_val = shares * curr
-            pnl     = mkt_val - invested
-            pct     = (pnl / invested * 100) if invested else 0.0
-            color   = "green" if pnl >= 0 else "red"
-            sign    = "+" if pnl >= 0 else ""
             lines.append(f"  [bold cyan]Market Value[/bold cyan]        {mkt_val:,.2f}")
             if ccy != "EUR":
                 mkt_eur = forex.to_eur(mkt_val, ccy)
                 if mkt_eur is not None:
                     lines.append(f"  [bold cyan]Market Value (EUR)[/bold cyan]  {mkt_eur:,.2f}")
-            lines.append(f"  [bold cyan]P&L[/bold cyan]                 [{color}]{sign}{pnl:,.2f} ({sign}{pct:.2f}%)[/{color}]")
-            if ccy != "EUR":
-                pnl_eur = forex.to_eur(pnl, ccy)
-                if pnl_eur is not None:
-                    lines.append(f"  [bold cyan]P&L (EUR)[/bold cyan]           [{color}]{sign}{pnl_eur:,.2f} ({sign}{pct:.2f}%)[/{color}]")
+            if has_cost:
+                pnl   = mkt_val - invested
+                pct   = (pnl / invested * 100) if invested else 0.0
+                color = "green" if pnl >= 0 else "red"
+                sign  = "+" if pnl >= 0 else ""
+                lines.append(f"  [bold cyan]P&L[/bold cyan]                 [{color}]{sign}{pnl:,.2f} ({sign}{pct:.2f}%)[/{color}]")
+                if ccy != "EUR":
+                    pnl_eur = forex.to_eur(pnl, ccy)
+                    if pnl_eur is not None:
+                        lines.append(f"  [bold cyan]P&L (EUR)[/bold cyan]           [{color}]{sign}{pnl_eur:,.2f} ({sign}{pct:.2f}%)[/{color}]")
+            else:
+                lines.append(f"  [bold cyan]P&L[/bold cyan]                 [dim]Not tracked[/dim]")
 
         if inst.get("description"):
             lines.append(f"  [bold cyan]Description[/bold cyan]         {inst['description']}")
@@ -610,8 +626,8 @@ class AddScreen(Screen):
             yield Input(placeholder="Exchange suffix", id="inp-exchange")
             yield Label("Number of shares")
             yield Input(placeholder="e.g. 10", id="inp-shares", type="number")
-            yield Label("Average purchase price")
-            yield Input(placeholder="e.g. 150.00", id="inp-avgprice", type="number")
+            yield Label("Average purchase price  [dim](leave empty to skip cost tracking)[/dim]")
+            yield Input(placeholder="e.g. 150.00 (optional)", id="inp-avgprice", type="number")
             with Horizontal(classes="btn-row"):
                 yield Button("Add", variant="success", id="btn-add")
                 yield Button("Cancel", variant="error", id="btn-cancel")
@@ -639,7 +655,7 @@ class AddScreen(Screen):
 
         try:
             shares    = float(shares_s)
-            avg_price = float(price_s)
+            avg_price = float(price_s) if price_s else None
         except ValueError:
             self.query_one("#add-status", Static).update(
                 "[bold red]Invalid number for shares or price.[/bold red]"
@@ -698,19 +714,20 @@ class EditScreen(Screen):
     def compose(self) -> ComposeResult:
         inst = database.get_instrument(self._ticker) or {}
         cur_shares = inst.get("shares", 0.0)
-        cur_price  = inst.get("avg_purchase_price", 0.0)
+        cur_price  = inst.get("avg_purchase_price")   # may be None
+        price_disp = f"{cur_price:,.2f}" if cur_price is not None else "Not tracked"
 
         yield Header(show_clock=True)
         with VerticalScroll(classes="form-container"):
             yield Static(
                 f"[bold cyan]Update {self._ticker}[/bold cyan]\n"
-                f"  Current shares: {cur_shares}  |  Current avg price: {cur_price:,.2f}\n",
+                f"  Current shares: {cur_shares}  |  Current avg price: {price_disp}\n",
                 classes="msg-info",
             )
             yield Label("New shares  [dim](leave empty to keep)[/dim]")
             yield Input(placeholder=str(cur_shares), id="inp-shares", type="number")
             yield Label("New average price  [dim](leave empty to keep)[/dim]")
-            yield Input(placeholder=f"{cur_price:,.2f}", id="inp-price", type="number")
+            yield Input(placeholder=price_disp, id="inp-price", type="number")
             with Horizontal(classes="btn-row"):
                 yield Button("Update", variant="success", id="btn-update")
                 yield Button("Cancel", variant="error", id="btn-cancel")

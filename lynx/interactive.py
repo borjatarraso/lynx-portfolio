@@ -5,7 +5,6 @@ Interactive REPL mode for Lynx Portfolio.
 import sys
 from typing import Optional, List, Dict
 
-from rich.prompt import Prompt, Confirm
 from rich.table import Table
 from rich import box
 
@@ -21,31 +20,66 @@ from .operations import add_instrument, refresh_instrument, refresh_all
 try:
     import readline as _rl
     _rl.set_history_length(500)
-    # Emacs editing mode: ← / → move within the input line, ↑ / ↓ navigate
-    # history.  The cursor can never move past the prompt boundary — readline
-    # manages the input buffer independently from the prompt string.
     _rl.parse_and_bind("set editing-mode emacs")
-    # Disable horizontal scroll: if the line is longer than the terminal it
-    # wraps to the next screen row instead of scrolling the prompt away.
     _rl.parse_and_bind("set horizontal-scroll-mode off")
     _HAS_READLINE = True
 except ImportError:           # Windows without pyreadline
     _HAS_READLINE = False
 
-# ANSI bold-cyan matches the Rich [bold cyan] style used elsewhere.
-# \001 / \002 are readline's RL_PROMPT_START_IGNORE / RL_PROMPT_END_IGNORE
-# markers. Without them readline miscounts the visible width of the prompt
-# and arrow-key navigation corrupts the display.
+# \001 / \002 = readline's RL_PROMPT_START_IGNORE / RL_PROMPT_END_IGNORE.
 _REPL_PROMPT = "\n\001\033[1;36m\002lynx>\001\033[0m\002 "
 
 
-def _read_command() -> str:
-    """Read one REPL line with readline history support (↑/↓ arrows)."""
-    # Flush stdout so any pending Rich output (ANSI codes, tables) is fully
-    # written before readline takes control of the terminal.  Without this,
-    # residual ANSI state from Rich can confuse readline's cursor tracking.
+def _flush() -> None:
     sys.stdout.flush()
+
+
+def _read_command() -> str:
+    """Read one REPL line with readline history support."""
+    _flush()
     return input(_REPL_PROMPT).strip()
+
+
+def _ask(label: str, default: str = "") -> str:
+    """
+    Print *label* via Rich (supports markup), then read input on a
+    separate line using a plain '> ' prompt.  This keeps the question
+    text immune to backspace / arrow-key corruption because only the
+    '> ' prompt line is editable — readline never touches the label.
+    """
+    _flush()
+    display.console.print(label)
+    _flush()
+    suffix = f" [{default}]" if default else ""
+    raw = input(f"  \001\033[36m\002>\001\033[0m\002{suffix} ").strip()
+    return raw if raw else default
+
+
+def _ask_float(label: str, required: bool = True) -> Optional[float]:
+    """
+    Ask for a numeric value.  When *required* is False, an empty answer
+    returns None.  On invalid input returns the sentinel string 'INVALID'
+    so callers can distinguish "empty = None" from "garbage".
+    """
+    raw = _ask(label, default="" if required else "")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        return "INVALID"          # type: ignore[return-value]
+
+
+def _confirm(label: str, default: bool = False) -> bool:
+    """Yes/No confirmation using plain input (no Rich Prompt)."""
+    _flush()
+    hint = "[Y/n]" if default else "[y/N]"
+    display.console.print(label)
+    _flush()
+    raw = input(f"  \001\033[36m\002>\001\033[0m\002 {hint} ").strip().lower()
+    if not raw:
+        return default
+    return raw in ("y", "yes")
 
 
 _HELP = """
@@ -179,12 +213,14 @@ def _prompt_market_selection(markets: List[Dict]) -> Optional[Dict]:
 
     display.console.print(t)
 
-    choices = [str(i) for i in range(1, len(markets) + 1)] + ["0"]
-    answer  = Prompt.ask(
-        "Select market number  [dim][0 to cancel][/dim]",
-        choices=choices,
-        show_choices=False,
-    )
+    valid = set(str(i) for i in range(len(markets) + 1))
+    while True:
+        answer = _ask(
+            f"Select market number [dim](1–{len(markets)}, 0 to cancel)[/dim]"
+        )
+        if answer in valid:
+            break
+        display.warn(f"Enter a number between 0 and {len(markets)}.")
     if answer == "0":
         return None
     return markets[int(answer) - 1]
@@ -197,23 +233,26 @@ def _prompt_market_selection(markets: List[Dict]) -> Optional[Dict]:
 def _cmd_add() -> None:
     display.console.print("\n[bold]Add New Instrument[/bold]")
 
-    ticker = Prompt.ask(
-        "Ticker  [dim](e.g. AAPL, NESN.SW, VWCE.DE — include exchange suffix if known)[/dim]\n"
-        "  [dim][Enter to skip if using ISIN][/dim]",
-        default="",
-    ).strip()
-    isin = Prompt.ask(
-        "ISIN  [dim][Enter to skip][/dim]", default=""
-    ).strip()
+    ticker = _ask(
+        "Ticker [dim](e.g. AAPL, NESN.SW, VWCE.DE — include exchange suffix "
+        "if known, Enter to skip if using ISIN)[/dim]"
+    )
+    isin = _ask("ISIN [dim](Enter to skip)[/dim]")
 
     if not ticker and not isin:
         display.err("You must provide at least a ticker or an ISIN.")
         return
 
-    try:
-        shares    = float(Prompt.ask("Number of shares"))
-        avg_price = float(Prompt.ask("Average purchase price"))
-    except ValueError:
+    shares = _ask_float("Number of shares")
+    if shares is None or shares == "INVALID":
+        display.err("Invalid number. Operation cancelled.")
+        return
+
+    avg_price = _ask_float(
+        "Average purchase price [dim](Enter to skip — position won't track cost/P&L)[/dim]",
+        required=False,
+    )
+    if avg_price == "INVALID":
         display.err("Invalid number. Operation cancelled.")
         return
 
@@ -239,7 +278,7 @@ def _cmd_delete(ticker: str) -> None:
     if not inst:
         display.err(f"'{ticker}' not found in portfolio.")
         return
-    if Confirm.ask(f"Delete [bold]{ticker}[/bold] from portfolio?", default=False):
+    if _confirm(f"Delete [bold]{ticker}[/bold] from portfolio?"):
         if database.delete_instrument(ticker):
             display.ok(f"Deleted {ticker}.")
         else:
@@ -252,17 +291,15 @@ def _cmd_update(ticker: str) -> None:
         display.err(f"'{ticker}' not found in portfolio.")
         return
 
+    cur_price = inst.get("avg_purchase_price")
+    price_disp = f"{cur_price:,.2f}" if cur_price is not None else "not tracked"
     display.console.print(
         f"\n[bold]Update {ticker}[/bold]  "
-        f"(shares: {inst['shares']}, avg price: {inst['avg_purchase_price']})"
+        f"(shares: {inst['shares']}, avg price: {price_disp})"
     )
 
-    raw_shares = Prompt.ask(
-        "New shares  [dim][Enter to keep][/dim]", default=""
-    ).strip()
-    raw_price  = Prompt.ask(
-        "New avg price  [dim][Enter to keep][/dim]", default=""
-    ).strip()
+    raw_shares = _ask("New shares [dim](Enter to keep)[/dim]")
+    raw_price  = _ask("New avg price [dim](Enter to keep)[/dim]")
 
     kwargs: dict = {}
     try:

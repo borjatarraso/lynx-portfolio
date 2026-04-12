@@ -57,7 +57,7 @@ def init_db() -> None:
             ticker             TEXT NOT NULL,
             name               TEXT,
             shares             REAL NOT NULL,
-            avg_purchase_price REAL NOT NULL,
+            avg_purchase_price REAL,
             current_price      REAL,
             currency           TEXT,
             sector             TEXT,
@@ -113,6 +113,36 @@ def init_db() -> None:
                 f"ALTER TABLE instrument_cache ADD COLUMN {col} {definition}"
             )
 
+    # Migration: allow NULL in avg_purchase_price for existing databases.
+    # SQLite doesn't support ALTER COLUMN, so we rebuild the table if needed.
+    for col_info in conn.execute("PRAGMA table_info(portfolio)").fetchall():
+        if col_info[1] == "avg_purchase_price" and col_info[3] == 1:  # notnull=1
+            conn.executescript("""
+                CREATE TABLE portfolio_new (
+                    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                    isin               TEXT,
+                    ticker             TEXT NOT NULL,
+                    name               TEXT,
+                    shares             REAL NOT NULL,
+                    avg_purchase_price REAL,
+                    current_price      REAL,
+                    currency           TEXT,
+                    sector             TEXT,
+                    industry           TEXT,
+                    description        TEXT,
+                    exchange_code      TEXT,
+                    exchange_display   TEXT,
+                    quote_type         TEXT,
+                    created_at         TEXT DEFAULT (datetime('now')),
+                    updated_at         TEXT DEFAULT (datetime('now'))
+                );
+                INSERT INTO portfolio_new SELECT * FROM portfolio;
+                DROP TABLE portfolio;
+                ALTER TABLE portfolio_new RENAME TO portfolio;
+                CREATE UNIQUE INDEX idx_portfolio_ticker ON portfolio(ticker);
+            """)
+            break
+
     conn.commit()
     conn.close()
 
@@ -120,7 +150,7 @@ def init_db() -> None:
 def add_instrument(
     ticker: str,
     shares: float,
-    avg_purchase_price: float,
+    avg_purchase_price: Optional[float] = None,
     isin: Optional[str] = None,
     name: Optional[str] = None,
     current_price: Optional[float] = None,
