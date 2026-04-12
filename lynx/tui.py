@@ -321,8 +321,8 @@ class PortfolioScreen(Screen):
             row = [
                 inst.get("ticker") or "",
                 inst.get("isin") or "—",
-                (inst.get("name") or "—")[:30],
-                exch[:20],
+                (inst.get("name") or "—")[:36],
+                exch[:24],
                 shares_s,
                 f"{avg_price:,.2f}",
                 curr_s,

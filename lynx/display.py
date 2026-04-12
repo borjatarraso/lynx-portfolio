@@ -173,13 +173,13 @@ def display_portfolio(instruments: List[Dict]) -> None:
     if show_eur:
         table.add_column("Ticker",     style="bold white", width=10,  no_wrap=True)
         table.add_column("ISIN",                           width=13,  no_wrap=True)
-        table.add_column("Name",                           width=18)
-        table.add_column("Exchange",                       width=12)
+        table.add_column("Name",                           width=26)
+        table.add_column("Exchange",                       width=18)
     else:
         table.add_column("Ticker",     style="bold white", width=12,  no_wrap=True)
         table.add_column("ISIN",                           width=14,  no_wrap=True)
-        table.add_column("Name",                           width=26)
-        table.add_column("Exchange",                       width=16)
+        table.add_column("Name",                           width=30)
+        table.add_column("Exchange",                       width=20)
 
     # justify="left"  → preserves leading spaces that carry alignment.
     # min_width       → prevents Rich from collapsing the column below content width.
@@ -256,8 +256,8 @@ def display_portfolio(instruments: List[Dict]) -> None:
             or "—"
         )
 
-        name_w = 18 if show_eur else 26
-        exch_w = 12 if show_eur else 16
+        name_w = 26 if show_eur else 30
+        exch_w = 18 if show_eur else 20
 
         row = [
             inst.get("ticker") or "",
