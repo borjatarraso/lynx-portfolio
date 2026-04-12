@@ -1,9 +1,46 @@
 """
-Core portfolio operations shared between interactive and non-interactive modes.
+Core portfolio operations shared between interactive, non-interactive, TUI,
+and API modes.
 """
 
 from typing import Optional, List, Dict, Callable
-from . import database, cache, fetcher, display
+from . import database, cache, fetcher
+
+
+# ---------------------------------------------------------------------------
+# Notifier abstraction — decouples operations from display
+# ---------------------------------------------------------------------------
+
+class Notifier:
+    """Base notifier — all methods are no-ops.  Override to customise."""
+    def info(self, msg: str) -> None: pass
+    def ok(self, msg: str) -> None: pass
+    def err(self, msg: str) -> None: pass
+    def warn(self, msg: str) -> None: pass
+    def show_instrument(self, inst: dict) -> None: pass
+
+
+class DisplayNotifier(Notifier):
+    """Default notifier — delegates to the Rich display module."""
+    def info(self, msg: str) -> None:
+        from . import display; _notifier.info(msg)
+    def ok(self, msg: str) -> None:
+        from . import display; _notifier.ok(msg)
+    def err(self, msg: str) -> None:
+        from . import display; _notifier.err(msg)
+    def warn(self, msg: str) -> None:
+        from . import display; _notifier.warn(msg)
+    def show_instrument(self, inst: dict) -> None:
+        from . import display; _notifier.show_instrument(inst)
+
+
+_notifier: Notifier = DisplayNotifier()
+
+
+def set_notifier(n: Notifier) -> None:
+    """Replace the global notifier (e.g. for headless API mode)."""
+    global _notifier
+    _notifier = n
 
 
 # ---------------------------------------------------------------------------
@@ -15,9 +52,9 @@ def _fetch_with_cache(
 ) -> Optional[dict]:
     cached = cache.get(yahoo_symbol)
     if cached:
-        display.info(f"Using cached data for {yahoo_symbol}")
+        _notifier.info(f"Using cached data for {yahoo_symbol}")
         return cached
-    display.info(f"Fetching data for {yahoo_symbol} from Yahoo Finance…")
+    _notifier.info(f"Fetching data for {yahoo_symbol} from Yahoo Finance…")
     data = fetcher.fetch_instrument_data(yahoo_symbol, isin)
     if data:
         cache.put(yahoo_symbol, data)
@@ -54,7 +91,7 @@ def add_instrument(
     Returns True on success.
     """
     if not ticker and not isin:
-        display.err("Provide at least --ticker or --isin.")
+        _notifier.err("Provide at least --ticker or --isin.")
         return False
 
     # 1 ─ Resolve all available markets
@@ -64,7 +101,7 @@ def add_instrument(
     chosen: Optional[Dict] = None
 
     if not markets:
-        display.err(
+        _notifier.err(
             "Could not find any market listing for this instrument. "
             "Check the ticker/ISIN and try again."
         )
@@ -75,13 +112,13 @@ def add_instrument(
     elif market_selector is not None:
         chosen = market_selector(markets)
         if chosen is None:
-            display.info("Cancelled.")
+            _notifier.info("Cancelled.")
             return False
     else:
         chosen = fetcher.pick_best_market(markets, isin, preferred_exchange)
 
     yahoo_symbol = chosen["symbol"]
-    display.info(
+    _notifier.info(
         f"Using {yahoo_symbol}  ({chosen['exchange_display'] or chosen['exchange_code']})"
     )
 
@@ -104,7 +141,7 @@ def add_instrument(
         frac = shares - int(shares)
         if abs(frac) > 1e-9:
             rounded = round(shares)
-            display.warn(
+            _notifier.warn(
                 f"Stocks cannot have fractional shares "
                 f"({shares} → rounded to {rounded})."
             )
@@ -128,13 +165,13 @@ def add_instrument(
     )
 
     if success:
-        display.ok(f"Added {yahoo_symbol} to portfolio.")
+        _notifier.ok(f"Added {yahoo_symbol} to portfolio.")
         inst = database.get_instrument(yahoo_symbol)
         if inst:
-            display.display_instrument(inst)
+            _notifier.show_instrument(inst)
         return True
     else:
-        display.err(
+        _notifier.err(
             f"{yahoo_symbol} already exists. Use 'update' to change shares/price."
         )
         return False
@@ -149,21 +186,21 @@ def refresh_instrument(ticker: str) -> bool:
     isin = inst.get("isin") if inst else None
 
     cache.delete(ticker)
-    display.info(f"Refreshing {ticker}…")
+    _notifier.info(f"Refreshing {ticker}…")
     data = fetcher.fetch_instrument_data(ticker, isin)
     if not data:
-        display.err(f"Failed to fetch data for {ticker}.")
+        _notifier.err(f"Failed to fetch data for {ticker}.")
         return False
     cache.put(ticker, data)
     database.apply_cache_to_portfolio(ticker, data)
-    display.ok(f"Refreshed {ticker}.")
+    _notifier.ok(f"Refreshed {ticker}.")
     return True
 
 
 def refresh_all() -> None:
     instruments = database.get_all_instruments()
     if not instruments:
-        display.info("Portfolio is empty.")
+        _notifier.info("Portfolio is empty.")
         return
     for inst in instruments:
         refresh_instrument(inst["ticker"])

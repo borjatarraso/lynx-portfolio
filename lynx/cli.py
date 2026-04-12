@@ -247,6 +247,11 @@ examples:
     imode.add_argument("-i",  "--interactive",     action="store_true", help="Interactive REPL mode")
     imode.add_argument("-ni", "--non-interactive",  action="store_true", help="Non-interactive (command) mode")
     imode.add_argument("-tui", "--textual-ui",       action="store_true", dest="textual_ui", help="Full-screen TUI mode (keyboard-driven)")
+    imode.add_argument("--api",                      action="store_true", help="Start the REST API server")
+
+    # API options ──────────────────────────────────────────────────────────
+    parser.add_argument("--port", type=int, default=5000,
+                        help="Port for the API server (default: 5000)")
 
     # Bulk import ──────────────────────────────────────────────────────────────
     parser.add_argument(
@@ -410,6 +415,12 @@ def run() -> None:
             return
 
     # ── mode ─────────────────────────────────────────────────────────────
+    if getattr(args, "api", False):
+        from .api import run_api_server
+        display.info(f"Starting REST API on port {args.port}…")
+        run_api_server(port=args.port)
+        return
+
     if args.textual_ui:
         from .tui import LynxApp
         LynxApp().run()
