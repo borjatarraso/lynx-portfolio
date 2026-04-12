@@ -2,7 +2,10 @@
 CLI entry point: argument parsing, subcommand dispatch, auto-refresh thread.
 """
 
+import atexit
+import os
 import sys
+import tempfile
 import threading
 import time
 from typing import List
@@ -41,6 +44,42 @@ def _preprocess_argv(argv: List[str]) -> List[str]:
 
 
 # ---------------------------------------------------------------------------
+# Run-mode setup  (devel / production)
+# ---------------------------------------------------------------------------
+
+def _setup_devel_mode() -> None:
+    """
+    Switch to a fresh temporary SQLite file for this process.
+    The file is deleted automatically when the process exits.
+    """
+    fd, tmp_path = tempfile.mkstemp(suffix=".db", prefix="lynx_devel_")
+    os.close(fd)
+    atexit.register(_cleanup_devel_db, tmp_path)
+    database.DB_PATH = tmp_path
+
+    display.console.print(
+        "[bold yellow]⚠  DEVEL MODE[/bold yellow]  —  "
+        "using a temporary, empty database.  "
+        "[dim]No data will be persisted after this session.[/dim]"
+    )
+
+
+def _cleanup_devel_db(path: str) -> None:
+    for suffix in ("", "-shm", "-wal"):
+        try:
+            os.unlink(path + suffix)
+        except FileNotFoundError:
+            pass
+
+
+def _setup_production_mode() -> None:
+    display.console.print(
+        "[bold green]✔  PRODUCTION MODE[/bold green]  —  "
+        f"using persistent database at [cyan]{database.DB_PATH}[/cyan]"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
 
@@ -52,33 +91,49 @@ def _build_parser():
         description=f"{APP_NAME} — Investment Portfolio Manager",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=r"""
+run modes (default: --devel-mode):
+  --devel-mode        fresh empty DB every run, nothing persisted (for testing)
+  --production-mode   persistent DB at ~/.lynx/portfolio.db
+
 examples:
-  lynx -i                                          interactive mode
-  lynx -ni add --ticker AAPL --shares 10 --avg-price 172.50
-  lynx -ni add --isin US0231351067 --shares 5 --avg-price 3200
-  lynx -ni list
-  lynx -ni show --ticker AAPL
-  lynx -ni update --ticker AAPL --shares 15
-  lynx -ni delete --ticker AAPL
-  lynx -ni refresh --ticker AAPL
-  lynx -ni refresh
-  lynx -rc                                         refresh all cache
-  lynx -dc                                         delete all cache
-  lynx -arc=300 -i                                 interactive + auto-refresh every 5 min
+  lynx --production-mode -i
+  lynx --production-mode -ni add --ticker NESN.SW --shares 50 --avg-price 110
+  lynx --production-mode -ni add --isin CH0038863350 --shares 50 --avg-price 110
+  lynx --production-mode -ni add --isin IE00B4L5Y983 --shares 15 --avg-price 70 --exchange AS
+  lynx --production-mode -ni list
+  lynx --production-mode -ni show --ticker NESN.SW
+  lynx --production-mode -ni update --ticker AAPL --shares 15
+  lynx --production-mode -ni delete --ticker AAPL
+  lynx --production-mode -ni refresh --ticker AAPL
+  lynx --production-mode -ni refresh
+  lynx --production-mode -rc
+  lynx --production-mode -dc
+  lynx --production-mode -arc=300 -i
 """,
     )
 
     parser.add_argument("-v", "--version", action="version", version=f"{APP_NAME} {VERSION}")
 
-    # Mode
-    mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("-i",  "--interactive",     action="store_true", help="Interactive mode")
-    mode.add_argument("-ni", "--non-interactive",  action="store_true", help="Non-interactive (command) mode")
+    # Run-mode (devel vs production) ─────────────────────────────────────────
+    run_mode = parser.add_mutually_exclusive_group()
+    run_mode.add_argument(
+        "--devel-mode", action="store_true", dest="devel_mode",
+        help="Use a temporary empty database (default). Nothing is persisted.",
+    )
+    run_mode.add_argument(
+        "--production-mode", action="store_true", dest="production_mode",
+        help="Use the persistent database at ~/.lynx/portfolio.db.",
+    )
 
-    # Cache control
-    parser.add_argument("-dc", "--delete-cache",       action="store_true",
+    # Interactive / non-interactive ──────────────────────────────────────────
+    imode = parser.add_mutually_exclusive_group()
+    imode.add_argument("-i",  "--interactive",    action="store_true", help="Interactive mode")
+    imode.add_argument("-ni", "--non-interactive", action="store_true", help="Non-interactive (command) mode")
+
+    # Cache control ───────────────────────────────────────────────────────────
+    parser.add_argument("-dc", "--delete-cache",  action="store_true",
                         help="Delete all cached instrument data")
-    parser.add_argument("-rc", "--refresh-cache",      action="store_true",
+    parser.add_argument("-rc", "--refresh-cache", action="store_true",
                         help="Re-fetch live data for every portfolio instrument")
     parser.add_argument(
         "--auto-refresh-cache", "-arc",
@@ -92,14 +147,11 @@ examples:
     # add
     p_add = sub.add_parser("add", help="Add an instrument to the portfolio")
     p_add.add_argument("--ticker", "-t",
-                       help="Ticker symbol — include exchange suffix for precision "
-                            "(e.g. NESN.SW, VWCE.DE, AAPL, ASML.AS)")
+                       help="Ticker — include suffix for precision (e.g. NESN.SW, VWCE.DE, AAPL)")
     p_add.add_argument("--isin",   help="ISIN code (e.g. CH0038863350)")
     p_add.add_argument("--exchange", "-e",
-                       help="Preferred exchange suffix for auto-selection "
-                            "(e.g. SW, DE, PA, AS, MI, L). Ignored if ticker "
-                            "already contains a suffix.")
-    p_add.add_argument("--shares",  "-s", type=float, required=True, help="Number of shares held")
+                       help="Preferred exchange suffix (e.g. SW, DE, PA, AS, MI, L)")
+    p_add.add_argument("--shares",    "-s", type=float, required=True, help="Number of shares held")
     p_add.add_argument("--avg-price", "-p", type=float, required=True,
                        dest="avg_price", help="Average purchase price per share")
 
@@ -151,11 +203,19 @@ def _start_auto_refresh(interval: int) -> None:
 # ---------------------------------------------------------------------------
 
 def run() -> None:
-    database.init_db()
-
-    argv = _preprocess_argv(sys.argv[1:])
+    argv   = _preprocess_argv(sys.argv[1:])
     parser = _build_parser()
     args   = parser.parse_args(argv)
+
+    # ── run-mode setup (must happen before init_db) ───────────────────────
+    # Default to devel-mode when neither flag is given.
+    if args.production_mode:
+        _setup_production_mode()
+    else:
+        # --devel-mode or no flag → devel
+        _setup_devel_mode()
+
+    database.init_db()
 
     # ── global cache flags ────────────────────────────────────────────────
     if args.delete_cache:
