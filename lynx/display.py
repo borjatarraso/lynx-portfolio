@@ -289,30 +289,14 @@ def display_portfolio(instruments: List[Dict]) -> None:
     sign      = "+" if total_pnl >= 0 else ""
 
     if show_eur:
-        # When EUR columns are present, the per-currency P&L is meaningless as
-        # a portfolio total (mixed currencies).  Show only Invested / Mkt Value
-        # here; EUR P&L appears on the next line.
-        summary = (
-            f"Invested: {total_invested:,.2f}  |  "
-            f"Market Value: {total_market:,.2f}"
-        )
-    else:
-        summary = (
-            f"Invested: {total_invested:,.2f}  |  "
-            f"Market Value: {total_market:,.2f}  |  "
-            f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]"
-        )
-
-    if show_eur:
         total_pnl_eur = total_market_eur - total_invested_eur
         total_pct_eur = (total_pnl_eur / total_invested_eur * 100) if total_invested_eur else 0.0
         eur_color = "green" if total_pnl_eur >= 0 else "red"
         eur_sign  = "+" if total_pnl_eur >= 0 else ""
         eur_note  = "[dim] (partial)[/dim]" if has_eur_gap else ""
-        summary += (
-            f"\n"
-            f"EUR Invested: {total_invested_eur:,.2f}  |  "
-            f"EUR Market Value: {total_market_eur:,.2f}  |  "
+        summary = (
+            f"EUR Invested: [green]{total_invested_eur:,.2f}[/green]  |  "
+            f"EUR Market Value: [green]{total_market_eur:,.2f}[/green]  |  "
             f"EUR P&L: [{eur_color}]{eur_sign}{total_pnl_eur:,.2f} "
             f"({eur_sign}{total_pct_eur:.2f}%)[/{eur_color}]{eur_note}"
         )
@@ -326,6 +310,12 @@ def display_portfolio(instruments: List[Dict]) -> None:
                 rate_parts.append(f"{ccy}/EUR=N/A")
         if rate_parts:
             summary += f"\n[dim]Rates: {'  '.join(rate_parts)}[/dim]"
+    else:
+        summary = (
+            f"Invested: [green]{total_invested:,.2f}[/green]  |  "
+            f"Market Value: [green]{total_market:,.2f}[/green]  |  "
+            f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]"
+        )
 
     if missing_prices:
         summary += (
