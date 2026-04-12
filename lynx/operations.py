@@ -108,6 +108,20 @@ def add_instrument(
         data["sector"] = chosen.get("sector")
     if not data.get("industry"):
         data["industry"] = chosen.get("industry")
+    if not data.get("quote_type"):
+        data["quote_type"] = chosen.get("quote_type")
+
+    # 3b ─ Validate / normalise share count based on instrument type
+    qt = (data.get("quote_type") or "").upper()
+    if qt == "EQUITY":
+        frac = shares - int(shares)
+        if abs(frac) > 1e-9:
+            rounded = round(shares)
+            display.warn(
+                f"Stocks cannot have fractional shares "
+                f"({shares} → rounded to {rounded})."
+            )
+            shares = float(rounded)
 
     # 4 ─ Persist
     success = database.add_instrument(
@@ -123,6 +137,7 @@ def add_instrument(
         description        = data.get("description"),
         exchange_code      = data.get("exchange_code") or chosen.get("exchange_code"),
         exchange_display   = chosen.get("exchange_display"),
+        quote_type         = data.get("quote_type"),
     )
 
     if success:

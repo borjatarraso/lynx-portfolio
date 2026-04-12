@@ -16,7 +16,8 @@ DB_PATH = os.environ.get(
 ALLOWED_UPDATE_FIELDS = {
     "isin", "name", "shares", "avg_purchase_price",
     "currency", "sector", "industry", "description",
-    "current_price", "exchange_code", "exchange_display", "updated_at",
+    "current_price", "exchange_code", "exchange_display",
+    "quote_type", "updated_at",
 }
 
 
@@ -53,6 +54,7 @@ def init_db() -> None:
             description        TEXT,
             exchange_code      TEXT,
             exchange_display   TEXT,
+            quote_type         TEXT,
             created_at         TEXT DEFAULT (datetime('now')),
             updated_at         TEXT DEFAULT (datetime('now'))
         );
@@ -82,6 +84,7 @@ def init_db() -> None:
     for col, definition in [
         ("exchange_code",    "TEXT"),
         ("exchange_display", "TEXT"),
+        ("quote_type",       "TEXT"),
     ]:
         if col not in existing:
             conn.execute(f"ALTER TABLE portfolio ADD COLUMN {col} {definition}")
@@ -116,6 +119,7 @@ def add_instrument(
     description: Optional[str] = None,
     exchange_code: Optional[str] = None,
     exchange_display: Optional[str] = None,
+    quote_type: Optional[str] = None,
 ) -> bool:
     """Returns True on success, False if ticker already exists."""
     conn = get_connection()
@@ -125,12 +129,12 @@ def add_instrument(
             INSERT INTO portfolio
                 (ticker, isin, name, shares, avg_purchase_price, current_price,
                  currency, sector, industry, description,
-                 exchange_code, exchange_display)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 exchange_code, exchange_display, quote_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ticker.upper(), isin, name, shares, avg_purchase_price,
              current_price, currency, sector, industry, description,
-             exchange_code, exchange_display),
+             exchange_code, exchange_display, quote_type),
         )
         conn.commit()
         return True
@@ -196,7 +200,8 @@ def apply_cache_to_portfolio(ticker: str, data: Dict) -> None:
     kwargs: Dict[str, Any] = {
         k: data[k]
         for k in ("name", "current_price", "currency", "sector",
-                  "industry", "description", "exchange_code", "exchange_display")
+                  "industry", "description", "exchange_code",
+                  "exchange_display", "quote_type")
         if data.get(k) is not None
     }
     if kwargs:

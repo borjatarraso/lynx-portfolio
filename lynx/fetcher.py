@@ -339,6 +339,7 @@ def fetch_instrument_data(yahoo_symbol: str, isin: Optional[str] = None) -> Opti
             "description":   description,
             "isin":          isin,
             "exchange_code": info.get("exchange"),
+            "quote_type":    info.get("quoteType", "").upper() or None,
         }
     except Exception:
         return None

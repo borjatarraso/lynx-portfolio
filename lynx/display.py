@@ -28,6 +28,41 @@ def _truncate(text: str, width: int) -> str:
     return text if len(text) <= width else text[: width - 3] + "..."
 
 
+def _shares_str(shares: float, quote_type: Optional[str] = None) -> str:
+    """
+    Format a share/unit count for display.
+
+    Stocks (EQUITY):
+      Always shown as a plain integer — e.g. 10, 1,000.
+      (Fractional equity shares are rejected at input; this is a safety net.)
+
+    ETFs / funds / unknown:
+      If the stored value has no fractional part  → integer: 20, 1,000
+      If it has a fractional part                → minimal decimals, trailing
+        zeros stripped: 10.5, 1,000.25, 3.1415
+
+    All values are right-aligned by Rich; alignment across rows is handled
+    by the column's fixed width.
+    """
+    qt = (quote_type or "").upper()
+
+    # ── Stocks: integer only ───────────────────────────────────────────────
+    if qt == "EQUITY":
+        return f"{int(round(shares)):,}"
+
+    # ── ETFs / funds / unknown ─────────────────────────────────────────────
+    # Check whether there is a meaningful fractional part.
+    frac = shares - int(shares)
+    if abs(frac) < 1e-9:
+        return f"{int(shares):,}"
+
+    # Build the decimal string with 6 places, then strip trailing zeros.
+    # We round first to avoid floating-point noise (e.g. 10.4999999999…).
+    raw = f"{round(shares, 6):.6f}".rstrip("0")   # e.g. "10.5", "1000.25"
+    int_part, dec_part = raw.split(".")
+    return f"{int(int_part):,}.{dec_part}"
+
+
 # ---------- portfolio table ----------
 
 def display_portfolio(instruments: List[Dict]) -> None:
@@ -85,13 +120,14 @@ def display_portfolio(instruments: List[Dict]) -> None:
             or inst.get("exchange_code")
             or "—"
         )
+        qt = inst.get("quote_type")
         table.add_row(
             inst.get("ticker") or "",
             inst.get("isin") or "—",
             _truncate(inst.get("name") or "—", 26),
             _truncate(exch_disp, 16),
-            f"{shares:,.4f}",
-            f"{avg_price:,.4f}",
+            _shares_str(shares, qt),
+            f"{avg_price:,.2f}",
             curr_str,
             inst.get("currency") or "—",
             mkt_str,
@@ -138,8 +174,9 @@ def display_instrument(inst: Dict) -> None:
     t.add_row("Currency",             inst.get("currency") or "—")
     t.add_row("Sector",               inst.get("sector") or "—")
     t.add_row("Industry",             inst.get("industry") or "—")
-    t.add_row("Shares",               f"{shares:,.4f}")
-    t.add_row("Avg Purchase Price",   f"{avg_price:,.4f}")
+    qt = inst.get("quote_type")
+    t.add_row("Shares",               _shares_str(shares, qt))
+    t.add_row("Avg Purchase Price",   f"{avg_price:,.2f}")
     t.add_row("Current Price",        _price_str(curr))
     t.add_row("Total Invested",       f"{invested:,.2f}")
 
