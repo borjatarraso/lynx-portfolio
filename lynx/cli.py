@@ -208,6 +208,8 @@ examples:
   lynx --production-mode -ni add --ticker NESN.SW --shares 50 --avg-price 110
   lynx --production-mode -ni add --isin CH0038863350 --shares 50 --avg-price 110
   lynx --production-mode -ni add --isin IE00B4L5Y983 -s 15 -p 70 --exchange AS
+  lynx --production-mode --import portfolio.json
+  lynx --production-mode --import portfolio.json --exchange DE
   lynx --production-mode -ni import --file portfolio.json
   lynx --production-mode -ni list
   lynx --production-mode -ni show --ticker NESN.SW
@@ -244,6 +246,17 @@ examples:
     imode.add_argument("-i",  "--interactive",     action="store_true", help="Interactive REPL mode")
     imode.add_argument("-ni", "--non-interactive",  action="store_true", help="Non-interactive (command) mode")
     imode.add_argument("-tui", "--textual-ui",       action="store_true", dest="textual_ui", help="Full-screen TUI mode (keyboard-driven)")
+
+    # Bulk import ──────────────────────────────────────────────────────────────
+    parser.add_argument(
+        "--import", metavar="FILE", dest="import_file_flag",
+        help="Bulk-add instruments from a JSON file (works without -ni/-i/-tui)",
+    )
+    parser.add_argument(
+        "--exchange", "-e", metavar="SUFFIX", dest="import_exchange_flag",
+        help="Default exchange suffix for --import (e.g. SW, DE, V, TO); "
+             "overridden per-entry by the 'exchange' field inside the JSON",
+    )
 
     # Cache control ───────────────────────────────────────────────────────────
     parser.add_argument("-dc", "--delete-cache",  action="store_true",
@@ -381,6 +394,16 @@ def run() -> None:
 
     if args.auto_refresh:
         _start_auto_refresh(args.auto_refresh)
+
+    # ── --import flag (works standalone, no subcommand or mode required) ──
+    if args.import_file_flag:
+        _import_from_json(
+            args.import_file_flag,
+            preferred_exchange=args.import_exchange_flag,
+        )
+        # Only exit here if no other mode / subcommand was also requested.
+        if not args.command and not args.interactive and not args.textual_ui:
+            return
 
     # ── mode ─────────────────────────────────────────────────────────────
     if args.textual_ui:

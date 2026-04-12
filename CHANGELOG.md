@@ -38,6 +38,12 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 - **`ISIN_COUNTRY_TO_EXCHANGE_CODE`**: added `NZ`, `IN`, `ZA` country mappings.
 
 ### Added
+- **`--import FILE`** top-level flag: bulk-add instruments from a JSON file directly
+  from the command line, without needing `-ni import --file` or any interactive mode.
+  Optional `--exchange SUFFIX` sets the default exchange for all entries in the file.
+  Example: `lynx --production-mode --import portfolio.json --exchange V`
+  The existing `-ni import --file` subcommand is unchanged.
+
 - **EUR currency conversion** using Yahoo Finance forex rates (`yfinance`):
   - Rates are fetched once per session at startup for all non-EUR currencies in the portfolio.
   - Symbol format: `{CCY}EUR=X` (e.g. `USDEUR=X`) — 1 unit of CCY expressed in EUR.
