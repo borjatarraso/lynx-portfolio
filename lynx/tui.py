@@ -18,7 +18,7 @@ from textual.widgets import (
     Select, LoadingIndicator,
 )
 
-from textual.theme import BUILTIN_THEMES
+from textual.theme import BUILTIN_THEMES, Theme
 
 from . import database, cache, config, forex
 from .display import _split_shares, _shares_str
@@ -800,8 +800,30 @@ class ImportScreen(Screen):
 # Main Textual App
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Custom themes
+# ---------------------------------------------------------------------------
+
+_MATRIX = Theme(
+    name="matrix",
+    primary="#00FF41",        # classic Matrix phosphor green
+    secondary="#008F11",      # darker green for secondary elements
+    warning="#39FF14",        # bright neon green for warnings
+    error="#FF0000",          # red — the only non-green colour (errors must stand out)
+    success="#00FF41",        # same phosphor green
+    accent="#20C20E",         # slightly muted green for accents
+    foreground="#00FF41",     # green text on black
+    background="#000000",     # pure black
+    surface="#0A0A0A",        # near-black for raised surfaces
+    panel="#0D1F0D",          # very dark green tint for panels/borders
+    dark=True,
+    luminosity_spread=0.15,
+    text_alpha=0.95,
+)
+
 # Curated list of popular themes shipped with Textual, ordered for cycling.
 _THEME_NAMES = [
+    "matrix",
     "tokyo-night",
     "dracula",
     "monokai",
@@ -838,11 +860,12 @@ class LynxApp(App):
     ]
 
     def on_mount(self) -> None:
-        # Register all built-in themes so the user can cycle through them.
+        # Register custom themes first, then all built-in ones.
+        self.register_theme(_MATRIX)
         for name, theme_obj in BUILTIN_THEMES.items():
             self.register_theme(theme_obj)
-        # Default to tokyo-night — a popular, easy-on-the-eyes dark theme.
-        self.theme = "tokyo-night"
+        # Default to the Matrix theme — green-on-black hacker terminal style.
+        self.theme = "matrix"
         self.push_screen(PortfolioScreen())
 
     def action_cycle_theme(self) -> None:
