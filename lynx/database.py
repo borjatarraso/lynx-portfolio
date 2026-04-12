@@ -8,10 +8,10 @@ import sqlite3
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
-DB_PATH = os.environ.get(
-    "LYNX_DB_PATH",
-    os.path.expanduser("~/.lynx/portfolio.db")
-)
+# DB_PATH is set at runtime by cli.py (via set_db_path) before init_db().
+# In production mode it comes from the config file; in devel mode it's a
+# temporary file.  The env-var override is kept as a last-resort escape hatch.
+DB_PATH: Optional[str] = os.environ.get("LYNX_DB_PATH")
 
 ALLOWED_UPDATE_FIELDS = {
     "isin", "name", "shares", "avg_purchase_price",
@@ -21,17 +21,27 @@ ALLOWED_UPDATE_FIELDS = {
 }
 
 
+def set_db_path(path: str) -> None:
+    """Set the database path.  Must be called before init_db()."""
+    global DB_PATH
+    DB_PATH = path
+
+
 def get_db_path() -> str:
+    if DB_PATH is None:
+        raise RuntimeError(
+            "Database path not configured. Run: lynx --configure"
+        )
     return DB_PATH
 
 
 def _ensure_dir() -> None:
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    os.makedirs(os.path.dirname(get_db_path()), exist_ok=True)
 
 
 def get_connection() -> sqlite3.Connection:
     _ensure_dir()
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

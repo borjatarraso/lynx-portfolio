@@ -33,6 +33,19 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 - **ISIN country-code heuristic**: auto-selects the most natural exchange for a given
   ISIN (e.g. `CH` → SIX Swiss, `DE` → XETRA, `FR` → Euronext Paris).
 
+- **`--configure` option**: interactive wizard to set up the database directory.
+  Configuration is stored at `$XDG_CONFIG_HOME/lynx/config.json`
+  (default `~/.config/lynx/config.json`). Required before first use in
+  `--production-mode`.
+- **Configurable data directory**: the database is no longer hardcoded to
+  `~/.lynx/`. The user chooses the location during `--configure`.
+- **`import` subcommand**: bulk-add instruments from a JSON file via
+  `lynx -ni import --file portfolio.json`. Each entry requires `ticker`,
+  `shares`, `avg_price`; optional `isin`, `exchange`. Example file included
+  at `examples/portfolio.json`.
+- **Interactive `import` and `config` commands**: `import <file.json>` and
+  `config` available inside the REPL.
+
 ### Fixed
 - Description field no longer produces double-period at end of sentence.
 - `apply_cache_to_portfolio` now only updates fields that are actually present in
@@ -63,7 +76,7 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 - ISIN → ticker resolution via [OpenFIGI](https://www.openfigi.com/) (free, no API key).
 - Live instrument data fetched from **Yahoo Finance** (`yfinance`):
   - Full name, current price, currency, sector, industry, one-sentence description.
-- Local **SQLite** database (`~/.lynx/portfolio.db`) for portfolio positions.
+- Local **SQLite** database for portfolio positions.
 - **Local cache** (same DB) with configurable TTL (default 1 hour).
 - **Interactive mode** (`-i` / `--interactive`): REPL with guided prompts.
 - **Non-interactive mode** (`-ni` / `--non-interactive`) with subcommands:

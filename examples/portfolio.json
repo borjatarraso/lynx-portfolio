@@ -1,0 +1,25 @@
+[
+  {
+    "ticker": "AAPL",
+    "shares": 10,
+    "avg_price": 150.00
+  },
+  {
+    "ticker": "NESN.SW",
+    "shares": 50,
+    "avg_price": 110.00,
+    "isin": "CH0038863350"
+  },
+  {
+    "ticker": "VWCE.DE",
+    "shares": 23.5,
+    "avg_price": 70.00,
+    "exchange": "DE"
+  },
+  {
+    "ticker": "MSFT",
+    "shares": 5,
+    "avg_price": 380.00,
+    "isin": "US5949181045"
+  }
+]

@@ -3,6 +3,7 @@ CLI entry point: argument parsing, subcommand dispatch, auto-refresh thread.
 """
 
 import atexit
+import json
 import os
 import sys
 import tempfile
@@ -11,7 +12,7 @@ import time
 from typing import List
 
 from . import APP_NAME, VERSION
-from . import database, cache, display
+from . import database, cache, config, display
 from .operations import add_instrument, refresh_instrument, refresh_all
 
 
@@ -55,7 +56,7 @@ def _setup_devel_mode() -> None:
     fd, tmp_path = tempfile.mkstemp(suffix=".db", prefix="lynx_devel_")
     os.close(fd)
     atexit.register(_cleanup_devel_db, tmp_path)
-    database.DB_PATH = tmp_path
+    database.set_db_path(tmp_path)
 
     display.console.print(
         "[bold yellow]⚠  DEVEL MODE[/bold yellow]  —  "
@@ -72,11 +73,95 @@ def _cleanup_devel_db(path: str) -> None:
             pass
 
 
-def _setup_production_mode() -> None:
+def _setup_production_mode() -> bool:
+    """
+    Set up production mode using the configured database path.
+    Returns True on success, False if configuration is missing.
+    """
+    db_path = config.get_db_path()
+    if not db_path:
+        display.err(
+            "No database path configured.\n"
+            "  Run [bold]lynx --configure[/bold] first to set up your data directory."
+        )
+        return False
+
+    database.set_db_path(db_path)
     display.console.print(
         "[bold green]✔  PRODUCTION MODE[/bold green]  —  "
-        f"using persistent database at [cyan]{database.DB_PATH}[/cyan]"
+        f"using persistent database at [cyan]{db_path}[/cyan]"
     )
+    return True
+
+
+# ---------------------------------------------------------------------------
+# JSON import
+# ---------------------------------------------------------------------------
+
+def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
+    """Import instruments from a JSON file."""
+    try:
+        with open(filepath, "r") as f:
+            instruments = json.load(f)
+    except FileNotFoundError:
+        display.err(f"File not found: {filepath}")
+        return
+    except json.JSONDecodeError as exc:
+        display.err(f"Invalid JSON: {exc}")
+        return
+
+    if not isinstance(instruments, list):
+        display.err(
+            "JSON file must contain an array of instrument objects. "
+            "See 'lynx -ni import --help' for the expected format."
+        )
+        return
+
+    total    = len(instruments)
+    added    = 0
+    skipped  = 0
+
+    for i, entry in enumerate(instruments, 1):
+        if not isinstance(entry, dict):
+            display.warn(f"  [{i}/{total}] Skipping non-object entry.")
+            skipped += 1
+            continue
+
+        ticker    = entry.get("ticker")
+        shares    = entry.get("shares")
+        avg_price = entry.get("avg_price")
+
+        if not ticker or shares is None or avg_price is None:
+            display.warn(
+                f"  [{i}/{total}] Skipping entry — "
+                f"'ticker', 'shares', and 'avg_price' are required."
+            )
+            skipped += 1
+            continue
+
+        try:
+            shares    = float(shares)
+            avg_price = float(avg_price)
+        except (TypeError, ValueError):
+            display.warn(f"  [{i}/{total}] Skipping '{ticker}' — invalid number.")
+            skipped += 1
+            continue
+
+        display.info(f"[{i}/{total}] Importing {ticker}…")
+        ok = add_instrument(
+            ticker             = ticker,
+            isin               = entry.get("isin"),
+            shares             = shares,
+            avg_purchase_price = avg_price,
+            preferred_exchange = entry.get("exchange") or preferred_exchange,
+        )
+        if ok:
+            added += 1
+        else:
+            skipped += 1
+
+    display.console.print()
+    display.ok(f"Import complete: {added} added, {skipped} skipped (of {total} total).")
 
 
 # ---------------------------------------------------------------------------
@@ -91,20 +176,36 @@ def _build_parser():
         description=f"{APP_NAME} — Investment Portfolio Manager",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=r"""
+configuration:
+  lynx --configure           set up the database directory (required before
+                             first use in production mode)
+  config file location:      $XDG_CONFIG_HOME/lynx/config.json
+                             (default: ~/.config/lynx/config.json)
+
 run modes (default: --devel-mode):
-  --devel-mode        fresh empty DB every run, nothing persisted (for testing)
-  --production-mode   persistent DB at ~/.lynx/portfolio.db
+  --devel-mode               fresh empty DB every run, nothing persisted
+  --production-mode          use the configured persistent database
+
+json import format (for 'import --file'):
+  [
+    {"ticker": "AAPL",    "shares": 10,   "avg_price": 150.00},
+    {"ticker": "NESN.SW", "shares": 50,   "avg_price": 110.00, "isin": "CH0038863350"},
+    {"ticker": "VWCE.DE", "shares": 23.5, "avg_price": 70.00,  "exchange": "DE"}
+  ]
+  required fields: ticker, shares, avg_price
+  optional fields: isin, exchange
 
 examples:
+  lynx --configure
   lynx --production-mode -i
   lynx --production-mode -ni add --ticker NESN.SW --shares 50 --avg-price 110
   lynx --production-mode -ni add --isin CH0038863350 --shares 50 --avg-price 110
-  lynx --production-mode -ni add --isin IE00B4L5Y983 --shares 15 --avg-price 70 --exchange AS
+  lynx --production-mode -ni add --isin IE00B4L5Y983 -s 15 -p 70 --exchange AS
+  lynx --production-mode -ni import --file portfolio.json
   lynx --production-mode -ni list
   lynx --production-mode -ni show --ticker NESN.SW
   lynx --production-mode -ni update --ticker AAPL --shares 15
   lynx --production-mode -ni delete --ticker AAPL
-  lynx --production-mode -ni refresh --ticker AAPL
   lynx --production-mode -ni refresh
   lynx --production-mode -rc
   lynx --production-mode -dc
@@ -114,6 +215,12 @@ examples:
 
     parser.add_argument("-v", "--version", action="version", version=f"{APP_NAME} {VERSION}")
 
+    # Configuration ────────────────────────────────────────────────────────────
+    parser.add_argument(
+        "--configure", action="store_true",
+        help="Set up or update Lynx configuration (database directory, etc.).",
+    )
+
     # Run-mode (devel vs production) ─────────────────────────────────────────
     run_mode = parser.add_mutually_exclusive_group()
     run_mode.add_argument(
@@ -122,7 +229,7 @@ examples:
     )
     run_mode.add_argument(
         "--production-mode", action="store_true", dest="production_mode",
-        help="Use the persistent database at ~/.lynx/portfolio.db.",
+        help="Use the configured persistent database (run --configure first).",
     )
 
     # Interactive / non-interactive ──────────────────────────────────────────
@@ -154,6 +261,25 @@ examples:
     p_add.add_argument("--shares",    "-s", type=float, required=True, help="Number of shares held")
     p_add.add_argument("--avg-price", "-p", type=float, required=True,
                        dest="avg_price", help="Average purchase price per share")
+
+    # import
+    p_imp = sub.add_parser(
+        "import",
+        help="Bulk-add instruments from a JSON file",
+        description=(
+            "Import instruments from a JSON file.  The file must contain an array "
+            "of objects with at least 'ticker', 'shares', and 'avg_price'.  "
+            "Optional fields: 'isin', 'exchange'."
+        ),
+    )
+    p_imp.add_argument(
+        "--file", "-f", required=True, dest="import_file",
+        help="Path to the JSON file containing instruments to import",
+    )
+    p_imp.add_argument(
+        "--exchange", "-e",
+        help="Default exchange suffix for all instruments (overridden by per-entry 'exchange')",
+    )
 
     # list
     sub.add_parser("list", help="List all portfolio positions")
@@ -207,10 +333,16 @@ def run() -> None:
     parser = _build_parser()
     args   = parser.parse_args(argv)
 
+    # ── --configure: run wizard and exit ─────────────────────────────────
+    if args.configure:
+        config.run_configure(display.console)
+        return
+
     # ── run-mode setup (must happen before init_db) ───────────────────────
     # Default to devel-mode when neither flag is given.
     if args.production_mode:
-        _setup_production_mode()
+        if not _setup_production_mode():
+            return
     else:
         # --devel-mode or no flag → devel
         _setup_devel_mode()
@@ -246,6 +378,12 @@ def run() -> None:
             shares             = args.shares,
             avg_purchase_price = args.avg_price,
             preferred_exchange = getattr(args, "exchange", None),
+        )
+
+    elif args.command == "import":
+        _import_from_json(
+            args.import_file,
+            preferred_exchange=getattr(args, "exchange", None),
         )
 
     elif args.command == "list":

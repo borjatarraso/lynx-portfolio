@@ -43,8 +43,10 @@ _HELP = """
   [bold]delete[/bold] <ticker>            Remove an instrument from the portfolio
   [bold]refresh[/bold]                    Refresh live data for all instruments
   [bold]refresh[/bold] <ticker>           Refresh live data for one instrument
+  [bold]import[/bold] <file.json>         Bulk-add instruments from a JSON file
   [bold]clear-cache[/bold]               Wipe all cached data
   [bold]markets[/bold] <ticker or ISIN>  List all exchanges where an instrument trades
+  [bold]config[/bold]                     Show or update configuration
   [bold]help[/bold]                       Show this message
   [bold]quit[/bold]  /  [bold]exit[/bold]  /  [bold]q[/bold]    Exit
 """
@@ -107,6 +109,12 @@ def run() -> None:
             else:
                 refresh_all()
 
+        elif cmd == "import":
+            if not arg:
+                display.err("Usage: import <file.json>")
+            else:
+                _cmd_import(arg)
+
         elif cmd == "clear-cache":
             n = cache.delete()
             display.ok(f"Cache cleared ({n} entries removed).")
@@ -116,6 +124,10 @@ def run() -> None:
                 display.err("Usage: markets <ticker or ISIN>")
             else:
                 _cmd_markets(arg)
+
+        elif cmd == "config":
+            from . import config as cfg
+            cfg.run_configure(display.console)
 
         else:
             display.warn(f"Unknown command '{cmd}'. Type 'help' for available commands.")
@@ -250,6 +262,12 @@ def _cmd_update(ticker: str) -> None:
         display.ok(f"Updated {ticker}.")
     else:
         display.info("Nothing changed.")
+
+
+def _cmd_import(filepath: str) -> None:
+    """Bulk-add instruments from a JSON file."""
+    from .cli import _import_from_json
+    _import_from_json(filepath)
 
 
 def _cmd_markets(query: str) -> None:
