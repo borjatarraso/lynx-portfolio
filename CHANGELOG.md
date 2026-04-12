@@ -7,7 +7,13 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ---
 
-## [Unreleased / v0.2-dev] — 2026-04-12
+## [Unreleased]
+
+_(no changes yet)_
+
+---
+
+## [v0.2] — 2026-04-12
 
 ### Added
 - **Multi-market exchange resolution**: instruments are now resolved to a specific
@@ -50,6 +56,31 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 - Description field no longer produces double-period at end of sentence.
 - `apply_cache_to_portfolio` now only updates fields that are actually present in
   the cache response.
+- **cache.py double DB hit**: `cache.get()` now calls `cache_get()` once and
+  computes age from the returned `cached_at` field instead of issuing two queries.
+- **SQLite connection robustness**: added WAL journal mode and 10-second write
+  timeout to prevent `database is locked` errors from the auto-refresh thread.
+- **Suffixed ticker hardcodes `quote_type: "EQUITY"`**: tickers with a suffix
+  (e.g. `VWCE.DE`) no longer get a synthetic `EQUITY` type; the actual type is
+  resolved from `fetch_instrument_data`, preventing incorrect fractional-share
+  warnings on ETFs.
+- **OpenFIGI preference order**: `_isin_to_ticker_openfigi` now builds a dynamic
+  preference list from the ISIN country code instead of always preferring Swiss
+  then German exchanges.
+- **`fetch_instrument_data` empty-dict guard**: checks `not info` before checking
+  individual keys, correctly handling delisted tickers that return `{}`.
+- **`_first_sentence` unbounded length**: output is now capped at 300 characters.
+- **Interactive `update` ignores return value**: `_cmd_update` now checks the
+  `update_instrument()` return value and reports errors when the ticker is not
+  found.
+- **Portfolio totals inflated when price is missing**: `display_portfolio` no
+  longer adds cost basis to market value for positions without a price; a footnote
+  shows how many positions were excluded.
+- **`_price_str` decimal inconsistency**: instrument detail view now uses 2
+  decimal places (matching the portfolio table).
+- **Redundant OpenFIGI call in `operations.py`**: removed the fallback call to
+  `_isin_to_ticker_openfigi` which duplicated work already done by
+  `resolve_markets_for_input`.
 
 ### Changed
 - **Share column alignment**: integer digits now align across all rows in the
