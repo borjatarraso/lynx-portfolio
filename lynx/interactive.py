@@ -11,6 +11,27 @@ from rich import box
 from . import database, cache, display
 from .operations import add_instrument, refresh_instrument, refresh_all
 
+# ---------------------------------------------------------------------------
+# In-session readline history (↑/↓ arrow navigation).
+# readline is imported for its side-effect: it hooks into Python's input()
+# and enables history navigation automatically.  No history file is written,
+# so nothing survives after the process exits.
+# ---------------------------------------------------------------------------
+try:
+    import readline as _rl
+    _rl.set_history_length(500)
+    _HAS_READLINE = True
+except ImportError:           # Windows without pyreadline
+    _HAS_READLINE = False
+
+# ANSI bold-cyan matches the Rich [bold cyan] style used elsewhere.
+_REPL_PROMPT = "\n\033[1;36mlynx>\033[0m "
+
+
+def _read_command() -> str:
+    """Read one REPL line with readline history support (↑/↓ arrows)."""
+    return input(_REPL_PROMPT).strip()
+
 
 _HELP = """
 [bold cyan]Commands[/bold cyan]
@@ -37,7 +58,7 @@ def run() -> None:
 
     while True:
         try:
-            raw = Prompt.ask("\n[bold cyan]lynx>[/bold cyan]").strip()
+            raw = _read_command()
         except (KeyboardInterrupt, EOFError):
             display.console.print("\n[cyan]Goodbye![/cyan]")
             break
