@@ -9,6 +9,34 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ## [Unreleased]
 
+### Fixed
+- **TSXV / TSX Venture Exchange stocks not recognised** (e.g. FUU.V — F3 Uranium Corp):
+  Yahoo Finance's Search API returns exchange code `"VAN"` for TSXV (not the previously
+  assumed `"CVE"`) and `"TOR"` for TSX (not `"TSX"`). Both codes were absent from
+  `PRIMARY_EXCHANGE_CODES`, so TSXV/TSX results were silently filtered out and a wrong
+  instrument was picked instead.
+  - Added `"TOR"` and `"VAN"` as the canonical codes; kept `"TSX"` and `"CVE"` as
+    legacy aliases so existing portfolios are unaffected.
+  - Updated `ISIN_COUNTRY_TO_EXCHANGE_CODE["CA"]` to `"TOR"`; `pick_best_market` now
+    tries all Canadian exchange codes in order (TOR → TSX → VAN → CVE → NEO → CNQ)
+    so TSXV listings are found when no TSX listing exists.
+  - Added suffix-inference fallback in `search_markets`: when Yahoo returns an
+    unrecognised or mismatched exchange code, the symbol's suffix (e.g. `.V`, `.TO`)
+    is used as ground truth to infer the correct exchange — making market detection
+    resilient to future Yahoo code changes.
+- **OTC Quoted Board stocks not recognised**: Yahoo returns exchange code `"OQB"` for
+  OTC Quoted Board (not the old `"OBB"` alias). Added `"OQB"` alongside the legacy
+  `"OBB"` entry. Also added `"OTC"` (generic OTC) and `"GREY"` (grey market).
+
+### Added
+- **Expanded global exchange coverage** in `YAHOO_EXCHANGE_INFO`:
+  - Canada: `TOR` (TSX), `VAN` (TSXV/CDNX), `CNQ` (Canadian Securities Exchange)
+  - Americas: `SGO` (Bolsa de Santiago), `BUE` (Buenos Aires)
+  - Asia-Pacific: `NZX` (New Zealand), `BSE`/`NSE` (India), `SHH`/`SHZ` (China),
+    `SET` (Thailand), `KLS` (Malaysia), `JKT` (Indonesia)
+  - Africa: `JSE` (Johannesburg)
+- **`ISIN_COUNTRY_TO_EXCHANGE_CODE`**: added `NZ`, `IN`, `ZA` country mappings.
+
 ### Added
 - **EUR currency conversion** using Yahoo Finance forex rates (`yfinance`):
   - Rates are fetched once per session at startup for all non-EUR currencies in the portfolio.

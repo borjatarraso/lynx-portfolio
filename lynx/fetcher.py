@@ -34,10 +34,14 @@ YAHOO_EXCHANGE_INFO: Dict[str, Tuple[str, str, str]] = {
     "NGM":  ("",    "NASDAQ Global Market",            "USD"),
     "ASE":  ("",    "NYSE American",                   "USD"),
     "PCX":  ("",    "NYSE Arca",                       "USD"),
-    "OBB":  ("",    "OTC Bulletin Board",              "USD"),
-    "PNK":  ("",    "OTC Pink Sheets",                 "USD"),
     "NCM":  ("",    "NASDAQ Capital Market",           "USD"),
     "BTS":  ("",    "BATS Exchange",                   "USD"),
+    # US OTC markets  (Yahoo Finance uses several codes depending on tier)
+    "PNK":  ("",    "OTC Pink Sheets",                 "USD"),
+    "OBB":  ("",    "OTC Bulletin Board",              "USD"),   # legacy alias
+    "OQB":  ("",    "OTC Quoted Board",                "USD"),   # actual code Yahoo returns
+    "OTC":  ("",    "OTC Markets",                     "USD"),   # generic OTC
+    "GREY": ("",    "OTC Grey Market",                 "USD"),
     # Europe
     "EBS":  (".SW", "SIX Swiss Exchange",              "CHF"),
     "ZRH":  (".SW", "SIX Swiss Exchange",              "CHF"),
@@ -67,19 +71,36 @@ YAHOO_EXCHANGE_INFO: Dict[str, Tuple[str, str, str]] = {
     "DUB":  (".IR", "Euronext Dublin",                 "EUR"),
     "BUD":  (".BD", "Budapest Stock Exchange",         "HUF"),
     "ICE":  (".IC", "Nasdaq OMX Iceland",              "ISK"),
-    # Americas / rest
+    # Americas
     "MEX":  (".MX", "Bolsa Mexicana de Valores",       "MXN"),
     "SAO":  (".SA", "B3 (Brazil)",                     "BRL"),
-    "TSX":  (".TO", "Toronto Stock Exchange",          "CAD"),
-    "CVE":  (".V",  "TSX Venture Exchange",            "CAD"),
+    "SGO":  (".SN", "Bolsa de Santiago",               "CLP"),
+    "BUE":  (".BA", "Bolsa de Buenos Aires",           "ARS"),
+    # Canada — Yahoo Finance returns "TOR" for TSX and "VAN" for TSXV.
+    # Legacy codes "TSX" / "CVE" are kept as aliases in case Yahoo returns them.
+    "TOR":  (".TO", "Toronto Stock Exchange",          "CAD"),   # actual Yahoo code
+    "TSX":  (".TO", "Toronto Stock Exchange",          "CAD"),   # legacy alias
+    "VAN":  (".V",  "TSX Venture Exchange",            "CAD"),   # actual Yahoo code (CDNX)
+    "CVE":  (".V",  "TSX Venture Exchange",            "CAD"),   # legacy alias
     "NEO":  (".NE", "NEO Exchange",                    "CAD"),
+    "CNQ":  (".CN", "Canadian Securities Exchange",    "CAD"),
     # Asia-Pacific
     "ASX":  (".AX", "Australian Securities Exchange",  "AUD"),
+    "NZX":  (".NZ", "New Zealand Stock Exchange",      "NZD"),
     "HKG":  (".HK", "Hong Kong Stock Exchange",        "HKD"),
     "TYO":  (".T",  "Tokyo Stock Exchange",            "JPY"),
     "SES":  (".SI", "Singapore Exchange",              "SGD"),
     "KSE":  (".KS", "Korea Stock Exchange",            "KRW"),
     "TAI":  (".TW", "Taiwan Stock Exchange",           "TWD"),
+    "BSE":  (".BO", "BSE India",                       "INR"),
+    "NSE":  (".NS", "NSE India",                       "INR"),
+    "SHH":  (".SS", "Shanghai Stock Exchange",         "CNY"),
+    "SHZ":  (".SZ", "Shenzhen Stock Exchange",         "CNY"),
+    "SET":  (".BK", "Stock Exchange of Thailand",      "THB"),
+    "KLS":  (".KL", "Bursa Malaysia",                  "MYR"),
+    "JKT":  (".JK", "Indonesia Stock Exchange",        "IDR"),
+    # Africa
+    "JSE":  (".JO", "Johannesburg Stock Exchange",     "ZAR"),
 }
 
 # ---------------------------------------------------------------------------
@@ -92,8 +113,8 @@ PRIMARY_EXCHANGE_CODES: frozenset = frozenset(YAHOO_EXCHANGE_INFO.keys())
 # Used for auto-selection when multiple exchanges are available.
 # ---------------------------------------------------------------------------
 ISIN_COUNTRY_TO_EXCHANGE_CODE = {
-    "US": "",      # any US exchange
-    "CA": "TSX",
+    "US": "",      # any US exchange (no suffix)
+    "CA": "TOR",   # Toronto Stock Exchange (Yahoo code); TSXV ("VAN") tried as fallback
     "GB": "LSE",
     "CH": "EBS",   # SIX Swiss
     "DE": "GER",   # XETRA
@@ -113,9 +134,12 @@ ISIN_COUNTRY_TO_EXCHANGE_CODE = {
     "IE": "DUB",
     "LU": "PAR",   # Luxembourg-domiciled funds often primary on Euronext Paris
     "AU": "ASX",
+    "NZ": "NZX",
     "HK": "HKG",
     "JP": "TYO",
     "SG": "SES",
+    "IN": "BSE",
+    "ZA": "JSE",
 }
 
 # ---------------------------------------------------------------------------
@@ -192,14 +216,33 @@ def search_markets(
         sym  = q.get("symbol", "")
         if not sym or sym in seen_symbols:
             continue
-        if exch not in PRIMARY_EXCHANGE_CODES:
-            continue  # dark pool / MTF
-        seen_symbols.add(sym)
+
         suffix    = extract_suffix(sym)
-        exch_info = YAHOO_EXCHANGE_INFO.get(exch, ("", q.get("exchDisp", exch), ""))
+
+        if exch in PRIMARY_EXCHANGE_CODES:
+            exch_info = YAHOO_EXCHANGE_INFO[exch]
+            # If the symbol's actual suffix disagrees with what the exchange code
+            # implies, trust the suffix — Yahoo sometimes returns an alternate
+            # exchange code (e.g. "TOR" for a ".V" TSXV stock).
+            expected_suffix = exch_info[0].lstrip(".")
+            if suffix != expected_suffix and suffix in SUFFIX_INFO:
+                inferred    = SUFFIX_INFO[suffix]
+                use_exch    = inferred[0]
+                exch_info   = ("." + suffix, inferred[1], inferred[2])
+            else:
+                use_exch    = exch
+        elif suffix and suffix in SUFFIX_INFO:
+            # Exchange code unknown to us, but suffix is recognisable — infer.
+            inferred    = SUFFIX_INFO[suffix]
+            use_exch    = inferred[0]
+            exch_info   = ("." + suffix, inferred[1], inferred[2])
+        else:
+            continue  # Dark pool / MTF / unrecognised exchange — skip.
+
+        seen_symbols.add(sym)
         markets.append({
             "symbol":           sym,
-            "exchange_code":    exch,
+            "exchange_code":    use_exch,
             "exchange_display": exch_info[1],
             "suffix":           suffix,
             "currency":         exch_info[2],
@@ -248,15 +291,25 @@ def pick_best_market(
         pref_exch = ISIN_COUNTRY_TO_EXCHANGE_CODE.get(country)
         if pref_exch is not None:
             if pref_exch == "":
-                # US - pick any US exchange
+                # US — pick any US exchange (no suffix)
                 us_match = [m for m in markets if not m["suffix"]]
                 if us_match:
                     return us_match[0]
             else:
-                match = [m for m in markets if m["exchange_code"] == pref_exch]
-                if match:
-                    return match[0]
-            # Fallback: any exchange in the same country group
+                # Build candidate exchange codes: primary preference first, then
+                # country-specific alternates (e.g. Canada: TSX then TSXV).
+                candidates = [pref_exch]
+                if country == "CA":
+                    # Canadian ISINs trade on TSX *or* TSXV — try both codes
+                    # (real Yahoo codes TOR/VAN and legacy aliases TSX/CVE).
+                    candidates += ["TSX", "TOR", "VAN", "CVE", "NEO", "CNQ"]
+
+                for cand in candidates:
+                    match = [m for m in markets if m["exchange_code"] == cand]
+                    if match:
+                        return match[0]
+
+            # Fallback: any listing whose suffix matches the preferred exchange's suffix.
             pref_suffix_tuple = YAHOO_EXCHANGE_INFO.get(pref_exch)
             if pref_suffix_tuple:
                 pref_suffix = pref_suffix_tuple[0].lstrip(".")
