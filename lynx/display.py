@@ -2,6 +2,9 @@
 Terminal display helpers using Rich.
 """
 
+import io
+import re
+import sys
 from typing import List, Dict, Optional, Tuple
 
 from rich.console import Console
@@ -12,6 +15,24 @@ from rich import box
 from . import forex
 
 console = Console()
+
+# Regex to strip ANSI escape sequences when measuring rendered text width.
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _flush_console() -> None:
+    """Flush stdout so Rich output is fully written before readline takes over."""
+    sys.stdout.flush()
+
+
+def _measure_renderable_width(renderable) -> int:
+    """Render *renderable* off-screen and return the width of the widest line."""
+    buf = Console(file=io.StringIO(), width=9999, no_color=False)
+    buf.print(renderable)
+    return max(
+        (len(_ANSI_RE.sub("", line).rstrip()) for line in buf.file.getvalue().splitlines() if line.strip()),
+        default=0,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +139,7 @@ def display_portfolio(instruments: List[Dict]) -> None:
             "Add instruments with: lynx -ni add --ticker AAPL --shares 10 "
             "--avg-price 150[/yellow]"
         )
+        _flush_console()
         return
 
     # Determine whether any instrument uses a non-EUR currency.
@@ -145,10 +167,20 @@ def display_portfolio(instruments: List[Dict]) -> None:
         show_lines=False,
     )
 
-    table.add_column("Ticker",     style="bold white",  width=12,            no_wrap=True)
-    table.add_column("ISIN",                            width=14,            no_wrap=True)
-    table.add_column("Name",                            width=26)
-    table.add_column("Exchange",                        width=16)
+    # When EUR columns are added, narrow the text-heavy columns (Name, Exchange,
+    # ISIN) so the table stays within a reasonable width.  Numeric columns keep
+    # their full width because truncating numbers is worse than truncating names.
+    if show_eur:
+        table.add_column("Ticker",     style="bold white", width=10,  no_wrap=True)
+        table.add_column("ISIN",                           width=13,  no_wrap=True)
+        table.add_column("Name",                           width=18)
+        table.add_column("Exchange",                       width=12)
+    else:
+        table.add_column("Ticker",     style="bold white", width=12,  no_wrap=True)
+        table.add_column("ISIN",                           width=14,  no_wrap=True)
+        table.add_column("Name",                           width=26)
+        table.add_column("Exchange",                       width=16)
+
     # justify="left"  → preserves leading spaces that carry alignment.
     # min_width       → prevents Rich from collapsing the column below content width.
     # no_wrap=True    → safe here because min_width guarantees content always fits.
@@ -156,12 +188,12 @@ def display_portfolio(instruments: List[Dict]) -> None:
                      min_width=shares_min_w, no_wrap=True)
     table.add_column("Avg Price",  justify="right",     width=11)
     table.add_column("Curr Price", justify="right",     width=11)
-    table.add_column("CCY",                             width=5,             no_wrap=True)
+    table.add_column("CCY",                             width=5,  no_wrap=True)
     table.add_column("Mkt Value",  justify="right",     width=13)
     table.add_column("P&L",        justify="right",     width=22)
     if show_eur:
-        table.add_column("EUR Val",    justify="right", width=13)
-        table.add_column("EUR P&L",    justify="right", width=22)
+        table.add_column("EUR Val",    justify="right",  width=13)
+        table.add_column("EUR P&L",    justify="right",  width=22)
 
     total_invested     = 0.0
     total_market       = 0.0
@@ -221,11 +253,14 @@ def display_portfolio(instruments: List[Dict]) -> None:
             or "—"
         )
 
+        name_w = 18 if show_eur else 26
+        exch_w = 12 if show_eur else 16
+
         row = [
             inst.get("ticker") or "",
             inst.get("isin") or "—",
-            _truncate(inst.get("name") or "—", 26),
-            _truncate(exch_disp, 16),
+            _truncate(inst.get("name") or "—", name_w),
+            _truncate(exch_disp, exch_w),
             shares_str,
             f"{avg_price:,.2f}",
             curr_str,
@@ -237,6 +272,10 @@ def display_portfolio(instruments: List[Dict]) -> None:
             row += [eur_mkt_str, eur_pnl_str]
 
         table.add_row(*row)
+
+    # Measure the rendered table width so the Summary Panel can match it.
+    table_width = _measure_renderable_width(table)
+    panel_width = min(table_width, console.width) if table_width else None
 
     console.print(table)
 
@@ -272,14 +311,18 @@ def display_portfolio(instruments: List[Dict]) -> None:
             else:
                 rate_parts.append(f"{ccy}/EUR=N/A")
         if rate_parts:
-            summary += f"\n[dim]Rates: {',  '.join(rate_parts)}[/dim]"
+            summary += f"\n[dim]Rates: {'  '.join(rate_parts)}[/dim]"
 
     if missing_prices:
         summary += (
             f"\n[dim]{missing_prices} position(s) excluded from "
             f"Market Value / P&L (no price available)[/dim]"
         )
-    console.print(Panel(summary, title="Summary", border_style="cyan", padding=(0, 2)))
+    console.print(Panel(
+        summary, title="Summary", border_style="cyan",
+        padding=(0, 2), width=panel_width,
+    ))
+    _flush_console()
 
 
 # ---------------------------------------------------------------------------
@@ -345,13 +388,14 @@ def display_instrument(inst: Dict) -> None:
     t.add_row("Updated", inst.get("updated_at") or "—")
 
     console.print(Panel(t, title=f"[bold]{ticker}[/bold]", border_style="cyan"))
+    _flush_console()
 
 
 # ---------------------------------------------------------------------------
 # Status helpers
 # ---------------------------------------------------------------------------
 
-def ok(msg: str)   -> None: console.print(f"[green]✓[/green] {msg}")
-def err(msg: str)  -> None: console.print(f"[red]✗[/red] {msg}")
-def info(msg: str) -> None: console.print(f"[cyan]ℹ[/cyan] {msg}")
-def warn(msg: str) -> None: console.print(f"[yellow]⚠[/yellow] {msg}")
+def ok(msg: str)   -> None: console.print(f"[green]✓[/green] {msg}"); _flush_console()
+def err(msg: str)  -> None: console.print(f"[red]✗[/red] {msg}"); _flush_console()
+def info(msg: str) -> None: console.print(f"[cyan]ℹ[/cyan] {msg}"); _flush_console()
+def warn(msg: str) -> None: console.print(f"[yellow]⚠[/yellow] {msg}"); _flush_console()

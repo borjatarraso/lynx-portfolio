@@ -2,6 +2,7 @@
 Interactive REPL mode for Lynx Portfolio.
 """
 
+import sys
 from typing import Optional, List, Dict
 
 from rich.prompt import Prompt, Confirm
@@ -20,6 +21,13 @@ from .operations import add_instrument, refresh_instrument, refresh_all
 try:
     import readline as _rl
     _rl.set_history_length(500)
+    # Emacs editing mode: ← / → move within the input line, ↑ / ↓ navigate
+    # history.  The cursor can never move past the prompt boundary — readline
+    # manages the input buffer independently from the prompt string.
+    _rl.parse_and_bind("set editing-mode emacs")
+    # Disable horizontal scroll: if the line is longer than the terminal it
+    # wraps to the next screen row instead of scrolling the prompt away.
+    _rl.parse_and_bind("set horizontal-scroll-mode off")
     _HAS_READLINE = True
 except ImportError:           # Windows without pyreadline
     _HAS_READLINE = False
@@ -27,12 +35,16 @@ except ImportError:           # Windows without pyreadline
 # ANSI bold-cyan matches the Rich [bold cyan] style used elsewhere.
 # \001 / \002 are readline's RL_PROMPT_START_IGNORE / RL_PROMPT_END_IGNORE
 # markers. Without them readline miscounts the visible width of the prompt
-# and arrow-key navigation jumps the cursor in front of the prompt text.
+# and arrow-key navigation corrupts the display.
 _REPL_PROMPT = "\n\001\033[1;36m\002lynx>\001\033[0m\002 "
 
 
 def _read_command() -> str:
     """Read one REPL line with readline history support (↑/↓ arrows)."""
+    # Flush stdout so any pending Rich output (ANSI codes, tables) is fully
+    # written before readline takes control of the terminal.  Without this,
+    # residual ANSI state from Rich can confuse readline's cursor tracking.
+    sys.stdout.flush()
     return input(_REPL_PROMPT).strip()
 
 
