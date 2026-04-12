@@ -38,6 +38,21 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 - `apply_cache_to_portfolio` now only updates fields that are actually present in
   the cache response.
 
+### Changed
+- **Share column alignment**: integer digits now align across all rows in the
+  portfolio table. The ones digit of every share count falls at the same column
+  position; decimal digits extend to the right only where present:
+  ```
+  6,789
+    145
+     23.5
+  1,000.25
+  ```
+- ETFs and funds show decimals only when the stored value is actually fractional;
+  whole-number holdings display without a decimal point.
+- Equities (stocks) always display as integers; fractional input is rounded with a
+  warning at add-time.
+
 ---
 
 ## [v0.1] — 2026-04-12
