@@ -9,6 +9,8 @@ from rich.table import Table
 from rich.panel import Panel
 from rich import box
 
+from . import forex
+
 console = Console()
 
 
@@ -118,6 +120,15 @@ def display_portfolio(instruments: List[Dict]) -> None:
         )
         return
 
+    # Determine whether any instrument uses a non-EUR currency.
+    rates = forex.get_session_rates()
+    non_eur_ccys = {
+        (inst.get("currency") or "EUR").upper()
+        for inst in instruments
+        if (inst.get("currency") or "EUR").upper() != "EUR"
+    }
+    show_eur = bool(non_eur_ccys)
+
     # Pre-compute aligned share strings (two-pass: widths first, then format).
     shares_strs = _align_shares_column(instruments)
     # Min column width = widest share string or the header, whichever is larger.
@@ -148,17 +159,30 @@ def display_portfolio(instruments: List[Dict]) -> None:
     table.add_column("CCY",                             width=5,             no_wrap=True)
     table.add_column("Mkt Value",  justify="right",     width=13)
     table.add_column("P&L",        justify="right",     width=22)
+    if show_eur:
+        table.add_column("EUR Val",    justify="right", width=13)
+        table.add_column("EUR P&L",    justify="right", width=22)
 
-    total_invested = 0.0
-    total_market   = 0.0
-    missing_prices = 0
+    total_invested     = 0.0
+    total_market       = 0.0
+    total_invested_eur = 0.0
+    total_market_eur   = 0.0
+    missing_prices     = 0
+    has_eur_gap        = False   # True if any EUR conversion was unavailable
 
     for inst, shares_str in zip(instruments, shares_strs):
         shares    = inst.get("shares") or 0.0
         avg_price = inst.get("avg_purchase_price") or 0.0
         curr      = inst.get("current_price")
+        ccy       = (inst.get("currency") or "EUR").upper()
         invested  = shares * avg_price
         total_invested += invested
+
+        invested_eur = forex.to_eur(invested, ccy)
+        if invested_eur is not None:
+            total_invested_eur += invested_eur
+        else:
+            has_eur_gap = True
 
         if curr is not None:
             mkt_val = shares * curr
@@ -168,11 +192,28 @@ def display_portfolio(instruments: List[Dict]) -> None:
             curr_str = f"{curr:,.2f}"
             mkt_str  = f"{mkt_val:,.2f}"
             pnl_str  = _pnl_markup(pnl, pct)
+
+            if show_eur:
+                mkt_eur = forex.to_eur(mkt_val, ccy)
+                pnl_eur = forex.to_eur(pnl, ccy)
+                if mkt_eur is not None:
+                    total_market_eur += mkt_eur
+                    eur_mkt_str = f"{mkt_eur:,.2f}"
+                else:
+                    has_eur_gap = True
+                    eur_mkt_str = "[dim]N/A[/dim]"
+                if pnl_eur is not None:
+                    eur_pnl_str = _pnl_markup(pnl_eur, pct)
+                else:
+                    eur_pnl_str = "[dim]N/A[/dim]"
         else:
             missing_prices += 1
-            curr_str = "N/A"
-            mkt_str  = "N/A"
-            pnl_str  = "[dim]N/A[/dim]"
+            curr_str    = "N/A"
+            mkt_str     = "N/A"
+            pnl_str     = "[dim]N/A[/dim]"
+            if show_eur:
+                eur_mkt_str = "[dim]N/A[/dim]"
+                eur_pnl_str = "[dim]N/A[/dim]"
 
         exch_disp = (
             inst.get("exchange_display")
@@ -180,7 +221,7 @@ def display_portfolio(instruments: List[Dict]) -> None:
             or "—"
         )
 
-        table.add_row(
+        row = [
             inst.get("ticker") or "",
             inst.get("isin") or "—",
             _truncate(inst.get("name") or "—", 26),
@@ -191,7 +232,11 @@ def display_portfolio(instruments: List[Dict]) -> None:
             inst.get("currency") or "—",
             mkt_str,
             pnl_str,
-        )
+        ]
+        if show_eur:
+            row += [eur_mkt_str, eur_pnl_str]
+
+        table.add_row(*row)
 
     console.print(table)
 
@@ -204,6 +249,31 @@ def display_portfolio(instruments: List[Dict]) -> None:
         f"Market Value: {total_market:,.2f}  |  "
         f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]"
     )
+
+    if show_eur:
+        total_pnl_eur = total_market_eur - total_invested_eur
+        total_pct_eur = (total_pnl_eur / total_invested_eur * 100) if total_invested_eur else 0.0
+        eur_color = "green" if total_pnl_eur >= 0 else "red"
+        eur_sign  = "+" if total_pnl_eur >= 0 else ""
+        eur_note  = "[dim] (partial)[/dim]" if has_eur_gap else ""
+        summary += (
+            f"\n"
+            f"EUR Invested: {total_invested_eur:,.2f}  |  "
+            f"EUR Market Value: {total_market_eur:,.2f}  |  "
+            f"EUR P&L: [{eur_color}]{eur_sign}{total_pnl_eur:,.2f} "
+            f"({eur_sign}{total_pct_eur:.2f}%)[/{eur_color}]{eur_note}"
+        )
+        # Exchange rates used
+        rate_parts = []
+        for ccy in sorted(non_eur_ccys):
+            rate = rates.get(ccy)
+            if rate is not None:
+                rate_parts.append(f"{ccy}/EUR={rate:.4f}")
+            else:
+                rate_parts.append(f"{ccy}/EUR=N/A")
+        if rate_parts:
+            summary += f"\n[dim]Rates: {',  '.join(rate_parts)}[/dim]"
+
     if missing_prices:
         summary += (
             f"\n[dim]{missing_prices} position(s) excluded from "
@@ -221,6 +291,7 @@ def display_instrument(inst: Dict) -> None:
     shares    = inst.get("shares") or 0.0
     avg_price = inst.get("avg_purchase_price") or 0.0
     curr      = inst.get("current_price")
+    ccy       = (inst.get("currency") or "EUR").upper()
     invested  = shares * avg_price
 
     t = Table(show_header=False, box=box.SIMPLE, padding=(0, 1), expand=False)
@@ -246,12 +317,26 @@ def display_instrument(inst: Dict) -> None:
     t.add_row("Current Price",        _price_str(curr))
     t.add_row("Total Invested",       f"{invested:,.2f}")
 
+    # EUR equivalent for invested (when non-EUR)
+    if ccy != "EUR":
+        invested_eur = forex.to_eur(invested, ccy)
+        if invested_eur is not None:
+            t.add_row("Total Invested (EUR)", f"{invested_eur:,.2f}")
+
     if curr is not None:
         mkt_val = shares * curr
         pnl     = mkt_val - invested
         pct     = (pnl / invested * 100) if invested else 0.0
         t.add_row("Market Value", f"{mkt_val:,.2f}")
-        t.add_row("P&L",         _pnl_markup(pnl, pct))
+        if ccy != "EUR":
+            mkt_eur = forex.to_eur(mkt_val, ccy)
+            if mkt_eur is not None:
+                t.add_row("Market Value (EUR)", f"{mkt_eur:,.2f}")
+        t.add_row("P&L", _pnl_markup(pnl, pct))
+        if ccy != "EUR":
+            pnl_eur = forex.to_eur(pnl, ccy)
+            if pnl_eur is not None:
+                t.add_row("P&L (EUR)", _pnl_markup(pnl_eur, pct))
 
     if inst.get("description"):
         t.add_row("Description", inst["description"])

@@ -18,7 +18,7 @@ from textual.widgets import (
     Select, LoadingIndicator,
 )
 
-from . import database, cache, config
+from . import database, cache, config, forex
 from .display import _split_shares, _shares_str
 from .operations import (
     add_instrument as ops_add_instrument,
@@ -254,11 +254,24 @@ class PortfolioScreen(Screen):
         table = self.query_one(DataTable)
         table.cursor_type = "row"
         table.zebra_stripes = True
-        table.add_columns(
+
+        # Determine whether any instrument uses a non-EUR currency so we can
+        # show EUR columns.  Use whatever rates are already cached (forex was
+        # fetched at startup in cli.py before launching the TUI).
+        instruments = database.get_all_instruments()
+        self._show_eur = any(
+            (inst.get("currency") or "EUR").upper() != "EUR"
+            for inst in instruments
+        )
+
+        columns = [
             "Ticker", "ISIN", "Name", "Exchange",
             "Shares", "Avg Price", "Curr Price", "CCY",
             "Mkt Value", "P&L",
-        )
+        ]
+        if self._show_eur:
+            columns += ["EUR Val", "EUR P&L"]
+        table.add_columns(*columns)
         self._reload_table()
 
     def _reload_table(self) -> None:
@@ -272,6 +285,7 @@ class PortfolioScreen(Screen):
             shares    = inst.get("shares") or 0.0
             avg_price = inst.get("avg_purchase_price") or 0.0
             curr      = inst.get("current_price")
+            ccy       = (inst.get("currency") or "EUR").upper()
             invested  = shares * avg_price
             qt        = inst.get("quote_type")
             shares_s  = _shares_str(shares, qt)
@@ -283,10 +297,18 @@ class PortfolioScreen(Screen):
                 curr_s  = f"{curr:,.2f}"
                 mkt_s   = f"{mkt_val:,.2f}"
                 pnl_s   = _pnl_text(pnl, pct)
+                if self._show_eur:
+                    mkt_eur = forex.to_eur(mkt_val, ccy)
+                    pnl_eur = forex.to_eur(pnl, ccy)
+                    eur_mkt_s = f"{mkt_eur:,.2f}" if mkt_eur is not None else "N/A"
+                    eur_pnl_s = _pnl_text(pnl_eur, pct) if pnl_eur is not None else "N/A"
             else:
                 curr_s = "N/A"
                 mkt_s  = "N/A"
                 pnl_s  = "N/A"
+                if self._show_eur:
+                    eur_mkt_s = "N/A"
+                    eur_pnl_s = "N/A"
 
             exch = (
                 inst.get("exchange_display")
@@ -294,7 +316,7 @@ class PortfolioScreen(Screen):
                 or "—"
             )
 
-            table.add_row(
+            row = [
                 inst.get("ticker") or "",
                 inst.get("isin") or "—",
                 (inst.get("name") or "—")[:30],
@@ -305,8 +327,11 @@ class PortfolioScreen(Screen):
                 inst.get("currency") or "—",
                 mkt_s,
                 pnl_s,
-                key=inst.get("ticker"),
-            )
+            ]
+            if self._show_eur:
+                row += [eur_mkt_s, eur_pnl_s]
+
+            table.add_row(*row, key=inst.get("ticker"))
 
     def _get_selected_ticker(self) -> Optional[str]:
         table = self.query_one(DataTable)
@@ -436,6 +461,8 @@ class DetailScreen(Screen):
             or "—"
         )
 
+        ccy = (inst.get("currency") or "EUR").upper()
+
         lines = [
             f"[bold cyan]{'─' * 60}[/bold cyan]",
             f"[bold cyan]  {self._ticker}[/bold cyan]",
@@ -454,6 +481,11 @@ class DetailScreen(Screen):
             f"  [bold cyan]Total Invested[/bold cyan]      {invested:,.2f}",
         ]
 
+        if ccy != "EUR":
+            inv_eur = forex.to_eur(invested, ccy)
+            if inv_eur is not None:
+                lines.append(f"  [bold cyan]Total Invested (EUR)[/bold cyan] {inv_eur:,.2f}")
+
         if curr is not None:
             mkt_val = shares * curr
             pnl     = mkt_val - invested
@@ -461,7 +493,15 @@ class DetailScreen(Screen):
             color   = "green" if pnl >= 0 else "red"
             sign    = "+" if pnl >= 0 else ""
             lines.append(f"  [bold cyan]Market Value[/bold cyan]        {mkt_val:,.2f}")
+            if ccy != "EUR":
+                mkt_eur = forex.to_eur(mkt_val, ccy)
+                if mkt_eur is not None:
+                    lines.append(f"  [bold cyan]Market Value (EUR)[/bold cyan]  {mkt_eur:,.2f}")
             lines.append(f"  [bold cyan]P&L[/bold cyan]                 [{color}]{sign}{pnl:,.2f} ({sign}{pct:.2f}%)[/{color}]")
+            if ccy != "EUR":
+                pnl_eur = forex.to_eur(pnl, ccy)
+                if pnl_eur is not None:
+                    lines.append(f"  [bold cyan]P&L (EUR)[/bold cyan]           [{color}]{sign}{pnl_eur:,.2f} ({sign}{pct:.2f}%)[/{color}]")
 
         if inst.get("description"):
             lines.append(f"  [bold cyan]Description[/bold cyan]         {inst['description']}")

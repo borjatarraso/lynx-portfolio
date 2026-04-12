@@ -25,7 +25,10 @@ except ImportError:           # Windows without pyreadline
     _HAS_READLINE = False
 
 # ANSI bold-cyan matches the Rich [bold cyan] style used elsewhere.
-_REPL_PROMPT = "\n\033[1;36mlynx>\033[0m "
+# \001 / \002 are readline's RL_PROMPT_START_IGNORE / RL_PROMPT_END_IGNORE
+# markers. Without them readline miscounts the visible width of the prompt
+# and arrow-key navigation jumps the cursor in front of the prompt text.
+_REPL_PROMPT = "\n\001\033[1;36m\002lynx>\001\033[0m\002 "
 
 
 def _read_command() -> str:

@@ -357,6 +357,16 @@ def run() -> None:
 
     database.init_db()
 
+    # ── forex: fetch conversion rates once at session start ───────────────
+    from . import forex
+    _instruments_for_forex = database.get_all_instruments()
+    _forex_ccys = {
+        (inst.get("currency") or "EUR").upper()
+        for inst in _instruments_for_forex
+    }
+    if _forex_ccys - {"EUR"}:
+        forex.fetch_session_rates(_forex_ccys)
+
     # ── global cache flags ────────────────────────────────────────────────
     if args.delete_cache:
         n = cache.delete()

@@ -10,6 +10,16 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 ## [Unreleased]
 
 ### Added
+- **EUR currency conversion** using Yahoo Finance forex rates (`yfinance`):
+  - Rates are fetched once per session at startup for all non-EUR currencies in the portfolio.
+  - Symbol format: `{CCY}EUR=X` (e.g. `USDEUR=X`) — 1 unit of CCY expressed in EUR.
+  - Portfolio table gains **EUR Val** and **EUR P&L** columns when any non-EUR instrument is present.
+  - Summary panel shows EUR totals (Invested, Market Value, P&L) and the exchange rates applied (e.g. `USD/EUR=0.9234, CHF/EUR=1.0821`).
+  - Instrument detail view (`show`) gains **Total Invested (EUR)**, **Market Value (EUR)**, and **P&L (EUR)** rows for non-EUR instruments.
+  - TUI mode (`-tui`) also shows EUR Val / EUR P&L columns and EUR rows in the detail screen.
+  - New `forex.py` module: `fetch_session_rates()`, `get_session_rates()`, `to_eur()`.
+- **readline cursor fix** (interactive mode): ANSI colour codes in the `lynx>` prompt are now wrapped with `\001`/`\002` (readline's `RL_PROMPT_START_IGNORE`/`RL_PROMPT_END_IGNORE` markers), so left/right arrow-key navigation no longer jumps before the prompt text.
+
 - **Full-screen TUI mode** (`-tui` / `--textual-ui`): keyboard-driven interface built
   with [Textual](https://textual.textualize.io/), the modern Python TUI framework
   from the Rich team.
