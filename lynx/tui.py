@@ -329,10 +329,12 @@ class PortfolioScreen(Screen):
         columns = [
             "Ticker", "ISIN", "Name", "Exchange",
             "Shares", "Avg Price", "Curr Price", "CCY",
-            "Mkt Value", "P&L",
+            "Mkt Value",
         ]
         if self._show_eur:
             columns += ["EUR Val", "EUR P&L"]
+        else:
+            columns.append("P&L")
         table.add_columns(*columns)
         self._reload_table()
 
@@ -397,10 +399,11 @@ class PortfolioScreen(Screen):
                 curr_s,
                 inst.get("currency") or "—",
                 mkt_s,
-                pnl_s,
             ]
             if self._show_eur:
                 row += [eur_mkt_s, eur_pnl_s]
+            else:
+                row.append(pnl_s)
 
             table.add_row(*row, key=inst.get("ticker"))
 

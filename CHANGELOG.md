@@ -9,6 +9,41 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ## [Unreleased]
 
+---
+
+## [v0.3] — 2026-04-12
+
+### Added
+- **REST API** (`--api` / `--port`): Flask-based API with 12 endpoints for portfolio
+  CRUD, refresh, cache management, and forex rates. Instruments include computed fields
+  (market_value, pnl, pnl_pct, EUR equivalents). Start with `lynx --production-mode --api`.
+- **Optional cost tracking**: `avg_purchase_price` is now optional. Instruments without
+  it show "Not tracked" / "—" and are excluded from Invested / P&L totals.
+- **Notifier abstraction** in `operations.py`: decouples business logic from Rich terminal
+  display, enabling headless API operation.
+- **Robot Framework BDD tests** (`tests/robot/`): 9 CLI tests + 12 API tests using
+  Given/When/Then format with temp database isolation.
+- **Project documentation** (`docs/`): README, user guide, API reference, architecture.
+- **12 custom TUI themes**: matrix, monochrome, amber-terminal, phosphor-blue, cyberpunk,
+  ocean-deep, sunset, arctic, synthwave, forest, blood-moon, high-contrast. Press `t` to cycle.
+- **`--import FILE`** top-level flag for bulk JSON import without `-ni` subcommand.
+- **Suffix-fallback search**: when a plain ticker (e.g. "NAS") returns no equities,
+  common exchange suffixes (.OL, .TO, .V, .DE, etc.) are tried automatically.
+
+### Fixed
+- **Interactive prompt corruption**: replaced all Rich Prompt.ask / Confirm.ask calls
+  with plain `_ask()` / `_confirm()` wrappers — question text prints via Rich, input
+  reads on a separate `> ` line. Backspace and arrows can never corrupt the question.
+- **DisplayNotifier infinite recursion**: the Notifier was calling `_notifier.info()`
+  instead of `display.info()`, causing a stack overflow on every status message.
+- **TUI P&L column inconsistency**: the TUI table showed a native-currency P&L column
+  alongside EUR columns; now matches the CLI behaviour (EUR P&L replaces P&L when
+  non-EUR currencies are present).
+- **`_ensure_dir` crash on bare filename**: `os.makedirs("")` raised `FileNotFoundError`
+  when the DB path had no directory component.
+- **Clear-cache safety**: all modes now show a blinking red warning listing all portfolio
+  instruments, require Enter to continue, then Abort/Continue (Abort default).
+
 ### Fixed
 - **TSXV / TSX Venture Exchange stocks not recognised** (e.g. FUU.V — F3 Uranium Corp):
   Yahoo Finance's Search API returns exchange code `"VAN"` for TSXV (not the previously

@@ -23,15 +23,15 @@ class Notifier:
 class DisplayNotifier(Notifier):
     """Default notifier — delegates to the Rich display module."""
     def info(self, msg: str) -> None:
-        from . import display; _notifier.info(msg)
+        from . import display; display.info(msg)
     def ok(self, msg: str) -> None:
-        from . import display; _notifier.ok(msg)
+        from . import display; display.ok(msg)
     def err(self, msg: str) -> None:
-        from . import display; _notifier.err(msg)
+        from . import display; display.err(msg)
     def warn(self, msg: str) -> None:
-        from . import display; _notifier.warn(msg)
+        from . import display; display.warn(msg)
     def show_instrument(self, inst: dict) -> None:
-        from . import display; _notifier.show_instrument(inst)
+        from . import display; display.display_instrument(inst)
 
 
 _notifier: Notifier = DisplayNotifier()

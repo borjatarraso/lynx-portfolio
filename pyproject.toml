@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name            = "lynx-portfolio"
-version         = "0.2"
+version         = "0.3"
 description     = "Investment portfolio tracker with Yahoo Finance integration"
 readme          = "README.md"
 requires-python = ">=3.9"

@@ -36,7 +36,9 @@ def get_db_path() -> str:
 
 
 def _ensure_dir() -> None:
-    os.makedirs(os.path.dirname(get_db_path()), exist_ok=True)
+    parent = os.path.dirname(get_db_path())
+    if parent:
+        os.makedirs(parent, exist_ok=True)
 
 
 def get_connection() -> sqlite3.Connection:

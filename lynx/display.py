@@ -437,9 +437,9 @@ def confirm_clear_cache(instruments: List[Dict]) -> bool:
     Abort).  Returns True only if the user confirms.
     """
     if not instruments:
-        console.print("[yellow]Cache is empty — nothing to clear.[/yellow]")
+        console.print("[yellow]Portfolio is empty — clearing cache.[/yellow]")
         _flush_console()
-        return True  # nothing to lose
+        return True  # no positions to list, safe to proceed
 
     # ── Blinking red warning ─────────────────────────────────────────────
     console.print()

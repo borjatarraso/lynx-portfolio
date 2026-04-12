@@ -166,16 +166,18 @@ def add_instrument_endpoint():
         _restore_notifier()
 
     if ok:
-        symbol = (ticker or "").upper()
-        # Find the actual symbol that was stored (might differ from input)
-        instruments = database.get_all_instruments()
+        # Extract the actual stored symbol from the notifier's "Added XXX" message.
         added = None
-        for inst in reversed(instruments):
-            if inst.get("ticker", "").upper().startswith(symbol.split(".")[0] if symbol else ""):
-                added = inst
+        for m in notifier.messages:
+            if m["level"] == "ok" and "Added " in m["message"]:
+                sym = m["message"].split("Added ", 1)[1].split(" ", 1)[0]
+                added = database.get_instrument(sym)
                 break
-        if not added and instruments:
-            added = instruments[-1]
+        # Fallback: get the most recently added instrument.
+        if not added:
+            instruments = database.get_all_instruments()
+            if instruments:
+                added = instruments[-1]
         return jsonify({
             "status": "created",
             "instrument": _enrich_instrument(added) if added else None,
