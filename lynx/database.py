@@ -16,7 +16,7 @@ DB_PATH = os.environ.get(
 ALLOWED_UPDATE_FIELDS = {
     "isin", "name", "shares", "avg_purchase_price",
     "currency", "sector", "industry", "description",
-    "current_price", "updated_at",
+    "current_price", "exchange_code", "exchange_display", "updated_at",
 }
 
 
@@ -51,6 +51,8 @@ def init_db() -> None:
             sector             TEXT,
             industry           TEXT,
             description        TEXT,
+            exchange_code      TEXT,
+            exchange_display   TEXT,
             created_at         TEXT DEFAULT (datetime('now')),
             updated_at         TEXT DEFAULT (datetime('now'))
         );
@@ -59,17 +61,44 @@ def init_db() -> None:
             ON portfolio(ticker);
 
         CREATE TABLE IF NOT EXISTS instrument_cache (
-            ticker      TEXT PRIMARY KEY,
-            isin        TEXT,
-            name        TEXT,
-            price       REAL,
-            currency    TEXT,
-            sector      TEXT,
-            industry    TEXT,
-            description TEXT,
-            cached_at   TEXT DEFAULT (datetime('now'))
+            ticker           TEXT PRIMARY KEY,
+            isin             TEXT,
+            name             TEXT,
+            price            REAL,
+            currency         TEXT,
+            sector           TEXT,
+            industry         TEXT,
+            description      TEXT,
+            exchange_code    TEXT,
+            exchange_display TEXT,
+            cached_at        TEXT DEFAULT (datetime('now'))
         );
     """)
+    # Migrations: add columns to existing tables if they are absent
+    existing = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(portfolio)").fetchall()
+    }
+    for col, definition in [
+        ("exchange_code",    "TEXT"),
+        ("exchange_display", "TEXT"),
+    ]:
+        if col not in existing:
+            conn.execute(f"ALTER TABLE portfolio ADD COLUMN {col} {definition}")
+
+    cache_existing = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(instrument_cache)").fetchall()
+    }
+    for col, definition in [
+        ("exchange_code",    "TEXT"),
+        ("exchange_display", "TEXT"),
+    ]:
+        if col not in cache_existing:
+            conn.execute(
+                f"ALTER TABLE instrument_cache ADD COLUMN {col} {definition}"
+            )
+
     conn.commit()
     conn.close()
 
@@ -85,6 +114,8 @@ def add_instrument(
     sector: Optional[str] = None,
     industry: Optional[str] = None,
     description: Optional[str] = None,
+    exchange_code: Optional[str] = None,
+    exchange_display: Optional[str] = None,
 ) -> bool:
     """Returns True on success, False if ticker already exists."""
     conn = get_connection()
@@ -93,11 +124,13 @@ def add_instrument(
             """
             INSERT INTO portfolio
                 (ticker, isin, name, shares, avg_purchase_price, current_price,
-                 currency, sector, industry, description)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 currency, sector, industry, description,
+                 exchange_code, exchange_display)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ticker.upper(), isin, name, shares, avg_purchase_price,
-             current_price, currency, sector, industry, description),
+             current_price, currency, sector, industry, description,
+             exchange_code, exchange_display),
         )
         conn.commit()
         return True
@@ -160,15 +193,14 @@ def delete_instrument(ticker: str) -> bool:
 
 def apply_cache_to_portfolio(ticker: str, data: Dict) -> None:
     """Push fetched data into the portfolio row."""
-    update_instrument(
-        ticker,
-        name=data.get("name"),
-        current_price=data.get("current_price"),
-        currency=data.get("currency"),
-        sector=data.get("sector"),
-        industry=data.get("industry"),
-        description=data.get("description"),
-    )
+    kwargs: Dict[str, Any] = {
+        k: data[k]
+        for k in ("name", "current_price", "currency", "sector",
+                  "industry", "description", "exchange_code", "exchange_display")
+        if data.get(k) is not None
+    }
+    if kwargs:
+        update_instrument(ticker, **kwargs)
 
 
 # ---------- cache table ----------
@@ -190,8 +222,9 @@ def cache_put(ticker: str, data: Dict) -> None:
         conn.execute(
             """
             INSERT OR REPLACE INTO instrument_cache
-                (ticker, isin, name, price, currency, sector, industry, description, cached_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (ticker, isin, name, price, currency, sector, industry,
+                 description, exchange_code, exchange_display, cached_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 ticker.upper(),
@@ -202,6 +235,8 @@ def cache_put(ticker: str, data: Dict) -> None:
                 data.get("sector"),
                 data.get("industry"),
                 data.get("description"),
+                data.get("exchange_code"),
+                data.get("exchange_display"),
                 datetime.now().isoformat(timespec="seconds"),
             ),
         )

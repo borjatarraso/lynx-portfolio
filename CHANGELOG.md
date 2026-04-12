@@ -7,6 +7,39 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ---
 
+## [Unreleased / v0.2-dev] — 2026-04-12
+
+### Added
+- **Multi-market exchange resolution**: instruments are now resolved to a specific
+  exchange with the correct ticker suffix (e.g. `NESN.SW`, `VWCE.DE`, `IWDA.AS`).
+- **`--exchange` / `-e` flag** on the `add` command: specify the preferred exchange
+  suffix (e.g. `--exchange SW` for SIX Swiss, `--exchange DE` for XETRA,
+  `--exchange AS` for Euronext Amsterdam).
+- **Ticker suffix support**: if you type `NESN.SW` directly, the suffix is respected
+  and no market-search is performed.
+- **ISIN → all markets expansion**: when an ISIN is provided, Lynx now searches
+  Yahoo Finance both by ISIN and by the resolved base ticker, surfacing all available
+  exchange listings (not just the primary one).
+- **Interactive `markets` command**: shows all available exchanges for a ticker or ISIN.
+- **Exchange columns in DB**: `exchange_code` (internal Yahoo code, e.g. `GER`) and
+  `exchange_display` (human-readable, e.g. `Deutsche Börse XETRA`) stored per position.
+- **Exchange column in portfolio table** and instrument detail view.
+- **Automatic DB migration**: new columns are added to existing databases without
+  losing data.
+- **83-entry `YAHOO_EXCHANGE_INFO` mapping**: covers US, all major European markets
+  (SIX, XETRA, Frankfurt, Stuttgart, Munich, Düsseldorf, Berlin, Hamburg, Euronext
+  Paris/Amsterdam/Brussels/Lisbon/Dublin, Borsa Italiana, Madrid, LSE, Oslo, Stockholm,
+  Copenhagen, Helsinki, Vienna, Warsaw, Athens) plus Americas and Asia-Pacific.
+- **ISIN country-code heuristic**: auto-selects the most natural exchange for a given
+  ISIN (e.g. `CH` → SIX Swiss, `DE` → XETRA, `FR` → Euronext Paris).
+
+### Fixed
+- Description field no longer produces double-period at end of sentence.
+- `apply_cache_to_portfolio` now only updates fields that are actually present in
+  the cache response.
+
+---
+
 ## [v0.1] — 2026-04-12
 
 ### Added

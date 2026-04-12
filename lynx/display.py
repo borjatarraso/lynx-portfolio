@@ -45,16 +45,16 @@ def display_portfolio(instruments: List[Dict]) -> None:
         show_lines=False,
     )
 
-    table.add_column("Ticker",     style="bold white",  width=8,  no_wrap=True)
+    table.add_column("Ticker",     style="bold white",  width=12, no_wrap=True)
     table.add_column("ISIN",                            width=14, no_wrap=True)
-    table.add_column("Name",                            width=28)
+    table.add_column("Name",                            width=26)
+    table.add_column("Exchange",                        width=16)
     table.add_column("Shares",     justify="right",     width=10)
     table.add_column("Avg Price",  justify="right",     width=11)
     table.add_column("Curr Price", justify="right",     width=11)
     table.add_column("CCY",                             width=5,  no_wrap=True)
     table.add_column("Mkt Value",  justify="right",     width=13)
     table.add_column("P&L",        justify="right",     width=22)
-    table.add_column("Sector",                          width=18)
 
     total_invested = 0.0
     total_market = 0.0
@@ -80,17 +80,22 @@ def display_portfolio(instruments: List[Dict]) -> None:
             mkt_str  = "N/A"
             pnl_str  = "[dim]N/A[/dim]"
 
+        exch_disp = (
+            inst.get("exchange_display")
+            or inst.get("exchange_code")
+            or "—"
+        )
         table.add_row(
             inst.get("ticker") or "",
             inst.get("isin") or "—",
-            _truncate(inst.get("name") or "—", 28),
+            _truncate(inst.get("name") or "—", 26),
+            _truncate(exch_disp, 16),
             f"{shares:,.4f}",
             f"{avg_price:,.4f}",
             curr_str,
             inst.get("currency") or "—",
             mkt_str,
             pnl_str,
-            _truncate(inst.get("sector") or "—", 18),
         )
 
     console.print(table)
@@ -121,9 +126,15 @@ def display_instrument(inst: Dict) -> None:
     t.add_column("Field", style="bold cyan", width=22)
     t.add_column("Value", width=55)
 
+    exch_disp = (
+        inst.get("exchange_display")
+        or inst.get("exchange_code")
+        or "—"
+    )
     t.add_row("Ticker",               ticker)
     t.add_row("ISIN",                 inst.get("isin") or "—")
     t.add_row("Name",                 inst.get("name") or "—")
+    t.add_row("Exchange",             exch_disp)
     t.add_row("Currency",             inst.get("currency") or "—")
     t.add_row("Sector",               inst.get("sector") or "—")
     t.add_row("Industry",             inst.get("industry") or "—")

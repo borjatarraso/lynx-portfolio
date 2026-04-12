@@ -91,8 +91,14 @@ examples:
 
     # add
     p_add = sub.add_parser("add", help="Add an instrument to the portfolio")
-    p_add.add_argument("--ticker", "-t", help="Ticker symbol (e.g. AAPL)")
-    p_add.add_argument("--isin",         help="ISIN code (e.g. US0378331005)")
+    p_add.add_argument("--ticker", "-t",
+                       help="Ticker symbol — include exchange suffix for precision "
+                            "(e.g. NESN.SW, VWCE.DE, AAPL, ASML.AS)")
+    p_add.add_argument("--isin",   help="ISIN code (e.g. CH0038863350)")
+    p_add.add_argument("--exchange", "-e",
+                       help="Preferred exchange suffix for auto-selection "
+                            "(e.g. SW, DE, PA, AS, MI, L). Ignored if ticker "
+                            "already contains a suffix.")
     p_add.add_argument("--shares",  "-s", type=float, required=True, help="Number of shares held")
     p_add.add_argument("--avg-price", "-p", type=float, required=True,
                        dest="avg_price", help="Average purchase price per share")
@@ -175,10 +181,11 @@ def run() -> None:
     # ── subcommands ───────────────────────────────────────────────────────
     if args.command == "add":
         add_instrument(
-            ticker            = getattr(args, "ticker", None),
-            isin              = getattr(args, "isin", None),
-            shares            = args.shares,
-            avg_purchase_price= args.avg_price,
+            ticker             = getattr(args, "ticker", None),
+            isin               = getattr(args, "isin", None),
+            shares             = args.shares,
+            avg_purchase_price = args.avg_price,
+            preferred_exchange = getattr(args, "exchange", None),
         )
 
     elif args.command == "list":

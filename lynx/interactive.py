@@ -2,9 +2,11 @@
 Interactive REPL mode for Lynx Portfolio.
 """
 
-from typing import Optional
+from typing import Optional, List, Dict
 
 from rich.prompt import Prompt, Confirm
+from rich.table import Table
+from rich import box
 
 from . import database, cache, display
 from .operations import add_instrument, refresh_instrument, refresh_all
@@ -13,16 +15,17 @@ from .operations import add_instrument, refresh_instrument, refresh_all
 _HELP = """
 [bold cyan]Commands[/bold cyan]
 
-  [bold]list[/bold]  /  [bold]ls[/bold]             List all portfolio positions
-  [bold]add[/bold]                     Add a new instrument (guided prompt)
-  [bold]show[/bold]   <ticker>         Show detailed view for an instrument
-  [bold]update[/bold] <ticker>         Update shares / average price
-  [bold]delete[/bold] <ticker>         Remove an instrument from the portfolio
-  [bold]refresh[/bold]                 Refresh live data for all instruments
-  [bold]refresh[/bold] <ticker>        Refresh live data for one instrument
-  [bold]clear-cache[/bold]             Wipe all cached data
-  [bold]help[/bold]                    Show this message
-  [bold]quit[/bold]  /  [bold]exit[/bold]  /  [bold]q[/bold]   Exit
+  [bold]list[/bold]  /  [bold]ls[/bold]                List all portfolio positions
+  [bold]add[/bold]                        Add a new instrument (guided prompt)
+  [bold]show[/bold]   <ticker>            Show detailed view for an instrument
+  [bold]update[/bold] <ticker>            Update shares / average price
+  [bold]delete[/bold] <ticker>            Remove an instrument from the portfolio
+  [bold]refresh[/bold]                    Refresh live data for all instruments
+  [bold]refresh[/bold] <ticker>           Refresh live data for one instrument
+  [bold]clear-cache[/bold]               Wipe all cached data
+  [bold]markets[/bold] <ticker or ISIN>  List all exchanges where an instrument trades
+  [bold]help[/bold]                       Show this message
+  [bold]quit[/bold]  /  [bold]exit[/bold]  /  [bold]q[/bold]    Exit
 """
 
 
@@ -42,9 +45,9 @@ def run() -> None:
         if not raw:
             continue
 
-        parts  = raw.split(None, 1)
-        cmd    = parts[0].lower()
-        arg    = parts[1].strip() if len(parts) > 1 else ""
+        parts = raw.split(None, 1)
+        cmd   = parts[0].lower()
+        arg   = parts[1].strip() if len(parts) > 1 else ""
 
         if cmd in ("quit", "exit", "q"):
             display.console.print("[cyan]Goodbye![/cyan]")
@@ -87,16 +90,71 @@ def run() -> None:
             n = cache.delete()
             display.ok(f"Cache cleared ({n} entries removed).")
 
+        elif cmd == "markets":
+            if not arg:
+                display.err("Usage: markets <ticker or ISIN>")
+            else:
+                _cmd_markets(arg)
+
         else:
             display.warn(f"Unknown command '{cmd}'. Type 'help' for available commands.")
 
 
-# ---------- sub-command helpers ----------
+# ---------------------------------------------------------------------------
+# Market selection prompt (used as market_selector callback in add_instrument)
+# ---------------------------------------------------------------------------
+
+def _prompt_market_selection(markets: List[Dict]) -> Optional[Dict]:
+    """Show a table of available markets and ask the user to pick one."""
+    t = Table(
+        title="Available Markets",
+        box=box.ROUNDED,
+        header_style="bold cyan",
+        show_lines=False,
+    )
+    t.add_column("#",        width=4,  justify="right")
+    t.add_column("Symbol",   width=16)
+    t.add_column("Exchange", width=32)
+    t.add_column("Suffix",   width=8)
+    t.add_column("Type",     width=12)
+
+    for i, m in enumerate(markets, 1):
+        t.add_row(
+            str(i),
+            m["symbol"],
+            m["exchange_display"] or m["exchange_code"],
+            m["suffix"] or "(US)",
+            m["quote_type"],
+        )
+
+    display.console.print(t)
+
+    choices = [str(i) for i in range(1, len(markets) + 1)] + ["0"]
+    answer  = Prompt.ask(
+        "Select market number  [dim][0 to cancel][/dim]",
+        choices=choices,
+        show_choices=False,
+    )
+    if answer == "0":
+        return None
+    return markets[int(answer) - 1]
+
+
+# ---------------------------------------------------------------------------
+# Sub-command helpers
+# ---------------------------------------------------------------------------
 
 def _cmd_add() -> None:
     display.console.print("\n[bold]Add New Instrument[/bold]")
-    ticker = Prompt.ask("Ticker symbol (e.g. AAPL)  [dim][Enter to skip if using ISIN][/dim]", default="").strip()
-    isin   = Prompt.ask("ISIN  [dim][Enter to skip][/dim]", default="").strip()
+
+    ticker = Prompt.ask(
+        "Ticker  [dim](e.g. AAPL, NESN.SW, VWCE.DE — include exchange suffix if known)[/dim]\n"
+        "  [dim][Enter to skip if using ISIN][/dim]",
+        default="",
+    ).strip()
+    isin = Prompt.ask(
+        "ISIN  [dim][Enter to skip][/dim]", default=""
+    ).strip()
 
     if not ticker and not isin:
         display.err("You must provide at least a ticker or an ISIN.")
@@ -114,6 +172,7 @@ def _cmd_add() -> None:
         isin   or None,
         shares,
         avg_price,
+        market_selector=_prompt_market_selection,
     )
 
 
@@ -148,8 +207,12 @@ def _cmd_update(ticker: str) -> None:
         f"(shares: {inst['shares']}, avg price: {inst['avg_purchase_price']})"
     )
 
-    raw_shares = Prompt.ask("New shares  [dim][Enter to keep][/dim]", default="").strip()
-    raw_price  = Prompt.ask("New avg price  [dim][Enter to keep][/dim]", default="").strip()
+    raw_shares = Prompt.ask(
+        "New shares  [dim][Enter to keep][/dim]", default=""
+    ).strip()
+    raw_price  = Prompt.ask(
+        "New avg price  [dim][Enter to keep][/dim]", default=""
+    ).strip()
 
     kwargs: dict = {}
     try:
@@ -166,3 +229,15 @@ def _cmd_update(ticker: str) -> None:
         display.ok(f"Updated {ticker}.")
     else:
         display.info("Nothing changed.")
+
+
+def _cmd_markets(query: str) -> None:
+    """Show all exchanges where a ticker/ISIN is listed."""
+    from . import fetcher as f
+    isin   = query if len(query) == 12 and query[:2].isalpha() else None
+    ticker = query if not isin else None
+    markets, _ = f.resolve_markets_for_input(ticker, isin)
+    if not markets:
+        display.warn(f"No markets found for '{query}'.")
+        return
+    _prompt_market_selection(markets)

@@ -22,6 +22,8 @@ def get(ticker: str, max_age: int = DEFAULT_TTL) -> Optional[Dict]:
     return row
 
 
+
+
 def put(ticker: str, data: Dict) -> None:
     database.cache_put(ticker, data)
 
