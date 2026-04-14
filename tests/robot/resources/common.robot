@@ -6,7 +6,7 @@ Library    String
 
 *** Variables ***
 ${PYTHON}          python3
-${LYNX_SCRIPT}     /home/overdrive/claude/lince-investor/lynx-portfolio/lynx-portfolio.py
+${LYNX_SCRIPT}     ${CURDIR}${/}..${/}..${/}..${/}lynx-portfolio.py
 ${BASE_URL}        http://localhost:15123
 ${TEMP_DB}         ${EMPTY}
 ${LAST_RESULT}     ${EMPTY}

@@ -431,7 +431,7 @@ def _play_sound_async():
 
 
 # ---------------------------------------------------------------------------
-# Terminal (CLI / Interactive) easter egg
+# Terminal animation sequence
 # ---------------------------------------------------------------------------
 
 def _clear_screen():
@@ -475,7 +475,7 @@ def _center(text: str, width: int) -> str:
 
 
 def run_terminal_egg():
-    """The full terminal easter egg show."""
+    """Full-screen terminal animation sequence."""
     rows, cols = _get_terminal_size()
     sound_thread = _play_sound_async()
 
@@ -611,7 +611,7 @@ def run_terminal_egg():
 
 
 # ---------------------------------------------------------------------------
-# Interactive REPL easter egg (inline, no screen clearing)
+# Interactive REPL animation (inline, no screen clearing)
 # ---------------------------------------------------------------------------
 
 _STOCK_SYMBOLS = [
@@ -645,7 +645,7 @@ _MINI_LYNX = r"""
 
 
 def run_interactive_egg():
-    """Inline REPL easter egg — fun without clearing the screen."""
+    """Inline REPL animation sequence."""
     import random
 
     sound_thread = _play_sound_async()
@@ -737,7 +737,7 @@ def run_interactive_egg():
 
 
 def run_console_egg():
-    """Quick one-shot console easter egg for non-interactive mode (~4-5s)."""
+    """Quick one-shot console animation sequence."""
     rows, cols = _get_terminal_size()
     sound_thread = _play_sound_async()
 
@@ -855,11 +855,11 @@ def run_console_egg():
 
 
 # ---------------------------------------------------------------------------
-# GUI (tkinter) easter egg
+# GUI (tkinter) animation
 # ---------------------------------------------------------------------------
 
 def run_gui_egg(parent=None):
-    """A tkinter animation easter egg."""
+    """Tkinter animation sequence."""
     import tkinter as tk
 
     sound_thread = _play_sound_async()
