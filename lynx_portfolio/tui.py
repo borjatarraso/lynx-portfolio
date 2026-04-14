@@ -325,6 +325,249 @@ class AboutScreen(ModalScreen):
 
 
 # ---------------------------------------------------------------------------
+# Easter egg screen
+# ---------------------------------------------------------------------------
+
+_EGG_CSS = """
+EggScreen {
+    align: center middle;
+    background: $surface;
+}
+#egg-canvas {
+    width: 100%;
+    height: 100%;
+    content-align: center middle;
+    text-align: center;
+    background: #000000;
+    color: #00ff00;
+}
+"""
+
+class EggScreen(ModalScreen):
+    """Nothing to see here."""
+
+    CSS = _EGG_CSS
+    BINDINGS = [
+        Binding("escape", "dismiss", "", show=False),
+        Binding("space", "dismiss", "", show=False),
+        Binding("q", "dismiss", "", show=False),
+    ]
+
+    _FRAMES = [
+        # Phase 0-7: Lynx face blinking
+        ("[bold cyan]"
+         "    /\\_/\\\n"
+         "   ( o.o )\n"
+         "    > ^ <\n"
+         "   /|   |\\\n"
+         "  (_|   |_)[/bold cyan]"),
+        ("[bold cyan]"
+         "    /\\_/\\\n"
+         "   ( -.o )\n"
+         "    > ^ <\n"
+         "   /|   |\\\n"
+         "  (_|   |_)[/bold cyan]"),
+        ("[bold cyan]"
+         "    /\\_/\\\n"
+         "   ( o.- )\n"
+         "    > ^ <\n"
+         "   /|   |\\\n"
+         "  (_|   |_)[/bold cyan]"),
+        ("[bold cyan]"
+         "    /\\_/\\\n"
+         "   ( ^.^ )\n"
+         "    > ^ <\n"
+         "   /|   |\\\n"
+         "  (_|   |_)[/bold cyan]"),
+    ]
+
+    _RAINBOW = ["red", "yellow", "green", "cyan", "blue", "magenta"]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._tick = 0
+        self._phase = 0
+        self._sound_started = False
+
+    def compose(self) -> ComposeResult:
+        yield Static(id="egg-canvas")
+
+    def on_mount(self) -> None:
+        self._timer = self.set_interval(0.22, self._animate)
+        # Start sound
+        if not self._sound_started:
+            self._sound_started = True
+            try:
+                from .egg import _play_sound_async
+                _play_sound_async()
+            except Exception:
+                pass
+
+    def _animate(self) -> None:
+        canvas = self.query_one("#egg-canvas", Static)
+        t = self._tick
+        p = self._phase
+
+        if p == 0:
+            # Blinking lynx
+            frame = self._FRAMES[t % len(self._FRAMES)]
+            canvas.update(f"\n\n\n{frame}\n\n[dim]🐱 meow[/dim]")
+            if t > 7:
+                self._phase = 1
+                self._tick = 0
+                return
+
+        elif p == 1:
+            # Rainbow banner
+            c = self._RAINBOW[t % len(self._RAINBOW)]
+            canvas.update(
+                f"\n\n[bold {c}]"
+                " ██╗     ██╗   ██╗███╗   ██╗██╗  ██╗\n"
+                " ██║     ╚██╗ ██╔╝████╗  ██║╚██╗██╔╝\n"
+                " ██║      ╚████╔╝ ██╔██╗ ██║ ╚███╔╝ \n"
+                " ██║       ╚██╔╝  ██║╚██╗██║ ██╔██╗ \n"
+                " ███████╗   ██║   ██║ ╚████║██╔╝ ██╗\n"
+                " ╚══════╝   ╚═╝   ╚═╝  ╚═══╝╚═╝  ╚═╝\n"
+                f"[/bold {c}]"
+            )
+            if t > 11:
+                self._phase = 2
+                self._tick = 0
+                return
+
+        elif p == 2:
+            # Bull market
+            c = "green" if t % 2 == 0 else "bold green"
+            canvas.update(
+                f"\n[{c}]"
+                "           /|            |\\\n"
+                "          / |    ____    | \\\n"
+                "         /  |   /    \\   |  \\\n"
+                "        /   |  |  $$  |  |   \\\n"
+                "            |  |  $$  |  |\n"
+                "             \\ |      | /\n"
+                "              \\|______|/\n"
+                "               |      |\n"
+                "              /|      |\\\n"
+                "             / |      | \\\n"
+                "               |  ||  |\n"
+                "              /|      |\\\n"
+                "             /_|      |_\\\n"
+                f"[/{c}]\n\n"
+                "[bold green]📈  BULL MARKET DETECTED!  📈[/bold green]"
+            )
+            if t > 8:
+                self._phase = 3
+                self._tick = 0
+                return
+
+        elif p == 3:
+            # Chart going up
+            c = self._RAINBOW[t % len(self._RAINBOW)]
+            canvas.update(
+                f"\n[bold {c}]"
+                "                               ╱\n"
+                "   $$$                       ╱\n"
+                "   $$$                     ╱\n"
+                "   $$$                   ╱\n"
+                "   $$$                 ╱   ╲\n"
+                "   $$$     ╱╲        ╱       ╲ ╱\n"
+                "   $$$   ╱    ╲    ╱\n"
+                "   $$$ ╱        ╲╱\n"
+                "   ───────────────────────────────\n"
+                "    JAN FEB MAR APR MAY JUN JUL\n"
+                f"[/bold {c}]"
+            )
+            if t > 8:
+                self._phase = 4
+                self._tick = 0
+                return
+
+        elif p == 4:
+            # Rocket
+            flames = "~" * min(t + 1, 10)
+            c = "bold yellow" if t % 2 == 0 else "bold red"
+            canvas.update(
+                "\n[bold white]"
+                "        *\n"
+                "       /|\\\n"
+                "      / | \\\n"
+                "     /  |  \\\n"
+                "    |   |   |\n"
+                "    |  LPM  |\n"
+                "    |       |\n"
+                "    |_______|\n"
+                "[/bold white]"
+                f"[{c}]"
+                f"      /{flames}\\\n"
+                f"     /{flames}{flames}\\\n"
+                f"[/{c}]\n"
+                "[bold yellow]🚀  TO THE MOON!  🚀[/bold yellow]"
+            )
+            if t > 10:
+                self._phase = 5
+                self._tick = 0
+                return
+
+        elif p == 5:
+            # Fireworks
+            sparkles = "✦✧★☆⚡💎🔥💰📈🚀🐂💹🏆🎯🎰"
+            c1 = self._RAINBOW[t % len(self._RAINBOW)]
+            c2 = self._RAINBOW[(t + 2) % len(self._RAINBOW)]
+            c3 = self._RAINBOW[(t + 4) % len(self._RAINBOW)]
+            spark_line = " ".join(sparkles[(t + i) % len(sparkles)] for i in range(14))
+            fw_chars = [". ", "* ", ". ", "* ", ". "]
+            fw = " ".join(fw_chars[i % len(fw_chars)] for i in range(t % 5 + 8))
+            canvas.update(
+                f"\n[bold {c1}]{fw}[/bold {c1}]\n"
+                f"[bold {c2}]   {fw}[/bold {c2}]\n"
+                f"[bold {c3}]{fw}   [/bold {c3}]\n\n"
+                "🌕🌕🌕🌕🌕🌕🌕🌕\n\n"
+                f"{spark_line}\n\n"
+                f"[bold {c1}]★  L Y N X   P O R T F O L I O  ★[/bold {c1}]\n\n"
+                "[dim]Your portfolio is watching. Always.[/dim]\n"
+            )
+            if t > 14:
+                self._phase = 6
+                self._tick = 0
+                return
+
+        elif p == 6:
+            # Grand finale — big lynx
+            c = self._RAINBOW[t % len(self._RAINBOW)]
+            sparkles = "✦✧★☆⚡💎🔥💰📈🚀🐂💹🏆🎯🎰"
+            spark_line = " ".join(sparkles[(t + i) % len(sparkles)] for i in range(16))
+            canvas.update(
+                f"\n[bold {c}]"
+                "              ╱╲_╱╲\n"
+                "             ╱      ╲\n"
+                "            │  ●  ●  │\n"
+                "            │   ╲╱   │\n"
+                "             ╲  ──  ╱\n"
+                "       ╱╲    │╲    ╱│    ╱╲\n"
+                "      ╱  ╲───╯ ╲──╱ ╰───╱  ╲\n"
+                "     │    ╲             ╱    │\n"
+                "     │     ╲───────────╱     │\n"
+                "      ╲     │         │     ╱\n"
+                "       ╲    │         │    ╱\n"
+                "        ╰───╯         ╰───╯\n"
+                f"[/bold {c}]\n"
+                f"[bold cyan]Lynx Portfolio[/bold cyan]\n"
+                f"{spark_line}\n"
+            )
+            if t > 14:
+                self._timer.stop()
+                self.dismiss()
+                return
+
+        self._tick += 1
+
+    def action_dismiss(self) -> None:
+        self._timer.stop()
+        self.dismiss()
+
+
+# ---------------------------------------------------------------------------
 # Portfolio screen (main screen)
 # ---------------------------------------------------------------------------
 
@@ -646,10 +889,7 @@ class PortfolioScreen(Screen):
         self.app.exit()
 
     def action__xyzzy(self) -> None:
-        from .egg import run_terminal_egg
-        self.app.suspend()
-        run_terminal_egg()
-        self.app.resume()
+        self.app.push_screen(EggScreen())
 
     def _on_form_dismiss(self, result: object = None) -> None:
         self._reload_table()
