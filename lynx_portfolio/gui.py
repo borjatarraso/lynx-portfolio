@@ -946,16 +946,24 @@ class AddDialog(_BaseDialog):
         self._dlg.bind("<Return>", lambda _: self._do_add())
 
     def _do_search(self) -> None:
-        query = self._search_entry.get().strip()
-        if not query:
+        from .validation import sanitise_search_query
+        raw = self._search_entry.get().strip()
+        if not raw:
             self._status_var.set("Enter a name to search.")
+            return
+        query, err = sanitise_search_query(raw)
+        if err:
+            self._status_var.set(err)
             return
         self._status_var.set(f"Searching for '{query}'...")
         self._search_btn.configure(state="disabled")
 
         def _search():
             from . import fetcher
-            results = fetcher.search_by_name(query)
+            try:
+                results = fetcher.search_by_name(query)
+            except Exception:
+                results = []
             if self._destroyed:
                 return
             self._dlg.after(0, lambda: self._show_search_results(results))
@@ -1764,22 +1772,39 @@ def run_wizard_gui() -> dict:
         root.wait_window(dlg)
 
     def _finish_step3(dlg, entries, status_var):
+        from .validation import (
+            validate_ticker, validate_isin, validate_shares, validate_price,
+        )
         ticker = entries["ticker"].get().strip()
-        isin = entries["isin"].get().strip() or None
+        isin_raw = entries["isin"].get().strip()
         shares_s = entries["shares"].get().strip()
         price_s = entries["avg_price"].get().strip()
 
-        if not ticker and not isin:
+        if not ticker and not isin_raw:
             status_var.set("Enter at least a ticker or ISIN.")
             return
-        if not shares_s:
-            status_var.set("Shares is required.")
+
+        if ticker:
+            ticker, err = validate_ticker(ticker)
+            if err:
+                status_var.set(err)
+                return
+
+        isin = None
+        if isin_raw:
+            isin, err = validate_isin(isin_raw)
+            if err:
+                status_var.set(err)
+                return
+
+        shares, err = validate_shares(shares_s)
+        if err:
+            status_var.set(err)
             return
-        try:
-            shares = float(shares_s)
-            avg_price = float(price_s) if price_s else None
-        except ValueError:
-            status_var.set("Invalid number.")
+
+        avg_price, err = validate_price(price_s)
+        if err:
+            status_var.set(err)
             return
 
         status_var.set("Adding instrument...")

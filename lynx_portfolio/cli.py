@@ -137,8 +137,17 @@ def _search_and_select(name: str) -> str | None:
     Returns the chosen ticker symbol, or None if cancelled / no results.
     """
     from . import fetcher
+    from .validation import sanitise_search_query
+    name, err = sanitise_search_query(name)
+    if err:
+        display.err(err)
+        return None
     display.info(f"Searching for '{name}'…")
-    results = fetcher.search_by_name(name)
+    try:
+        results = fetcher.search_by_name(name)
+    except Exception as exc:
+        display.err(f"Search failed: {exc}")
+        return None
     if not results:
         display.err(f"No instruments found matching '{name}'.")
         return None

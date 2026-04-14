@@ -1087,11 +1087,19 @@ class AddScreen(Screen):
 
     @work(thread=True)
     def _do_search(self) -> None:
-        query = self.query_one("#inp-search-name", Input).value.strip()
-        if not query:
+        from .validation import sanitise_search_query
+        raw = self.query_one("#inp-search-name", Input).value.strip()
+        if not raw:
             self.app.call_from_thread(
                 self.query_one("#search-results", Static).update,
                 "[yellow]Enter a name to search.[/yellow]",
+            )
+            return
+        query, qerr = sanitise_search_query(raw)
+        if qerr:
+            self.app.call_from_thread(
+                self.query_one("#search-results", Static).update,
+                f"[red]{qerr}[/red]",
             )
             return
         self.app.call_from_thread(
@@ -1099,7 +1107,10 @@ class AddScreen(Screen):
             f"[dim]Searching for '{query}'…[/dim]",
         )
         from . import fetcher
-        results = fetcher.search_by_name(query)
+        try:
+            results = fetcher.search_by_name(query)
+        except Exception:
+            results = []
         # Update results list on main thread for thread safety
         def _set_results():
             self._search_results = results

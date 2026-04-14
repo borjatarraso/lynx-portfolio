@@ -155,18 +155,27 @@ def run() -> None:
                 display.err("Usage: show <ticker>  or  show --name <query>")
             elif arg.lower().startswith(("--name", "-n ")):
                 # Name search mode — strip the flag prefix to get the query
+                from .validation import sanitise_search_query
                 parts = arg.split(None, 1)
                 query = parts[1].strip() if len(parts) > 1 else ""
                 if query:
-                    from . import fetcher
-                    display.info(f"Searching for '{query}'…")
-                    results = fetcher.search_by_name(query)
-                    if not results:
-                        display.err(f"No instruments found matching '{query}'.")
+                    query, qerr = sanitise_search_query(query)
+                    if qerr:
+                        display.err(qerr)
                     else:
-                        ticker_found = _pick_from_search_results(results)
-                        if ticker_found:
-                            _cmd_show(ticker_found)
+                        from . import fetcher
+                        display.info(f"Searching for '{query}'…")
+                        try:
+                            results = fetcher.search_by_name(query)
+                        except Exception as exc:
+                            display.err(f"Search failed: {exc}")
+                            results = None
+                        if not results:
+                            display.err(f"No instruments found matching '{query}'.")
+                        else:
+                            ticker_found = _pick_from_search_results(results)
+                            if ticker_found:
+                                _cmd_show(ticker_found)
                 else:
                     display.err("Usage: show --name <query>")
             else:

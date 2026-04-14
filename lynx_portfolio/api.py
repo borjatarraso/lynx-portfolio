@@ -12,6 +12,7 @@ from flask import Flask, request, jsonify
 from . import APP_NAME, VERSION
 from . import database, cache, fetcher, forex
 from . import operations
+from .validation import validate_ticker, validate_shares, validate_price
 
 app = Flask(__name__)
 
@@ -126,9 +127,12 @@ def list_portfolio():
 
 @app.route("/api/portfolio/<ticker>", methods=["GET"])
 def get_instrument(ticker: str):
-    inst = database.get_instrument(ticker.upper())
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    inst = database.get_instrument(ticker)
     if not inst:
-        return jsonify({"error": f"'{ticker.upper()}' not found"}), 404
+        return jsonify({"error": f"'{ticker}' not found"}), 404
     return jsonify(_enrich_instrument(inst))
 
 
@@ -146,12 +150,19 @@ def add_instrument_endpoint():
     if shares is None:
         return jsonify({"error": "'shares' is required"}), 400
 
-    try:
-        shares = float(shares)
-        if avg_price is not None:
-            avg_price = float(avg_price)
-    except (TypeError, ValueError):
-        return jsonify({"error": "Invalid numeric value for shares or avg_price"}), 400
+    if ticker:
+        ticker, err = validate_ticker(str(ticker))
+        if err:
+            return jsonify({"error": err}), 400
+
+    shares, err = validate_shares(shares)
+    if err:
+        return jsonify({"error": err}), 400
+
+    if avg_price is not None:
+        avg_price, err = validate_price(avg_price)
+        if err:
+            return jsonify({"error": err}), 400
 
     notifier = _use_api_notifier()
     try:
@@ -192,42 +203,49 @@ def add_instrument_endpoint():
 
 @app.route("/api/portfolio/<ticker>", methods=["PUT"])
 def update_instrument_endpoint(ticker: str):
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+
     body = request.get_json(silent=True) or {}
     kwargs = {}
 
     if "shares" in body:
-        try:
-            kwargs["shares"] = float(body["shares"])
-        except (TypeError, ValueError):
-            return jsonify({"error": "Invalid value for 'shares'"}), 400
+        val, err = validate_shares(body["shares"])
+        if err:
+            return jsonify({"error": err}), 400
+        kwargs["shares"] = val
 
     if "avg_purchase_price" in body:
-        val = body["avg_purchase_price"]
-        if val is None:
+        raw = body["avg_purchase_price"]
+        if raw is None:
             kwargs["avg_purchase_price"] = None
         else:
-            try:
-                kwargs["avg_purchase_price"] = float(val)
-            except (TypeError, ValueError):
-                return jsonify({"error": "Invalid value for 'avg_purchase_price'"}), 400
+            val, err = validate_price(raw)
+            if err:
+                return jsonify({"error": err}), 400
+            kwargs["avg_purchase_price"] = val
 
     if not kwargs:
         return jsonify({"error": "Nothing to update. Send 'shares' and/or 'avg_purchase_price'."}), 400
 
-    if database.update_instrument(ticker.upper(), **kwargs):
-        inst = database.get_instrument(ticker.upper())
+    if database.update_instrument(ticker, **kwargs):
+        inst = database.get_instrument(ticker)
         return jsonify({
             "status": "updated",
             "instrument": _enrich_instrument(inst) if inst else None,
         })
-    return jsonify({"error": f"'{ticker.upper()}' not found"}), 404
+    return jsonify({"error": f"'{ticker}' not found"}), 404
 
 
 @app.route("/api/portfolio/<ticker>", methods=["DELETE"])
 def delete_instrument_endpoint(ticker: str):
-    if database.delete_instrument(ticker.upper()):
-        return jsonify({"status": "deleted", "ticker": ticker.upper()})
-    return jsonify({"error": f"'{ticker.upper()}' not found"}), 404
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    if database.delete_instrument(ticker):
+        return jsonify({"status": "deleted", "ticker": ticker})
+    return jsonify({"error": f"'{ticker}' not found"}), 404
 
 
 # ---------------------------------------------------------------------------
@@ -236,20 +254,26 @@ def delete_instrument_endpoint(ticker: str):
 
 @app.route("/api/portfolio/<ticker>/refresh", methods=["POST"])
 def refresh_instrument_endpoint(ticker: str):
-    inst = database.get_instrument(ticker.upper())
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    inst = database.get_instrument(ticker)
     if not inst:
-        return jsonify({"error": f"'{ticker.upper()}' not found"}), 404
+        return jsonify({"error": f"'{ticker}' not found"}), 404
 
     isin = inst.get("isin")
-    cache.delete(ticker.upper())
-    data = fetcher.fetch_instrument_data(ticker.upper(), isin)
+    cache.delete(ticker)
+    try:
+        data = fetcher.fetch_instrument_data(ticker, isin)
+    except Exception as exc:
+        return jsonify({"error": f"Failed to fetch data: {exc}"}), 502
     if not data:
-        return jsonify({"error": f"Failed to fetch data for {ticker.upper()}"}), 502
+        return jsonify({"error": f"Failed to fetch data for {ticker}"}), 502
 
-    cache.put(ticker.upper(), data)
-    database.apply_cache_to_portfolio(ticker.upper(), data)
+    cache.put(ticker, data)
+    database.apply_cache_to_portfolio(ticker, data)
 
-    updated = database.get_instrument(ticker.upper())
+    updated = database.get_instrument(ticker)
     return jsonify({
         "status": "refreshed",
         "instrument": _enrich_instrument(updated) if updated else None,
@@ -293,8 +317,11 @@ def clear_cache():
 
 @app.route("/api/cache/<ticker>", methods=["DELETE"])
 def clear_cache_ticker(ticker: str):
-    n = cache.delete(ticker.upper())
-    return jsonify({"status": "cleared", "ticker": ticker.upper(), "entries_removed": n})
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    n = cache.delete(ticker)
+    return jsonify({"status": "cleared", "ticker": ticker, "entries_removed": n})
 
 
 # ---------------------------------------------------------------------------
