@@ -201,22 +201,33 @@ def _step_first_instrument(console) -> None:
 
     console.print()
 
+    from .validation import validate_ticker, validate_isin, validate_shares, validate_price
+
     ticker = Prompt.ask("  Ticker (e.g. AAPL, NESN.SW, VWCE.DE)").strip()
     if not ticker:
         console.print("  [dim]Skipped — no ticker entered.[/dim]\n")
         return
 
-    isin = Prompt.ask("  ISIN (optional, press Enter to skip)", default="").strip() or None
+    ticker, err = validate_ticker(ticker)
+    if err:
+        console.print(f"  [red]{err}[/red]\n")
+        return
+
+    isin_raw = Prompt.ask("  ISIN (optional, press Enter to skip)", default="").strip()
+    isin = None
+    if isin_raw:
+        isin, err = validate_isin(isin_raw)
+        if err:
+            console.print(f"  [yellow]{err} — skipping ISIN.[/yellow]")
+            isin = None
 
     while True:
         shares_str = Prompt.ask("  Number of shares").strip()
-        try:
-            shares = float(shares_str)
-            if shares <= 0:
-                raise ValueError
-            break
-        except ValueError:
-            console.print("  [red]Please enter a positive number.[/red]")
+        shares, err = validate_shares(shares_str)
+        if err:
+            console.print(f"  [red]{err}[/red]")
+            continue
+        break
 
     avg_price_str = Prompt.ask(
         "  Average purchase price (optional, press Enter to skip)",
@@ -224,10 +235,10 @@ def _step_first_instrument(console) -> None:
     ).strip()
     avg_price = None
     if avg_price_str:
-        try:
-            avg_price = float(avg_price_str)
-        except ValueError:
-            console.print("  [yellow]Invalid number — skipping average price.[/yellow]")
+        avg_price, err = validate_price(avg_price_str)
+        if err:
+            console.print(f"  [yellow]{err} — skipping price.[/yellow]")
+            avg_price = None
 
     from .operations import add_instrument
 

@@ -91,12 +91,51 @@ def add_instrument(
 
     Returns True on success.
     """
+    from .validation import (
+        validate_ticker, validate_isin, validate_shares, validate_price,
+        validate_exchange,
+    )
+
     if not ticker and not isin:
         _notifier.err("Provide at least --ticker or --isin.")
         return False
 
+    # Validate inputs
+    if ticker:
+        ticker, err = validate_ticker(ticker)
+        if err:
+            _notifier.err(err)
+            return False
+
+    if isin:
+        isin, err = validate_isin(isin)
+        if err:
+            _notifier.err(err)
+            return False
+
+    shares, err = validate_shares(shares)
+    if err:
+        _notifier.err(err)
+        return False
+
+    if avg_purchase_price is not None:
+        avg_purchase_price, err = validate_price(avg_purchase_price)
+        if err:
+            _notifier.err(err)
+            return False
+
+    if preferred_exchange:
+        preferred_exchange, err = validate_exchange(preferred_exchange)
+        if err:
+            _notifier.err(err)
+            return False
+
     # 1 ─ Resolve all available markets
-    markets, base_ticker = fetcher.resolve_markets_for_input(ticker, isin)
+    try:
+        markets, base_ticker = fetcher.resolve_markets_for_input(ticker, isin)
+    except Exception as exc:
+        _notifier.err(f"Failed to resolve instrument: {exc}")
+        return False
 
     # 2 ─ Pick one market
     chosen: Optional[Dict] = None
@@ -189,7 +228,11 @@ def refresh_instrument(ticker: str) -> bool:
 
     cache.delete(ticker)
     _notifier.info(f"Refreshing {ticker}…")
-    data = fetcher.fetch_instrument_data(ticker, isin)
+    try:
+        data = fetcher.fetch_instrument_data(ticker, isin)
+    except Exception as exc:
+        _notifier.err(f"Failed to fetch data for {ticker}: {exc}")
+        return False
     if not data:
         _notifier.err(f"Failed to fetch data for {ticker}.")
         return False

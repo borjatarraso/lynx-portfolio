@@ -1172,25 +1172,49 @@ class AddScreen(Screen):
                 self._fill_from_result(self._search_results[idx])
 
     def _do_add(self) -> None:
+        from .validation import (
+            validate_ticker, validate_isin, validate_shares, validate_price,
+            validate_exchange,
+        )
+
         ticker   = self.query_one("#inp-ticker", Input).value.strip()
         isin     = self.query_one("#inp-isin", Input).value.strip()
         exchange = self.query_one("#inp-exchange", Input).value.strip()
         shares_s = self.query_one("#inp-shares", Input).value.strip()
         price_s  = self.query_one("#inp-avgprice", Input).value.strip()
 
+        status = self.query_one("#add-status", Static)
+
         if not ticker and not isin:
-            self.query_one("#add-status", Static).update(
-                "[bold red]Provide at least a ticker or ISIN.[/bold red]"
-            )
+            status.update("[bold red]Provide at least a ticker or ISIN.[/bold red]")
             return
 
-        try:
-            shares    = float(shares_s)
-            avg_price = float(price_s) if price_s else None
-        except ValueError:
-            self.query_one("#add-status", Static).update(
-                "[bold red]Invalid number for shares or price.[/bold red]"
-            )
+        if ticker:
+            ticker, err = validate_ticker(ticker)
+            if err:
+                status.update(f"[bold red]{err}[/bold red]")
+                return
+
+        if isin:
+            isin, err = validate_isin(isin)
+            if err:
+                status.update(f"[bold red]{err}[/bold red]")
+                return
+
+        if exchange:
+            exchange, err = validate_exchange(exchange)
+            if err:
+                status.update(f"[bold red]{err}[/bold red]")
+                return
+
+        shares, err = validate_shares(shares_s)
+        if err:
+            status.update(f"[bold red]{err}[/bold red]")
+            return
+
+        avg_price, err = validate_price(price_s)
+        if err:
+            status.update(f"[bold red]{err}[/bold red]")
             return
 
         self.query_one("#add-status", Static).update(
@@ -1275,17 +1299,21 @@ class EditScreen(Screen):
         shares_s = self.query_one("#inp-shares", Input).value.strip()
         price_s  = self.query_one("#inp-price", Input).value.strip()
 
+        from .validation import validate_shares, validate_price
+        status = self.query_one("#edit-status", Static)
         kwargs: dict = {}
-        try:
-            if shares_s:
-                kwargs["shares"] = float(shares_s)
-            if price_s:
-                kwargs["avg_purchase_price"] = float(price_s)
-        except ValueError:
-            self.query_one("#edit-status", Static).update(
-                "[bold red]Invalid number.[/bold red]"
-            )
-            return
+        if shares_s:
+            val, err = validate_shares(shares_s)
+            if err:
+                status.update(f"[bold red]{err}[/bold red]")
+                return
+            kwargs["shares"] = val
+        if price_s:
+            val, err = validate_price(price_s)
+            if err:
+                status.update(f"[bold red]{err}[/bold red]")
+                return
+            kwargs["avg_purchase_price"] = val
 
         if not kwargs:
             self.notify("Nothing changed", severity="warning")

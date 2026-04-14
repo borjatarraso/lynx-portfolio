@@ -215,14 +215,28 @@ def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
             skipped += 1
             continue
 
-        try:
-            shares    = float(shares)
-            if avg_price is not None:
-                avg_price = float(avg_price)
-        except (TypeError, ValueError):
-            display.warn(f"  [{i}/{total}] Skipping '{ticker}' — invalid number.")
+        # Validate ticker format
+        from .validation import validate_ticker, validate_shares, validate_price
+        ticker_v, err = validate_ticker(str(ticker))
+        if err:
+            display.warn(f"  [{i}/{total}] Skipping — {err}")
             skipped += 1
             continue
+        ticker = ticker_v
+
+        shares_v, err = validate_shares(shares)
+        if err:
+            display.warn(f"  [{i}/{total}] Skipping '{ticker}' — {err}")
+            skipped += 1
+            continue
+        shares = shares_v
+
+        avg_price_v, err = validate_price(avg_price)
+        if err:
+            display.warn(f"  [{i}/{total}] Skipping '{ticker}' — {err}")
+            skipped += 1
+            continue
+        avg_price = avg_price_v
 
         display.info(f"[{i}/{total}] Importing {ticker}…")
         ok = add_instrument(
@@ -835,6 +849,7 @@ def _dispatch_subcommand(args, parser, _needs_refresh, verbose) -> None:
         display.display_portfolio(database.get_all_instruments())
 
     elif args.command == "show":
+        from .validation import validate_ticker
         ticker = getattr(args, "ticker", None)
         search_name = getattr(args, "search_name", None)
         if search_name and not ticker:
@@ -844,7 +859,10 @@ def _dispatch_subcommand(args, parser, _needs_refresh, verbose) -> None:
         if not ticker:
             display.err("Provide --ticker or --name.")
             return
-        ticker = ticker.upper()
+        ticker, err = validate_ticker(ticker)
+        if err:
+            display.err(err)
+            return
         inst = database.get_instrument(ticker)
         if inst:
             if _needs_refresh:
@@ -857,7 +875,11 @@ def _dispatch_subcommand(args, parser, _needs_refresh, verbose) -> None:
             display.err(f"'{ticker}' not found in portfolio.")
 
     elif args.command == "delete":
-        ticker = args.ticker.upper()
+        from .validation import validate_ticker
+        ticker, err = validate_ticker(args.ticker)
+        if err:
+            display.err(err)
+            return
         if args.force:
             if database.delete_instrument(ticker):
                 display.ok(f"Deleted {ticker}.")
@@ -876,10 +898,24 @@ def _dispatch_subcommand(args, parser, _needs_refresh, verbose) -> None:
                 display.ok(f"Deleted {ticker}.")
 
     elif args.command == "update":
-        ticker = args.ticker.upper()
+        from .validation import validate_ticker, validate_shares, validate_price
+        ticker, err = validate_ticker(args.ticker)
+        if err:
+            display.err(err)
+            return
         kwargs: dict = {}
-        if args.shares    is not None: kwargs["shares"]             = args.shares
-        if args.avg_price is not None: kwargs["avg_purchase_price"] = args.avg_price
+        if args.shares is not None:
+            val, verr = validate_shares(args.shares)
+            if verr:
+                display.err(verr)
+                return
+            kwargs["shares"] = val
+        if args.avg_price is not None:
+            val, verr = validate_price(args.avg_price)
+            if verr:
+                display.err(verr)
+                return
+            kwargs["avg_purchase_price"] = val
         if kwargs:
             if database.update_instrument(ticker, **kwargs):
                 display.ok(f"Updated {ticker}.")
@@ -889,8 +925,13 @@ def _dispatch_subcommand(args, parser, _needs_refresh, verbose) -> None:
             display.err("Nothing to update. Use --shares and/or --avg-price.")
 
     elif args.command == "refresh":
+        from .validation import validate_ticker as _vt
         t = getattr(args, "ticker", None)
         if t:
+            t, _err = _vt(t)
+            if _err:
+                display.err(_err)
+                return
             refresh_instrument(t.upper())
         else:
             refresh_all()

@@ -302,11 +302,20 @@ def _pick_from_search_results(results: List[Dict]) -> Optional[str]:
 def _search_instrument_by_name() -> Optional[str]:
     """Search for instruments by name and let the user select one."""
     from . import fetcher
+    from .validation import sanitise_search_query
     name = _ask("Search by name [dim](e.g. 'Apple', 'Vanguard FTSE')[/dim]")
     if not name:
         return None
+    name, err = sanitise_search_query(name)
+    if err:
+        display.err(err)
+        return None
     display.info(f"Searching for '{name}'…")
-    results = fetcher.search_by_name(name)
+    try:
+        results = fetcher.search_by_name(name)
+    except Exception as exc:
+        display.err(f"Search failed: {exc}")
+        return None
     if not results:
         display.err(f"No instruments found matching '{name}'.")
         return None
@@ -362,6 +371,11 @@ def _cmd_add() -> None:
 
 
 def _cmd_show(ticker: str) -> None:
+    from .validation import validate_ticker
+    ticker, err = validate_ticker(ticker)
+    if err:
+        display.err(err)
+        return
     inst = database.get_instrument(ticker)
     if inst:
         display.display_instrument(inst)
@@ -370,6 +384,11 @@ def _cmd_show(ticker: str) -> None:
 
 
 def _cmd_delete(ticker: str) -> None:
+    from .validation import validate_ticker
+    ticker, err = validate_ticker(ticker)
+    if err:
+        display.err(err)
+        return
     inst = database.get_instrument(ticker)
     if not inst:
         display.err(f"'{ticker}' not found in portfolio.")
@@ -382,6 +401,11 @@ def _cmd_delete(ticker: str) -> None:
 
 
 def _cmd_update(ticker: str) -> None:
+    from .validation import validate_ticker, validate_shares, validate_price
+    ticker, err = validate_ticker(ticker)
+    if err:
+        display.err(err)
+        return
     inst = database.get_instrument(ticker)
     if not inst:
         display.err(f"'{ticker}' not found in portfolio.")
@@ -398,14 +422,18 @@ def _cmd_update(ticker: str) -> None:
     raw_price  = _ask("New avg price [dim](Enter to keep)[/dim]")
 
     kwargs: dict = {}
-    try:
-        if raw_shares:
-            kwargs["shares"] = float(raw_shares)
-        if raw_price:
-            kwargs["avg_purchase_price"] = float(raw_price)
-    except ValueError:
-        display.err("Invalid number.")
-        return
+    if raw_shares:
+        val, verr = validate_shares(raw_shares)
+        if verr:
+            display.err(verr)
+            return
+        kwargs["shares"] = val
+    if raw_price:
+        val, verr = validate_price(raw_price)
+        if verr:
+            display.err(verr)
+            return
+        kwargs["avg_purchase_price"] = val
 
     if kwargs:
         if database.update_instrument(ticker, **kwargs):
@@ -425,9 +453,31 @@ def _cmd_import(filepath: str) -> None:
 def _cmd_markets(query: str) -> None:
     """Show all exchanges where a ticker/ISIN is listed."""
     from . import fetcher as f
-    isin   = query if len(query) == 12 and query[:2].isalpha() else None
-    ticker = query if not isin else None
-    markets, _ = f.resolve_markets_for_input(ticker, isin)
+    from .validation import validate_ticker, validate_isin
+    query = query.strip()
+    if not query:
+        display.err("Usage: markets <ticker or ISIN>")
+        return
+    isin = None
+    ticker = None
+    if len(query) == 12 and query[:2].isalpha():
+        isin, err = validate_isin(query)
+        if err:
+            # Fall back to treating it as a ticker
+            ticker, err2 = validate_ticker(query)
+            if err2:
+                display.err(err)
+                return
+    else:
+        ticker, err = validate_ticker(query)
+        if err:
+            display.err(err)
+            return
+    try:
+        markets, _ = f.resolve_markets_for_input(ticker, isin)
+    except Exception as exc:
+        display.err(f"Market lookup failed: {exc}")
+        return
     if not markets:
         display.warn(f"No markets found for '{query}'.")
         return

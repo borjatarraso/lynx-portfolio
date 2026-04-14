@@ -994,6 +994,10 @@ class AddDialog(_BaseDialog):
         self._dlg.destroy()
 
     def _do_add(self) -> None:
+        from .validation import (
+            validate_ticker, validate_isin, validate_shares, validate_price,
+            validate_exchange,
+        )
         ticker   = self._entries["ticker"].get().strip()
         isin     = self._entries["isin"].get().strip()
         exchange = self._entries["exchange"].get().strip()
@@ -1003,14 +1007,33 @@ class AddDialog(_BaseDialog):
         if not ticker and not isin:
             self._status_var.set("Provide at least a ticker or ISIN.")
             return
-        if not shares_s:
-            self._status_var.set("Shares is required.")
+
+        if ticker:
+            ticker, err = validate_ticker(ticker)
+            if err:
+                self._status_var.set(err)
+                return
+
+        if isin:
+            isin, err = validate_isin(isin)
+            if err:
+                self._status_var.set(err)
+                return
+
+        if exchange:
+            exchange, err = validate_exchange(exchange)
+            if err:
+                self._status_var.set(err)
+                return
+
+        shares, err = validate_shares(shares_s)
+        if err:
+            self._status_var.set(err)
             return
-        try:
-            shares    = float(shares_s)
-            avg_price = float(price_s) if price_s else None
-        except ValueError:
-            self._status_var.set("Invalid number for shares or price.")
+
+        avg_price, err = validate_price(price_s)
+        if err:
+            self._status_var.set(err)
             return
 
         self._status_var.set("Adding instrument...")
@@ -1097,17 +1120,22 @@ class EditDialog(_BaseDialog):
         self._dlg.bind("<Return>", lambda _: self._do_update())
 
     def _do_update(self) -> None:
+        from .validation import validate_shares, validate_price
         shares_s = self._shares_entry.get().strip()
         price_s  = self._price_entry.get().strip()
         kwargs: dict = {}
-        try:
-            if shares_s:
-                kwargs["shares"] = float(shares_s)
-            if price_s:
-                kwargs["avg_purchase_price"] = float(price_s)
-        except ValueError:
-            self._status_var.set("Invalid number.")
-            return
+        if shares_s:
+            val, err = validate_shares(shares_s)
+            if err:
+                self._status_var.set(err)
+                return
+            kwargs["shares"] = val
+        if price_s:
+            val, err = validate_price(price_s)
+            if err:
+                self._status_var.set(err)
+                return
+            kwargs["avg_purchase_price"] = val
 
         if not kwargs:
             self._dlg.destroy()
