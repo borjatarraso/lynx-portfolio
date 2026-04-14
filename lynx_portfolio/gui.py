@@ -9,6 +9,7 @@ colour-coded P&L, and polished modal dialogs.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 import tkinter as tk
@@ -1524,6 +1525,354 @@ class _AboutDialog(_BaseDialog):
             webbrowser.open(url)
         except Exception:
             pass
+
+
+# ---------------------------------------------------------------------------
+# Graphical setup wizard
+# ---------------------------------------------------------------------------
+
+_DEFAULT_DB_DIR = os.path.expanduser("~/.local/share/lynx")
+
+
+def run_wizard_gui() -> dict:
+    """Run the first-time setup wizard using tkinter dialogs.
+
+    Returns the final config dict (already saved), or {} if cancelled.
+    """
+    import os
+    from . import config, database
+    from .config import VALID_MODES
+
+    cfg = config.load_config()
+
+    root = tk.Tk()
+    root.withdraw()
+    _apply_dark_theme(root)
+
+    result = {"cancelled": False}
+
+    # ── Step 1: Database location ────────────────────────────────────────
+    def _step1():
+        dlg = tk.Toplevel(root)
+        dlg.title(f"{APP_NAME} — Setup Wizard (1/4)")
+        dlg.configure(bg=_C["surface"])
+        dlg.resizable(False, False)
+        w, h = 520, 300
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+        dlg.protocol("WM_DELETE_WINDOW", lambda: _cancel(dlg))
+
+        outer = ttk.Frame(dlg, style="Card.TFrame", padding=24)
+        outer.pack(fill="both", expand=True)
+
+        ttk.Label(outer, text="Step 1 · Database Location",
+                  style="DialogTitle.TLabel").pack(anchor="w")
+        ttk.Label(outer, text="Choose a directory for the portfolio database.",
+                  style="FieldLabel.TLabel").pack(anchor="w", pady=(8, 2))
+
+        current = cfg.get("db_path")
+        default_dir = os.path.dirname(current) if current else _DEFAULT_DB_DIR
+
+        ttk.Label(outer, text=f"Default: {default_dir}",
+                  style="Subtitle.TLabel").pack(anchor="w", pady=(0, 8))
+
+        dir_frame = ttk.Frame(outer, style="Card.TFrame")
+        dir_frame.pack(fill="x", pady=4)
+        dir_var = tk.StringVar(value=default_dir)
+        dir_entry = ttk.Entry(dir_frame, textvariable=dir_var, width=42)
+        dir_entry.pack(side="left", fill="x", expand=True)
+        ttk.Button(dir_frame, text="Browse...", width=10,
+                   command=lambda: _browse_dir(dir_var)).pack(side="left", padx=(8, 0))
+
+        status_var = tk.StringVar(value="")
+        ttk.Label(outer, textvariable=status_var,
+                  style="Error.TLabel").pack(anchor="w", pady=(8, 0))
+
+        btn_frame = ttk.Frame(outer, style="Card.TFrame")
+        btn_frame.pack(fill="x", pady=(16, 0))
+        ttk.Button(btn_frame, text="Cancel", command=lambda: _cancel(dlg),
+                   width=10).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Next \u2192", style="Accent.TButton",
+                   width=10,
+                   command=lambda: _finish_step1(dlg, dir_var, status_var)).pack(
+            side="right")
+
+        dir_entry.focus_set()
+        dlg.grab_set()
+        root.wait_window(dlg)
+
+    def _browse_dir(var):
+        d = filedialog.askdirectory(title="Select database directory")
+        if d:
+            var.set(d)
+
+    def _finish_step1(dlg, dir_var, status_var):
+        db_dir = os.path.expanduser(os.path.expandvars(dir_var.get().strip()))
+        if not db_dir:
+            status_var.set("Please enter a directory.")
+            return
+        db_path = os.path.join(db_dir, "portfolio.db")
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+        except OSError as exc:
+            status_var.set(f"Cannot create directory: {exc}")
+            return
+        cfg["db_path"] = db_path
+        config.save_config(cfg)
+        database.set_db_path(db_path)
+        database.init_db()
+        dlg.destroy()
+
+    def _cancel(dlg):
+        result["cancelled"] = True
+        dlg.destroy()
+
+    # ── Step 2: Default mode ─────────────────────────────────────────────
+    def _step2():
+        dlg = tk.Toplevel(root)
+        dlg.title(f"{APP_NAME} — Setup Wizard (2/4)")
+        dlg.configure(bg=_C["surface"])
+        dlg.resizable(False, False)
+        w, h = 440, 300
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+        dlg.protocol("WM_DELETE_WINDOW", lambda: _cancel(dlg))
+
+        outer = ttk.Frame(dlg, style="Card.TFrame", padding=24)
+        outer.pack(fill="both", expand=True)
+
+        ttk.Label(outer, text="Step 2 · Default Interface",
+                  style="DialogTitle.TLabel").pack(anchor="w")
+        ttk.Label(outer, text="Choose which interface launches by default.",
+                  style="FieldLabel.TLabel").pack(anchor="w", pady=(8, 12))
+
+        mode_var = tk.StringVar(value="interactive")
+        modes = [
+            ("Console (non-interactive)", "console"),
+            ("Interactive REPL", "interactive"),
+            ("Textual UI (full-screen TUI)", "tui"),
+            ("Graphical Interface", "gui"),
+        ]
+        for label, val in modes:
+            rb = tk.Radiobutton(outer, text=label, variable=mode_var, value=val,
+                                bg=_C["surface"], fg=_C["fg"],
+                                selectcolor=_C["bg"],
+                                activebackground=_C["surface"],
+                                activeforeground=_C["accent"],
+                                font=("Segoe UI", 10), anchor="w",
+                                indicatoron=True)
+            rb.pack(anchor="w", pady=2, padx=8)
+
+        btn_frame = ttk.Frame(outer, style="Card.TFrame")
+        btn_frame.pack(fill="x", pady=(16, 0))
+        ttk.Button(btn_frame, text="Cancel", command=lambda: _cancel(dlg),
+                   width=10).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Next \u2192", style="Accent.TButton",
+                   width=10,
+                   command=lambda: _finish_step2(dlg, mode_var)).pack(side="right")
+
+        dlg.grab_set()
+        root.wait_window(dlg)
+
+    def _finish_step2(dlg, mode_var):
+        mode = mode_var.get()
+        cfg["default_mode"] = mode
+        config.save_config(cfg)
+        dlg.destroy()
+
+    # ── Step 3: First instrument ─────────────────────────────────────────
+    def _step3():
+        dlg = tk.Toplevel(root)
+        dlg.title(f"{APP_NAME} — Setup Wizard (3/4)")
+        dlg.configure(bg=_C["surface"])
+        dlg.resizable(False, False)
+        w, h = 500, 380
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+        dlg.protocol("WM_DELETE_WINDOW", lambda: _cancel(dlg))
+
+        outer = ttk.Frame(dlg, style="Card.TFrame", padding=24)
+        outer.pack(fill="both", expand=True)
+
+        ttk.Label(outer, text="Step 3 · Add Your First Instrument",
+                  style="DialogTitle.TLabel").pack(anchor="w")
+        ttk.Label(outer, text="Optionally add a stock or ETF now. You can skip this.",
+                  style="FieldLabel.TLabel").pack(anchor="w", pady=(8, 12))
+
+        fields_frame = ttk.Frame(outer, style="Card.TFrame")
+        fields_frame.pack(fill="x")
+
+        entries = {}
+        for i, (label, key, hint) in enumerate([
+            ("Ticker", "ticker", "e.g. AAPL, NESN.SW, VWCE.DE"),
+            ("ISIN (optional)", "isin", "e.g. CH0038863350"),
+            ("Shares", "shares", "Number of shares"),
+            ("Avg price (optional)", "avg_price", "Leave empty to skip"),
+        ]):
+            ttk.Label(fields_frame, text=label, style="FieldLabel.TLabel").grid(
+                row=i, column=0, sticky="w", pady=4)
+            e = ttk.Entry(fields_frame, width=30)
+            e.grid(row=i, column=1, sticky="ew", padx=(10, 0), pady=4)
+            entries[key] = e
+        fields_frame.columnconfigure(1, weight=1)
+
+        status_var = tk.StringVar(value="")
+        ttk.Label(outer, textvariable=status_var,
+                  style="Error.TLabel").pack(anchor="w", pady=(8, 0))
+
+        btn_frame = ttk.Frame(outer, style="Card.TFrame")
+        btn_frame.pack(fill="x", pady=(12, 0))
+        ttk.Button(btn_frame, text="Cancel", command=lambda: _cancel(dlg),
+                   width=10).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Skip \u2192", width=10,
+                   command=dlg.destroy).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Add & Next \u2192", style="Accent.TButton",
+                   width=14,
+                   command=lambda: _finish_step3(dlg, entries, status_var)).pack(
+            side="right")
+
+        entries["ticker"].focus_set()
+        dlg.grab_set()
+        root.wait_window(dlg)
+
+    def _finish_step3(dlg, entries, status_var):
+        ticker = entries["ticker"].get().strip()
+        isin = entries["isin"].get().strip() or None
+        shares_s = entries["shares"].get().strip()
+        price_s = entries["avg_price"].get().strip()
+
+        if not ticker and not isin:
+            status_var.set("Enter at least a ticker or ISIN.")
+            return
+        if not shares_s:
+            status_var.set("Shares is required.")
+            return
+        try:
+            shares = float(shares_s)
+            avg_price = float(price_s) if price_s else None
+        except ValueError:
+            status_var.set("Invalid number.")
+            return
+
+        status_var.set("Adding instrument...")
+        dlg.update()
+
+        from .operations import add_instrument
+        ok = add_instrument(
+            ticker=ticker or None, isin=isin,
+            shares=shares, avg_purchase_price=avg_price,
+        )
+        if ok:
+            dlg.destroy()
+        else:
+            status_var.set("Failed to add. Check ticker/ISIN.")
+
+    # ── Step 4: Encryption ───────────────────────────────────────────────
+    def _step4():
+        dlg = tk.Toplevel(root)
+        dlg.title(f"{APP_NAME} — Setup Wizard (4/4)")
+        dlg.configure(bg=_C["surface"])
+        dlg.resizable(False, False)
+        w, h = 440, 280
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        dlg.geometry(f"{w}x{h}+{(sw-w)//2}+{(sh-h)//2}")
+        dlg.protocol("WM_DELETE_WINDOW", lambda: _cancel(dlg))
+
+        outer = ttk.Frame(dlg, style="Card.TFrame", padding=24)
+        outer.pack(fill="both", expand=True)
+
+        ttk.Label(outer, text="Step 4 · Encryption",
+                  style="DialogTitle.TLabel").pack(anchor="w")
+        ttk.Label(outer, text="Encrypt your portfolio database with a password?",
+                  style="FieldLabel.TLabel").pack(anchor="w", pady=(8, 4))
+        ttk.Label(outer, text="Protects your data if the device is lost or shared.",
+                  style="Subtitle.TLabel").pack(anchor="w", pady=(0, 12))
+
+        pw_frame = ttk.Frame(outer, style="Card.TFrame")
+        pw_frame.pack(fill="x")
+        ttk.Label(pw_frame, text="Password", style="FieldLabel.TLabel").grid(
+            row=0, column=0, sticky="w", pady=4)
+        pw_entry = ttk.Entry(pw_frame, show="*", width=28)
+        pw_entry.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=4)
+        ttk.Label(pw_frame, text="Confirm", style="FieldLabel.TLabel").grid(
+            row=1, column=0, sticky="w", pady=4)
+        pw_confirm = ttk.Entry(pw_frame, show="*", width=28)
+        pw_confirm.grid(row=1, column=1, sticky="ew", padx=(10, 0), pady=4)
+        pw_frame.columnconfigure(1, weight=1)
+
+        status_var = tk.StringVar(value="")
+        ttk.Label(outer, textvariable=status_var,
+                  style="Error.TLabel").pack(anchor="w", pady=(8, 0))
+
+        btn_frame = ttk.Frame(outer, style="Card.TFrame")
+        btn_frame.pack(fill="x", pady=(12, 0))
+        ttk.Button(btn_frame, text="Cancel", command=lambda: _cancel(dlg),
+                   width=10).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Skip", width=10,
+                   command=dlg.destroy).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Encrypt", style="Accent.TButton",
+                   width=10,
+                   command=lambda: _finish_step4(dlg, pw_entry, pw_confirm, status_var)
+                   ).pack(side="right")
+
+        pw_entry.focus_set()
+        dlg.grab_set()
+        root.wait_window(dlg)
+
+    def _finish_step4(dlg, pw_entry, pw_confirm, status_var):
+        pw1 = pw_entry.get()
+        pw2 = pw_confirm.get()
+        if not pw1:
+            status_var.set("Password cannot be empty.")
+            return
+        if pw1 != pw2:
+            status_var.set("Passwords do not match.")
+            return
+
+        status_var.set("Encrypting...")
+        dlg.update()
+
+        db_path = cfg["db_path"]
+        from .vault import VaultSession
+        from .backup import create_backup
+        create_backup(db_path)
+        VaultSession.setup_encryption(db_path, pw1)
+        cfg["encrypted"] = True
+        config.save_config(cfg)
+        dlg.destroy()
+
+    # ── Run steps ────────────────────────────────────────────────────────
+    _step1()
+    if result["cancelled"] or "db_path" not in cfg:
+        root.destroy()
+        return {}
+
+    _step2()
+    if result["cancelled"]:
+        root.destroy()
+        return cfg
+
+    _step3()
+    if result["cancelled"]:
+        root.destroy()
+        return cfg
+
+    _step4()
+
+    # ── Done dialog ──────────────────────────────────────────────────────
+    if not result["cancelled"]:
+        db_path = cfg.get("db_path", "")
+        encrypted = cfg.get("encrypted", False)
+        messagebox.showinfo(
+            "Setup Complete",
+            f"Database: {db_path}\n"
+            f"Encrypted: {'Yes' if encrypted else 'No'}\n\n"
+            f"Setup is complete. The application will now start.",
+            parent=root,
+        )
+
+    root.destroy()
+    return cfg
 
 
 # ---------------------------------------------------------------------------

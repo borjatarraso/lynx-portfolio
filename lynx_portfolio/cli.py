@@ -539,8 +539,12 @@ def run() -> None:
 
     # ── --wizard: run first-time setup and exit ─────────────────────────
     if args.wizard:
-        from .wizard import run_wizard
-        run_wizard(display.console)
+        if args.gui:
+            from .gui import run_wizard_gui
+            run_wizard_gui()
+        else:
+            from .wizard import run_wizard
+            run_wizard(display.console)
         return
 
     # ── --configure: run wizard and exit ─────────────────────────────────
@@ -562,12 +566,16 @@ def run() -> None:
         # No explicit flag → production if configured, wizard if first run
         result = _setup_default_mode()
         if result == "first_run":
-            display.console.print(
-                "\n[bold cyan]Welcome to Lynx Portfolio![/bold cyan]\n"
-                "No database configured — launching the setup wizard.\n"
-            )
-            from .wizard import run_wizard
-            cfg = run_wizard(display.console)
+            if args.gui:
+                from .gui import run_wizard_gui
+                cfg = run_wizard_gui()
+            else:
+                display.console.print(
+                    "\n[bold cyan]Welcome to Lynx Portfolio![/bold cyan]\n"
+                    "No database configured — launching the setup wizard.\n"
+                )
+                from .wizard import run_wizard
+                cfg = run_wizard(display.console)
             if not cfg.get("db_path"):
                 return
             database.set_db_path(cfg["db_path"])
