@@ -406,6 +406,7 @@ class LynxGUI:
         # Keyboard shortcuts
         self._root.bind("<F5>", lambda _: self._on_refresh_all())
         self._root.bind("<Delete>", lambda _: self._on_delete())
+        self._root.bind("<F12>", lambda _: self._xyzzy())
 
     # ----- UI construction ---------------------------------------------------
 
@@ -753,6 +754,10 @@ class LynxGUI:
     def _on_refresh_all(self) -> None:
         self._set_status("Refreshing all instruments...", "info")
         self._run_in_thread(ops_refresh_all, on_done=self._reload_table)
+
+    def _xyzzy(self) -> None:
+        from .egg import run_gui_egg
+        run_gui_egg(self._root)
 
     def _on_import(self) -> None:
         ImportDialog(self._root, self._reload_table)

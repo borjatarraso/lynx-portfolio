@@ -342,6 +342,7 @@ class PortfolioScreen(Screen):
         Binding("c",       "clear_cache",   "Clear Cache"),
         Binding("?",       "about",         "About"),
         Binding("q",       "quit_app",      "Quit"),
+        Binding("ctrl+b",  "_xyzzy",        "", show=False),
     ]
 
     _auto_update_timer = None
@@ -643,6 +644,12 @@ class PortfolioScreen(Screen):
 
     def action_quit_app(self) -> None:
         self.app.exit()
+
+    def action__xyzzy(self) -> None:
+        from .egg import run_terminal_egg
+        self.app.suspend()
+        run_terminal_egg()
+        self.app.resume()
 
     def _on_form_dismiss(self, result: object = None) -> None:
         self._reload_table()

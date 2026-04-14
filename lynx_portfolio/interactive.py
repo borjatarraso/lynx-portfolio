@@ -216,6 +216,10 @@ def run() -> None:
             for line in ABOUT_LINES:
                 display.console.print(line)
 
+        elif cmd == "lynx":
+            from .egg import run_terminal_egg
+            run_terminal_egg()
+
         else:
             display.warn(f"Unknown command '{cmd}'. Type 'help' for available commands.")
 

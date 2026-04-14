@@ -375,6 +375,9 @@ examples:
         help="Run the first-time setup wizard",
     )
 
+    parser.add_argument("--egg", action="store_true",
+                        dest="egg", help=argparse.SUPPRESS)
+
     # Cache control ───────────────────────────────────────────────────────────
     parser.add_argument("-dc", "--delete-cache",  action="store_true",
                         help="Delete all cached instrument data")
@@ -479,6 +482,11 @@ def run() -> None:
     argv   = _preprocess_argv(sys.argv[1:])
     parser = _build_parser()
     args   = parser.parse_args(argv)
+
+    if getattr(args, "egg", False):
+        from .egg import run_terminal_egg
+        run_terminal_egg()
+        return
 
     # ── --default-mode: save preference ─────────────────────────────────
     if args.default_mode:
