@@ -585,7 +585,7 @@ class PortfolioScreen(Screen):
         Binding("c",       "clear_cache",   "Clear Cache"),
         Binding("?",       "about",         "About"),
         Binding("q",       "quit_app",      "Quit"),
-        Binding("ctrl+b",  "_xyzzy",        "", show=False),
+        Binding("f9",      "xyzzy",         "", show=False, priority=True),
     ]
 
     _auto_update_timer = None
@@ -888,8 +888,14 @@ class PortfolioScreen(Screen):
     def action_quit_app(self) -> None:
         self.app.exit()
 
-    def action__xyzzy(self) -> None:
+    def action_xyzzy(self) -> None:
         self.app.push_screen(EggScreen())
+
+    def on_key(self, event) -> None:
+        if event.key == "f9":
+            event.prevent_default()
+            event.stop()
+            self.action_xyzzy()
 
     def _on_form_dismiss(self, result: object = None) -> None:
         self._reload_table()
