@@ -28,7 +28,7 @@ to EUR so you can see your real exposure at a glance.
 git clone <repo-url>
 cd lynx-portfolio
 
-# Install in editable mode (creates the `lynx` command)
+# Install in editable mode (creates the `lynx-portfolio` command)
 pip install -e .
 ```
 
@@ -46,17 +46,17 @@ pip install -e .
 
 ```bash
 # 1. Configure the database directory (stored at ~/.config/lynx/config.json)
-lynx --configure
+lynx-portfolio --configure
 
 # 2. Add a position
-lynx -c add AAPL 10 --price 185.50
+lynx-portfolio -c add AAPL 10 --price 185.50
 
 # 3. List your portfolio
-lynx -c list
+lynx-portfolio -c list
 ```
 
 On the first run, the setup wizard launches automatically to configure your
-database directory. After that, `lynx` opens the persistent database directly.
+database directory. After that, `lynx-portfolio` opens the persistent database directly.
 Use `--devel` for a temporary database during testing.
 
 ## Running modes
@@ -71,10 +71,10 @@ Use `--devel` for a temporary database during testing.
 
 | Flag    | Description                  | Example                          |
 |---------|------------------------------|----------------------------------|
-| *(none)*| Interactive REPL (default)   | `lynx`                           |
-| `-c`    | Console (non-interactive)    | `lynx -c list`                   |
-| `-tui`  | Textual full-screen TUI      | `lynx -tui`                      |
-| `--api` | REST API (Flask, port 5000)  | `lynx --api`                     |
+| *(none)*| Interactive REPL (default)   | `lynx-portfolio`                           |
+| `-c`    | Console (non-interactive)    | `lynx-portfolio -c list`                   |
+| `-tui`  | Textual full-screen TUI      | `lynx-portfolio -tui`                      |
+| `--api` | REST API (Flask, port 5000)  | `lynx-portfolio --api`                     |
 
 ## Top-level flags
 
@@ -99,8 +99,11 @@ Use `--devel` for a temporary database during testing.
 
 ```bash
 # Via pip-installed command
-lynx -c list
+lynx-portfolio -c list
+
+# Via the launcher in bin/
+./bin/lynx-portfolio -c list
 
 # Directly
-python lynx.py -c list
+python lynx-portfolio.py -c list
 ```

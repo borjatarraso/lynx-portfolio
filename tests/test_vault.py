@@ -9,8 +9,8 @@ import tempfile
 import pytest
 from cryptography.fernet import InvalidToken
 
-from lynx import database
-from lynx.vault import (
+from lynx_portfolio import database
+from lynx_portfolio.vault import (
     derive_key,
     generate_salt,
     encrypt_file,
@@ -20,7 +20,7 @@ from lynx.vault import (
     get_salt_path,
     VaultSession,
 )
-from lynx.backup import (
+from lynx_portfolio.backup import (
     create_backup,
     restore_backup,
     has_backup,

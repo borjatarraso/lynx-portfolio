@@ -31,3 +31,8 @@ Thumbs.db
 # Environment
 .env
 .env.*
+*.db
+*.db.bak
+*.db.enc
+*.db.salt
+data/

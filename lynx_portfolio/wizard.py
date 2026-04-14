@@ -60,9 +60,9 @@ def run_wizard(console) -> Dict[str, Any]:
     console.print(f"  Encrypted: [cyan]{'yes' if encrypted else 'no'}[/cyan]")
     console.print(f"  Config:    [dim]{config.CONFIG_FILE}[/dim]\n")
     console.print(
-        "  Run [bold]lynx[/bold] to start the interactive REPL,\n"
-        "  or  [bold]lynx -tui[/bold] for the full-screen TUI,\n"
-        "  or  [bold]lynx -x[/bold] for the graphical interface.\n"
+        "  Run [bold]lynx-portfolio[/bold] to start the interactive REPL,\n"
+        "  or  [bold]lynx-portfolio -tui[/bold] for the full-screen TUI,\n"
+        "  or  [bold]lynx-portfolio -x[/bold] for the graphical interface.\n"
     )
     return cfg
 

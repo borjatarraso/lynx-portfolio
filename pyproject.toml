@@ -20,8 +20,8 @@ dependencies    = [
 ]
 
 [project.scripts]
-lynx = "lynx.cli:run"
+lynx-portfolio = "lynx_portfolio.cli:run"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["lynx*"]
+include = ["lynx_portfolio*"]

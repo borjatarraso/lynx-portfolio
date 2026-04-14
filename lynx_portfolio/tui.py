@@ -1,6 +1,6 @@
 """
 Full-screen TUI mode for Lynx Portfolio, powered by Textual.
-Launched via: lynx -tui  /  lynx --textual-ui
+Launched via: lynx-portfolio -tui  /  lynx-portfolio --textual-ui
 """
 
 from __future__ import annotations

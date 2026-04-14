@@ -12,7 +12,7 @@ import tempfile
 
 import pytest
 
-from lynx import database, config
+from lynx_portfolio import database, config
 
 
 # ---------------------------------------------------------------------------
@@ -51,7 +51,7 @@ class TestSetupDefaultMode:
         fake_config = os.path.join(tmpdir, "config.json")
         monkeypatch.setattr(config, "CONFIG_FILE", fake_config)
 
-        from lynx.cli import _setup_default_mode
+        from lynx_portfolio.cli import _setup_default_mode
         result = _setup_default_mode()
         assert result == "first_run"
 
@@ -65,7 +65,7 @@ class TestSetupDefaultMode:
         cfg = {"db_path": db_path}
         config.save_config(cfg)
 
-        from lynx.cli import _setup_default_mode
+        from lynx_portfolio.cli import _setup_default_mode
         result = _setup_default_mode()
         assert result == "production"
         assert database.get_db_path() == db_path

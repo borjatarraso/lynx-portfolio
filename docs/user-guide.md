@@ -8,7 +8,7 @@ interfaces.
 Run the configuration wizard to set your database directory:
 
 ```bash
-lynx --configure
+lynx-portfolio --configure
 ```
 
 The resulting config is stored at `~/.config/lynx/config.json`. It contains the
@@ -25,7 +25,7 @@ Lynx enters the interactive REPL. On subsequent runs, Lynx opens the existing
 database directly — no wizard.
 
 If you quit with an empty portfolio, Lynx reminds you that you can re-run the
-wizard at any time with `lynx -w`.
+wizard at any time with `lynx-portfolio -w`.
 
 ## Production vs Development mode
 
@@ -35,8 +35,8 @@ no database is configured yet, the setup wizard runs automatically.
 Use `--devel` to experiment with a temporary database:
 
 ```bash
-lynx --devel                # temporary DB, nothing persisted
-lynx --production -c list   # explicitly force production mode
+lynx-portfolio --devel                # temporary DB, nothing persisted
+lynx-portfolio --production -c list   # explicitly force production mode
 ```
 
 ## Console mode (`-c`)
@@ -47,30 +47,30 @@ Best for scripting, cron jobs, and quick one-liners.
 
 | Command   | Description                       | Example                                           |
 |-----------|-----------------------------------|----------------------------------------------------|
-| `add`     | Add a new position                | `lynx -c add --ticker AAPL --shares 10 --avg-price 185.50` |
-| `add`     | Add by name search                | `lynx -c add --name "Apple" --shares 10`           |
-| `list`    | Show all portfolio positions      | `lynx -c list`                                     |
-| `show`    | Show details for one instrument   | `lynx -c show --ticker AAPL`                       |
-| `show`    | Show by name search               | `lynx -c show --name "Apple"`                      |
-| `update`  | Update shares or avg price        | `lynx -c update AAPL --shares 15`          |
-| `delete`  | Remove a position                 | `lynx -c delete AAPL`                      |
-| `refresh` | Refresh market data for a ticker  | `lynx -c refresh AAPL`                     |
-| `import`  | Import positions from JSON        | `lynx -c import portfolio.json`            |
+| `add`     | Add a new position                | `lynx-portfolio -c add --ticker AAPL --shares 10 --avg-price 185.50` |
+| `add`     | Add by name search                | `lynx-portfolio -c add --name "Apple" --shares 10`           |
+| `list`    | Show all portfolio positions      | `lynx-portfolio -c list`                                     |
+| `show`    | Show details for one instrument   | `lynx-portfolio -c show --ticker AAPL`                       |
+| `show`    | Show by name search               | `lynx-portfolio -c show --name "Apple"`                      |
+| `update`  | Update shares or avg price        | `lynx-portfolio -c update AAPL --shares 15`          |
+| `delete`  | Remove a position                 | `lynx-portfolio -c delete AAPL`                      |
+| `refresh` | Refresh market data for a ticker  | `lynx-portfolio -c refresh AAPL`                     |
+| `import`  | Import positions from JSON        | `lynx-portfolio -c import portfolio.json`            |
 
 ### Examples
 
 ```bash
 # Add a position without cost tracking (avg_purchase_price omitted)
-lynx -c add MSFT 5
+lynx-portfolio -c add MSFT 5
 
 # Add with cost tracking
-lynx -c add MSFT 5 --price 420.00
+lynx-portfolio -c add MSFT 5 --price 420.00
 
 # Update only the share count
-lynx -c update MSFT --shares 10
+lynx-portfolio -c update MSFT --shares 10
 
 # Refresh all cached data
-lynx -rc
+lynx-portfolio -rc
 ```
 
 ## Interactive REPL (default)
@@ -78,7 +78,7 @@ lynx -rc
 Launch with:
 
 ```bash
-lynx
+lynx-portfolio
 ```
 
 You get a prompt where you can type commands interactively.
@@ -105,7 +105,7 @@ You get a prompt where you can type commands interactively.
 Launch with:
 
 ```bash
-lynx -tui
+lynx-portfolio -tui
 ```
 
 The TUI displays your portfolio in a table with live data. Navigate with the
@@ -137,7 +137,7 @@ is applied immediately.
 Start the API server (Flask, default port 5000):
 
 ```bash
-lynx --api
+lynx-portfolio --api
 ```
 
 The server exposes a full CRUD interface for portfolio management. See the
@@ -188,7 +188,7 @@ Positions without `avg_price` will display "Not tracked" for P&L fields.
 Run the wizard for a guided first-time setup:
 
 ```bash
-lynx -w
+lynx-portfolio -w
 ```
 
 The wizard walks you through:
@@ -207,9 +207,9 @@ investment data.
 ### Enable encryption
 
 ```bash
-lynx --production --encrypt
+lynx-portfolio --production --encrypt
 # or
-lynx --production -en
+lynx-portfolio --production -en
 ```
 
 You will be asked to set a password three times (enter, confirm, confirm again).
@@ -224,16 +224,16 @@ On subsequent runs Lynx auto-detects the encrypted vault and prompts for the
 password:
 
 ```bash
-lynx --production -i        # prompts for password automatically
-lynx --production -tui      # same
-lynx --production -x        # same
+lynx-portfolio --production -i        # prompts for password automatically
+lynx-portfolio --production -tui      # same
+lynx-portfolio --production -x        # same
 ```
 
 For non-interactive / scripted use, pass the password inline:
 
 ```bash
-lynx --production -d "mypassword" -c list
-lynx --production --decrypt "mypassword" -c show --ticker AAPL
+lynx-portfolio --production -d "mypassword" -c list
+lynx-portfolio --production --decrypt "mypassword" -c show --ticker AAPL
 ```
 
 ### Disable encryption
@@ -241,9 +241,9 @@ lynx --production --decrypt "mypassword" -c show --ticker AAPL
 To permanently remove encryption and return to a plain database:
 
 ```bash
-lynx --production --disable-encryption
+lynx-portfolio --production --disable-encryption
 # or
-lynx --production -de
+lynx-portfolio --production -de
 ```
 
 You will be asked for the current password. The vault files are removed and
@@ -263,9 +263,9 @@ opened. For encrypted databases the backup covers the `.enc` and `.salt` files.
 ### Restore from backup
 
 ```bash
-lynx --production --restore
+lynx-portfolio --production --restore
 # or
-lynx --production -r
+lynx-portfolio --production -r
 ```
 
 Lynx detects whether the backup is for a plain or encrypted database and
@@ -278,9 +278,9 @@ calls.
 
 | Action                   | CLI flag / command        |
 |--------------------------|---------------------------|
-| Delete entire cache      | `lynx -dc`                |
-| Refresh entire cache     | `lynx -rc`                |
-| Auto-refresh on interval | `lynx -arc=3600` (seconds)|
+| Delete entire cache      | `lynx-portfolio -dc`                |
+| Refresh entire cache     | `lynx-portfolio -rc`                |
+| Auto-refresh on interval | `lynx-portfolio -arc=3600` (seconds)|
 | Clear cache (REPL)       | `clear-cache`             |
 | Clear cache (TUI)        | Press `c`                 |
 | Clear cache (API)        | `DELETE /api/cache?force=true` |
@@ -305,7 +305,7 @@ curl http://localhost:5000/api/forex/rates
 ## Tips
 
 - On first run, the setup wizard launches automatically. After that, just
-  run `lynx` to start the interactive REPL.
+  run `lynx-portfolio` to start the interactive REPL.
 - Use `--devel` while learning the tool — it creates a temporary database.
 - The `-v` flag enables verbose output, useful for debugging data-fetch issues.
 - Bulk-load your portfolio from JSON:

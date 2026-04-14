@@ -111,7 +111,7 @@ def _show_empty_portfolio_hint() -> None:
         display.console.print(
             "\n[yellow]Your portfolio is empty.[/yellow]  "
             "You can re-run the setup wizard at any time with "
-            "[bold]lynx -w[/bold] or [bold]lynx --wizard[/bold].\n"
+            "[bold]lynx-portfolio -w[/bold] or [bold]lynx-portfolio --wizard[/bold].\n"
         )
 
 

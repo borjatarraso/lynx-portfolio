@@ -1,6 +1,6 @@
 """
 Graphical interface for Lynx Portfolio, powered by tkinter/ttk.
-Launched via: lynx -x  /  lynx --gui
+Launched via: lynx-portfolio -x  /  lynx-portfolio --gui
 
 Dark-themed financial dashboard with splash screen, grouped toolbar,
 colour-coded P&L, and polished modal dialogs.

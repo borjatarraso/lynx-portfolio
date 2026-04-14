@@ -182,7 +182,7 @@ def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
     if not isinstance(instruments, list):
         display.err(
             "JSON file must contain an array of instrument objects. "
-            "See 'lynx -c import --help' for the expected format."
+            "See 'lynx-portfolio -c import --help' for the expected format."
         )
         return
 
@@ -242,19 +242,18 @@ def _build_parser():
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="lynx",
+        prog="lynx-portfolio",
         description=f"{APP_NAME} — Investment Portfolio Manager",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=r"""
 configuration:
-  lynx --configure           set up the database directory (required before
-                             first use in production mode)
-  config file location:      $XDG_CONFIG_HOME/lynx/config.json
-                             (default: ~/.config/lynx/config.json)
+  lynx-portfolio --configure   set up the database directory
+  config file location:        $XDG_CONFIG_HOME/lynx/config.json
+                               (default: ~/.config/lynx/config.json)
 
 run modes (default: production — wizard runs automatically on first use):
-  --devel                    fresh empty DB every run, nothing persisted
-  --production               use the configured persistent database (explicit)
+  --devel                      fresh empty DB every run, nothing persisted
+  --production                 use the configured persistent database (explicit)
 
 json import format (for 'import --file'):
   [
@@ -272,31 +271,26 @@ interface modes (default: interactive REPL):
   -x,  --gui             graphical interface (tkinter window)
 
 vault / encryption:
-  lynx --encrypt                          encrypt the database (asks password 3x)
-  lynx                                    auto-detects encrypted DB and prompts
-  lynx -d "pass" -c list                  decrypt inline (console mode)
-  lynx --disable-encryption               remove encryption permanently
-  lynx --restore                          restore from most recent backup
-  lynx -w                                 first-time setup wizard
+  lynx-portfolio --encrypt                encrypt the database (asks password 3x)
+  lynx-portfolio                          auto-detects encrypted DB and prompts
+  lynx-portfolio -d "pass" -c list        decrypt inline (console mode)
+  lynx-portfolio --disable-encryption     remove encryption permanently
+  lynx-portfolio --restore                restore from most recent backup
+  lynx-portfolio -w                       first-time setup wizard
 
 examples:
-  lynx                                    start interactive REPL (default)
-  lynx -tui                               start full-screen TUI
-  lynx -x                                 start graphical interface
-  lynx -c add --ticker NESN.SW --shares 50 --avg-price 110
-  lynx -c add --isin CH0038863350 --shares 50 --avg-price 110
-  lynx -c add --isin IE00B4L5Y983 -s 15 -p 70 --exchange AS
-  lynx --import portfolio.json
-  lynx --import portfolio.json --exchange DE
-  lynx -c import --file portfolio.json
-  lynx -c list
-  lynx -c show --ticker NESN.SW
-  lynx -c update --ticker AAPL --shares 15
-  lynx -c delete --ticker AAPL
-  lynx -c refresh
-  lynx -rc
-  lynx -dc
-  lynx -arc=300
+  lynx-portfolio                          start interactive REPL (default)
+  lynx-portfolio -tui                     start full-screen TUI
+  lynx-portfolio -x                       start graphical interface
+  lynx-portfolio -c add --ticker NESN.SW --shares 50 --avg-price 110
+  lynx-portfolio -c add --isin CH0038863350 --shares 50 --avg-price 110
+  lynx-portfolio --import portfolio.json
+  lynx-portfolio -c list
+  lynx-portfolio -c show --ticker NESN.SW
+  lynx-portfolio -c update --ticker AAPL --shares 15
+  lynx-portfolio -c delete --ticker AAPL
+  lynx-portfolio -rc
+  lynx-portfolio -dc
 """,
     )
 

@@ -1,7 +1,7 @@
 """
 REST API for Lynx Portfolio, powered by Flask.
 
-Start with:  lynx --production --api [--port 5000]
+Start with:  lynx-portfolio --api [--port 5000]
 """
 
 from datetime import datetime, timezone

@@ -139,7 +139,7 @@ def display_portfolio(instruments: List[Dict]) -> None:
     if not instruments:
         console.print(
             "[yellow]Portfolio is empty. "
-            "Add instruments with: lynx -c add --ticker AAPL --shares 10 "
+            "Add instruments with: lynx-portfolio -c add --ticker AAPL --shares 10 "
             "--avg-price 150[/yellow]"
         )
         _flush_console()

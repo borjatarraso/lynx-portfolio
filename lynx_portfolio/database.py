@@ -31,7 +31,7 @@ def set_db_path(path: str) -> None:
 def get_db_path() -> str:
     if DB_PATH is None:
         raise RuntimeError(
-            "Database path not configured. Run: lynx --configure"
+            "Database path not configured. Run: lynx-portfolio --configure"
         )
     return DB_PATH
 
