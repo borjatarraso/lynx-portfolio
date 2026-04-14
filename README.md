@@ -246,9 +246,11 @@ lynx-portfolio/
     vault.py                 Database encryption
     backup.py                Backup/restore
     wizard.py                Setup wizard (terminal)
+    validation.py            Input validation
   tests/
     test_vault.py            Vault unit tests
     test_default_mode.py     Default mode unit tests
+    test_validation.py       Input validation unit tests
     robot/                   Robot Framework BDD tests
   docs/
     user-guide.md            User guide

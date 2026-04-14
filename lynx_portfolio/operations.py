@@ -266,12 +266,15 @@ def refresh_all(max_workers: int = 4) -> None:
 
 def refresh_instrument_quiet(ticker: str) -> bool:
     """Refresh a single instrument without any notifier output."""
-    inst = database.get_instrument(ticker)
-    isin = inst.get("isin") if inst else None
-    cache.delete(ticker)
-    data = fetcher.fetch_instrument_data(ticker, isin)
-    if not data:
+    try:
+        inst = database.get_instrument(ticker)
+        isin = inst.get("isin") if inst else None
+        cache.delete(ticker)
+        data = fetcher.fetch_instrument_data(ticker, isin)
+        if not data:
+            return False
+        cache.put(ticker, data)
+        database.apply_cache_to_portfolio(ticker, data)
+        return True
+    except Exception:
         return False
-    cache.put(ticker, data)
-    database.apply_cache_to_portfolio(ticker, data)
-    return True

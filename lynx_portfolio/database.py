@@ -367,5 +367,8 @@ def cache_age_seconds(ticker: str) -> Optional[float]:
     row = cache_get(ticker)
     if not row or not row.get("cached_at"):
         return None
-    cached_at = datetime.fromisoformat(row["cached_at"])
-    return (datetime.now() - cached_at).total_seconds()
+    try:
+        cached_at = datetime.fromisoformat(row["cached_at"])
+        return (datetime.now() - cached_at).total_seconds()
+    except (ValueError, TypeError):
+        return None

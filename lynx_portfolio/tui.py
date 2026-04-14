@@ -831,16 +831,19 @@ class PortfolioScreen(Screen):
 
     @work(thread=True)
     def _do_refresh_one(self, ticker: str) -> None:
-        inst = database.get_instrument(ticker)
-        isin = inst.get("isin") if inst else None
-        cache.delete(ticker)
-        data = fetcher.fetch_instrument_data(ticker, isin)
-        if data:
-            cache.put(ticker, data)
-            database.apply_cache_to_portfolio(ticker, data)
-            self.app.call_from_thread(self.notify, f"Refreshed {ticker}", severity="information")
-        else:
-            self.app.call_from_thread(self.notify, f"Failed to refresh {ticker}", severity="error")
+        try:
+            inst = database.get_instrument(ticker)
+            isin = inst.get("isin") if inst else None
+            cache.delete(ticker)
+            data = fetcher.fetch_instrument_data(ticker, isin)
+            if data:
+                cache.put(ticker, data)
+                database.apply_cache_to_portfolio(ticker, data)
+                self.app.call_from_thread(self.notify, f"Refreshed {ticker}", severity="information")
+            else:
+                self.app.call_from_thread(self.notify, f"Failed to refresh {ticker}", severity="error")
+        except Exception as exc:
+            self.app.call_from_thread(self.notify, f"Refresh error: {exc}", severity="error")
         self.app.call_from_thread(self._reload_table)
 
     def action_refresh_all(self) -> None:
@@ -848,16 +851,27 @@ class PortfolioScreen(Screen):
 
     @work(thread=True)
     def _do_refresh_all(self) -> None:
-        instruments = database.get_all_instruments()
-        for inst in instruments:
-            ticker = inst["ticker"]
-            isin   = inst.get("isin")
-            cache.delete(ticker)
-            data = fetcher.fetch_instrument_data(ticker, isin)
-            if data:
-                cache.put(ticker, data)
-                database.apply_cache_to_portfolio(ticker, data)
-        self.app.call_from_thread(self.notify, f"Refreshed {len(instruments)} instruments", severity="information")
+        try:
+            instruments = database.get_all_instruments()
+            count = 0
+            for inst in instruments:
+                ticker = inst["ticker"]
+                isin   = inst.get("isin")
+                try:
+                    cache.delete(ticker)
+                    data = fetcher.fetch_instrument_data(ticker, isin)
+                    if data:
+                        cache.put(ticker, data)
+                        database.apply_cache_to_portfolio(ticker, data)
+                        count += 1
+                except Exception:
+                    pass  # continue with remaining instruments
+            self.app.call_from_thread(
+                self.notify, f"Refreshed {count}/{len(instruments)} instruments",
+                severity="information",
+            )
+        except Exception as exc:
+            self.app.call_from_thread(self.notify, f"Refresh error: {exc}", severity="error")
         self.app.call_from_thread(self._reload_table)
 
     def action_import_json(self) -> None:
@@ -1242,13 +1256,20 @@ class AddScreen(Screen):
         shares: float,
         avg_price: float,
     ) -> None:
-        ok = ops_add_instrument(
-            ticker=ticker,
-            isin=isin,
-            shares=shares,
-            avg_purchase_price=avg_price,
-            preferred_exchange=exchange,
-        )
+        try:
+            ok = ops_add_instrument(
+                ticker=ticker,
+                isin=isin,
+                shares=shares,
+                avg_purchase_price=avg_price,
+                preferred_exchange=exchange,
+            )
+        except Exception as exc:
+            self.app.call_from_thread(
+                self.query_one("#add-status", Static).update,
+                f"[bold red]Error: {exc}[/bold red]",
+            )
+            return
         if ok:
             self.app.call_from_thread(self.notify, "Instrument added", severity="information")
             self.app.call_from_thread(self.dismiss)
@@ -1433,16 +1454,19 @@ class ImportScreen(Screen):
                 skipped += 1
                 continue
 
-            ok = ops_add_instrument(
-                ticker=ticker,
-                isin=entry.get("isin"),
-                shares=shares,
-                avg_purchase_price=avg_price,
-                preferred_exchange=entry.get("exchange") or exchange,
-            )
-            if ok:
-                added += 1
-            else:
+            try:
+                ok = ops_add_instrument(
+                    ticker=ticker,
+                    isin=entry.get("isin"),
+                    shares=shares,
+                    avg_purchase_price=avg_price,
+                    preferred_exchange=entry.get("exchange") or exchange,
+                )
+                if ok:
+                    added += 1
+                else:
+                    skipped += 1
+            except Exception:
                 skipped += 1
 
         msg = f"Import complete: {added} added, {skipped} skipped (of {total})"

@@ -12,10 +12,17 @@ DEFAULT_TTL = 3600  # 1 hour
 
 def get(ticker: str, max_age: int = DEFAULT_TTL) -> Optional[Dict]:
     """Return cached data if it exists and is within max_age seconds."""
-    row = database.cache_get(ticker)
+    try:
+        row = database.cache_get(ticker)
+    except Exception:
+        return None
     if not row or not row.get("cached_at"):
         return None
-    cached_at = datetime.fromisoformat(row["cached_at"])
+    try:
+        cached_at = datetime.fromisoformat(row["cached_at"])
+    except (ValueError, TypeError):
+        # Malformed timestamp — treat as cache miss
+        return None
     age = (datetime.now() - cached_at).total_seconds()
     if age > max_age:
         return None
@@ -24,13 +31,23 @@ def get(ticker: str, max_age: int = DEFAULT_TTL) -> Optional[Dict]:
     result["current_price"] = result.pop("price", None)
     return result
 
+
 def put(ticker: str, data: Dict) -> None:
-    database.cache_put(ticker, data)
+    try:
+        database.cache_put(ticker, data)
+    except Exception:
+        pass  # cache write failure is non-fatal
 
 
 def delete(ticker: Optional[str] = None) -> int:
-    return database.cache_delete(ticker)
+    try:
+        return database.cache_delete(ticker)
+    except Exception:
+        return 0
 
 
 def age(ticker: str) -> Optional[float]:
-    return database.cache_age_seconds(ticker)
+    try:
+        return database.cache_age_seconds(ticker)
+    except Exception:
+        return None

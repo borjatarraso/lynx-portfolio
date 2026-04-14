@@ -11,6 +11,35 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ---
 
+## [v0.6] — 2026-04-14
+
+### Added
+- **Input validation module** (`validation.py`): centralised validators for
+  tickers, ISINs, exchange suffixes, shares, prices, and search queries.
+  Applied to all 5 interfaces (interactive, console, TUI, GUI, REST API).
+- **50 new unit tests** in `test_validation.py` covering all validators
+  with edge cases (empty, spaces, SQL injection, unicode, negative values,
+  overlong strings, control characters).
+
+### Fixed
+- **Race condition in refresh**: `refresh_instrument_quiet()` now wraps all
+  database/cache operations in try/except to prevent silent thread death
+  during background refreshes.
+- **Cache timestamp crash**: `datetime.fromisoformat()` calls now handle
+  malformed timestamps instead of raising ValueError.
+- **Config corruption**: `save_config()` now uses atomic writes (temp file +
+  fsync + os.replace) to prevent partial config files on crash.
+- **TUI refresh crash**: all `@work`-decorated methods in TUI now catch
+  exceptions and display errors via Textual notifications instead of dying
+  silently.
+- **TUI import crash**: individual instrument failures during import no
+  longer abort the entire batch.
+- **REST API validation**: all `<ticker>` URL path parameters now validated
+  via `validate_ticker()`, returning 400 JSON errors for malformed input.
+  POST/PUT body values validated with `validate_shares()`/`validate_price()`.
+
+---
+
 ## [v0.5] — 2026-04-14
 
 ### Added

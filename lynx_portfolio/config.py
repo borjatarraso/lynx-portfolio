@@ -48,9 +48,13 @@ def load_config() -> Dict[str, Any]:
 
 def save_config(cfg: Dict[str, Any]) -> None:
     _ensure_config_dir()
-    with open(CONFIG_FILE, "w") as f:
+    tmp_path = CONFIG_FILE + ".tmp"
+    with open(tmp_path, "w") as f:
         json.dump(cfg, f, indent=2)
         f.write("\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp_path, CONFIG_FILE)
 
 
 # ---------------------------------------------------------------------------
