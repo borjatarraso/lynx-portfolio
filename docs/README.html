@@ -1,0 +1,180 @@
+<h1>Lynx Portfolio</h1>
+<p><strong>Version:</strong> v0.4 | <strong>Python:</strong> &gt;= 3.9 | <strong>License:</strong> BSD</p>
+<p>Lynx Portfolio is a command-line investment portfolio manager that tracks your
+holdings, fetches live market data from Yahoo Finance, and converts everything
+to EUR so you can see your real exposure at a glance.</p>
+<h2>Features</h2>
+<ul>
+<li><strong>Four interfaces</strong> -- pick the one that fits your workflow:</li>
+<li>Interactive REPL (default) with command history</li>
+<li>Console mode (<code>-c</code>) for scripting and one-shot commands</li>
+<li>Full-screen TUI (<code>-tui</code>) built on Textual</li>
+<li>REST API (<code>--api</code>) powered by Flask</li>
+<li><strong>Live market data</strong> from Yahoo Finance via <code>yfinance</code></li>
+<li><strong>ISIN resolution</strong> through OpenFIGI</li>
+<li><strong>Automatic EUR conversion</strong> -- forex rates fetched once per session</li>
+<li><strong>SQLite storage</strong> with WAL mode for safe concurrent reads</li>
+<li><strong>Smart mode selection</strong> -- uses persistent DB if configured, devel otherwise</li>
+<li><strong>Optional cost tracking</strong> -- positions without <code>avg_purchase_price</code> display
+  "Not tracked" instead of misleading zeros</li>
+</ul>
+<h2>Installation</h2>
+<pre><code class="language-bash"># Clone the repository
+git clone &lt;repo-url&gt;
+cd lynx-portfolio
+
+# Install in editable mode (creates the `lynx` command)
+pip install -e .
+</code></pre>
+<h3>Dependencies</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>yfinance</td>
+<td>Market data from Yahoo Finance</td>
+</tr>
+<tr>
+<td>requests</td>
+<td>HTTP calls (OpenFIGI, etc.)</td>
+</tr>
+<tr>
+<td>rich</td>
+<td>Terminal tables and formatting</td>
+</tr>
+<tr>
+<td>textual</td>
+<td>Full-screen TUI framework</td>
+</tr>
+<tr>
+<td>flask</td>
+<td>REST API server</td>
+</tr>
+</tbody>
+</table>
+<h2>Quick start</h2>
+<pre><code class="language-bash"># 1. Configure the database directory (stored at ~/.config/lynx/config.json)
+lynx --configure
+
+# 2. Add a position
+lynx -c add AAPL 10 --price 185.50
+
+# 3. List your portfolio
+lynx -c list
+</code></pre>
+<p>Lynx automatically uses the persistent database if configured. For testing,
+use <code>--devel</code> to get a temporary database.</p>
+<h2>Running modes</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Database</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(default)</em></td>
+<td>Persistent if configured, temporary otherwise</td>
+<td>Normal usage</td>
+</tr>
+<tr>
+<td><code>--devel</code></td>
+<td>Temporary</td>
+<td>Testing and exploration</td>
+</tr>
+<tr>
+<td><code>--production</code></td>
+<td>Persistent</td>
+<td>Explicit production</td>
+</tr>
+</tbody>
+</table>
+<h2>Interfaces at a glance</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(none)</em></td>
+<td>Interactive REPL (default)</td>
+<td><code>lynx</code></td>
+</tr>
+<tr>
+<td><code>-c</code></td>
+<td>Console (non-interactive)</td>
+<td><code>lynx -c list</code></td>
+</tr>
+<tr>
+<td><code>-tui</code></td>
+<td>Textual full-screen TUI</td>
+<td><code>lynx -tui</code></td>
+</tr>
+<tr>
+<td><code>--api</code></td>
+<td>REST API (Flask, port 5000)</td>
+<td><code>lynx --api</code></td>
+</tr>
+</tbody>
+</table>
+<h2>Top-level flags</h2>
+<table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--configure</code></td>
+<td>Set up database directory</td>
+</tr>
+<tr>
+<td><code>--import FILE</code></td>
+<td>Import positions from a JSON file</td>
+</tr>
+<tr>
+<td><code>-dc</code></td>
+<td>Delete the instrument cache</td>
+</tr>
+<tr>
+<td><code>-rc</code></td>
+<td>Refresh the instrument cache</td>
+</tr>
+<tr>
+<td><code>-arc=SECONDS</code></td>
+<td>Auto-refresh cache interval</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>Verbose output</td>
+</tr>
+</tbody>
+</table>
+<h2>Documentation</h2>
+<ul>
+<li><a href="user-guide.md">User Guide</a> -- configuration, interfaces, import format,
+  cache management</li>
+<li><a href="api-reference.md">API Reference</a> -- every REST endpoint with curl examples</li>
+<li><a href="architecture.md">Architecture</a> -- modules, data flow, schema, design
+  decisions</li>
+</ul>
+<h2>Entry points</h2>
+<pre><code class="language-bash"># Via pip-installed command
+lynx -c list
+
+# Directly
+python lynx.py -c list
+</code></pre>

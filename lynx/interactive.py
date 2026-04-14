@@ -8,6 +8,7 @@ from typing import Optional, List, Dict
 from rich.table import Table
 from rich import box
 
+from . import ABOUT_LINES
 from . import database, cache, display
 from .operations import add_instrument, refresh_instrument, refresh_all
 
@@ -86,8 +87,9 @@ _HELP = """
 [bold cyan]Commands[/bold cyan]
 
   [bold]list[/bold]  /  [bold]ls[/bold]                List all portfolio positions
-  [bold]add[/bold]                        Add a new instrument (guided prompt)
+  [bold]add[/bold]                        Add a new instrument (guided prompt, supports name search)
   [bold]show[/bold]   <ticker>            Show detailed view for an instrument
+  [bold]show[/bold]   --name <query>      Search by name and show instrument detail
   [bold]update[/bold] <ticker>            Update shares / average price
   [bold]delete[/bold] <ticker>            Remove an instrument from the portfolio
   [bold]refresh[/bold]                    Refresh live data for all instruments
@@ -96,6 +98,7 @@ _HELP = """
   [bold]clear-cache[/bold]               Wipe all cached data
   [bold]markets[/bold] <ticker or ISIN>  List all exchanges where an instrument trades
   [bold]config[/bold]                     Show or update configuration
+  [bold]about[/bold]                      Show application information
   [bold]help[/bold]                       Show this message
   [bold]quit[/bold]  /  [bold]exit[/bold]  /  [bold]q[/bold]    Exit
 """
@@ -136,7 +139,23 @@ def run() -> None:
 
         elif cmd == "show":
             if not arg:
-                display.err("Usage: show <ticker>")
+                display.err("Usage: show <ticker>  or  show --name <query>")
+            elif arg.lower().startswith(("--name", "-n ")):
+                # Name search mode — strip the flag prefix to get the query
+                parts = arg.split(None, 1)
+                query = parts[1].strip() if len(parts) > 1 else ""
+                if query:
+                    from . import fetcher
+                    display.info(f"Searching for '{query}'…")
+                    results = fetcher.search_by_name(query)
+                    if not results:
+                        display.err(f"No instruments found matching '{query}'.")
+                    else:
+                        ticker_found = _pick_from_search_results(results)
+                        if ticker_found:
+                            _cmd_show(ticker_found)
+                else:
+                    display.err("Usage: show --name <query>")
             else:
                 _cmd_show(arg.upper())
 
@@ -179,6 +198,10 @@ def run() -> None:
         elif cmd == "config":
             from . import config as cfg
             cfg.run_configure(display.console)
+
+        elif cmd == "about":
+            for line in ABOUT_LINES:
+                display.console.print(line)
 
         else:
             display.warn(f"Unknown command '{cmd}'. Type 'help' for available commands.")
@@ -230,17 +253,73 @@ def _prompt_market_selection(markets: List[Dict]) -> Optional[Dict]:
 # Sub-command helpers
 # ---------------------------------------------------------------------------
 
+def _pick_from_search_results(results: List[Dict]) -> Optional[str]:
+    """Display search results and let the user pick one. Returns ticker or None."""
+    display.console.print(f"\n[bold]Search results:[/bold]\n")
+    for i, r in enumerate(results, 1):
+        display.console.print(
+            f"  [bold cyan]{i:>2}[/bold cyan]  "
+            f"[bold]{r['symbol']:<14}[/bold]  "
+            f"{(r['longname'] or r['shortname']):<35}  "
+            f"[dim]{r['exchange_display']:<20}  "
+            f"{r['quote_type']}[/dim]"
+        )
+    display.console.print(f"\n   [dim]0  Cancel[/dim]\n")
+
+    while True:
+        answer = _ask(f"Select [dim](1–{len(results)}, 0 to cancel)[/dim]")
+        if not answer:
+            continue
+        try:
+            idx = int(answer)
+        except ValueError:
+            display.warn(f"Enter a number between 0 and {len(results)}.")
+            continue
+        if idx == 0:
+            return None
+        if 1 <= idx <= len(results):
+            return results[idx - 1]["symbol"]
+        display.warn(f"Enter a number between 0 and {len(results)}.")
+
+
+def _search_instrument_by_name() -> Optional[str]:
+    """Search for instruments by name and let the user select one."""
+    from . import fetcher
+    name = _ask("Search by name [dim](e.g. 'Apple', 'Vanguard FTSE')[/dim]")
+    if not name:
+        return None
+    display.info(f"Searching for '{name}'…")
+    results = fetcher.search_by_name(name)
+    if not results:
+        display.err(f"No instruments found matching '{name}'.")
+        return None
+    return _pick_from_search_results(results)
+
+
 def _cmd_add() -> None:
     display.console.print("\n[bold]Add New Instrument[/bold]")
 
     ticker = _ask(
         "Ticker [dim](e.g. AAPL, NESN.SW, VWCE.DE — include exchange suffix "
-        "if known, Enter to skip if using ISIN)[/dim]"
+        "if known, Enter to skip if using ISIN or name search)[/dim]"
     )
-    isin = _ask("ISIN [dim](Enter to skip)[/dim]")
+    isin = None
+    if not ticker:
+        # Offer name search or ISIN
+        display.console.print(
+            "  [dim]No ticker given. You can search by name or provide an ISIN.[/dim]"
+        )
+        choice = _ask("Search by [bold]name[/bold] or enter [bold]ISIN[/bold]? [dim](name/isin)[/dim]")
+        if choice and choice.lower().startswith("n"):
+            ticker = _search_instrument_by_name()
+            if not ticker:
+                display.info("Cancelled.")
+                return
+        else:
+            isin = _ask("ISIN [dim](Enter to cancel)[/dim]")
 
     if not ticker and not isin:
-        display.err("You must provide at least a ticker or an ISIN.")
+        display.err("You must provide at least a ticker, name search, or an ISIN.")
         return
 
     shares = _ask_float("Number of shares")

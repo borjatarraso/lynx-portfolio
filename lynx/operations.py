@@ -3,6 +3,7 @@ Core portfolio operations shared between interactive, non-interactive, TUI,
 and API modes.
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional, List, Dict, Callable
 from . import database, cache, fetcher
 
@@ -149,19 +150,20 @@ def add_instrument(
 
     # 4 ─ Persist
     success = database.add_instrument(
-        ticker             = yahoo_symbol,
-        isin               = isin or data.get("isin"),
-        shares             = shares,
-        avg_purchase_price = avg_purchase_price,
-        name               = data.get("name"),
-        current_price      = data.get("current_price"),
-        currency           = data.get("currency") or chosen.get("currency"),
-        sector             = data.get("sector"),
-        industry           = data.get("industry"),
-        description        = data.get("description"),
-        exchange_code      = data.get("exchange_code") or chosen.get("exchange_code"),
-        exchange_display   = chosen.get("exchange_display"),
-        quote_type         = data.get("quote_type"),
+        ticker                = yahoo_symbol,
+        isin                  = isin or data.get("isin"),
+        shares                = shares,
+        avg_purchase_price    = avg_purchase_price,
+        name                  = data.get("name"),
+        current_price         = data.get("current_price"),
+        regular_market_change = data.get("regular_market_change"),
+        currency              = data.get("currency") or chosen.get("currency"),
+        sector                = data.get("sector"),
+        industry              = data.get("industry"),
+        description           = data.get("description"),
+        exchange_code         = data.get("exchange_code") or chosen.get("exchange_code"),
+        exchange_display      = chosen.get("exchange_display"),
+        quote_type            = data.get("quote_type"),
     )
 
     if success:
@@ -197,10 +199,36 @@ def refresh_instrument(ticker: str) -> bool:
     return True
 
 
-def refresh_all() -> None:
+def refresh_all(max_workers: int = 4) -> None:
     instruments = database.get_all_instruments()
     if not instruments:
         _notifier.info("Portfolio is empty.")
         return
-    for inst in instruments:
-        refresh_instrument(inst["ticker"])
+    if len(instruments) <= 2:
+        for inst in instruments:
+            refresh_instrument(inst["ticker"])
+        return
+    # Parallel refresh for larger portfolios
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {
+            pool.submit(refresh_instrument, inst["ticker"]): inst["ticker"]
+            for inst in instruments
+        }
+        for future in as_completed(futures):
+            try:
+                future.result()
+            except Exception:
+                _notifier.err(f"Failed to refresh {futures[future]}.")
+
+
+def refresh_instrument_quiet(ticker: str) -> bool:
+    """Refresh a single instrument without any notifier output."""
+    inst = database.get_instrument(ticker)
+    isin = inst.get("isin") if inst else None
+    cache.delete(ticker)
+    data = fetcher.fetch_instrument_data(ticker, isin)
+    if not data:
+        return False
+    cache.put(ticker, data)
+    database.apply_cache_to_portfolio(ticker, data)
+    return True

@@ -67,6 +67,48 @@ def is_configured() -> bool:
     return get_db_path() is not None
 
 
+def is_encrypted() -> bool:
+    """Return True if the database is configured as encrypted."""
+    cfg = load_config()
+    return cfg.get("encrypted", False)
+
+
+def set_encrypted(value: bool) -> None:
+    """Update the encrypted flag in config."""
+    cfg = load_config()
+    if value:
+        cfg["encrypted"] = True
+    else:
+        cfg.pop("encrypted", None)
+    save_config(cfg)
+
+
+# Valid mode keys for default_mode config
+VALID_MODES = {
+    "console": "Console (non-interactive)",
+    "interactive": "Interactive REPL",
+    "tui": "Textual UI",
+    "gui": "Graphical Interface",
+}
+
+
+def get_default_mode() -> Optional[str]:
+    """Return the configured default interface mode, or None."""
+    cfg = load_config()
+    return cfg.get("default_mode")
+
+
+def set_default_mode(mode: str) -> None:
+    """Set the default interface mode in config."""
+    if mode not in VALID_MODES:
+        raise ValueError(
+            f"Invalid mode '{mode}'. Valid: {', '.join(VALID_MODES)}"
+        )
+    cfg = load_config()
+    cfg["default_mode"] = mode
+    save_config(cfg)
+
+
 # ---------------------------------------------------------------------------
 # Interactive configuration
 # ---------------------------------------------------------------------------

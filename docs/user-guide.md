@@ -16,56 +16,57 @@ path where Lynx will create and look for its SQLite database files.
 
 ## Development vs Production mode
 
-Lynx defaults to **development mode** (`--devel-mode`), which uses a temporary
-database that is discarded when the session ends. This is useful for testing
-imports, trying commands, or exploring the tool without risk.
+When a database directory has been configured (`lynx --configure`), Lynx
+automatically uses it in **production mode**. If no directory is configured,
+it falls back to **development mode** with a temporary database.
 
-Switch to **production mode** to persist data across sessions:
+You can force a mode explicitly:
 
 ```bash
-lynx --production-mode -ni list
+lynx --devel                # temporary DB, nothing persisted
+lynx --production -c list   # persistent DB, console mode
 ```
 
-You can combine the mode flag with any interface flag.
-
-## Non-interactive CLI (`-ni`)
+## Console mode (`-c`)
 
 Best for scripting, cron jobs, and quick one-liners.
 
 ### Subcommands
 
-| Command   | Description                       | Example                                    |
-|-----------|-----------------------------------|--------------------------------------------|
-| `add`     | Add a new position                | `lynx -ni add AAPL 10 --price 185.50`     |
-| `list`    | Show all portfolio positions      | `lynx -ni list`                            |
-| `show`    | Show details for one instrument   | `lynx -ni show AAPL`                       |
-| `update`  | Update shares or avg price        | `lynx -ni update AAPL --shares 15`         |
-| `delete`  | Remove a position                 | `lynx -ni delete AAPL`                     |
-| `refresh` | Refresh market data for a ticker  | `lynx -ni refresh AAPL`                    |
-| `import`  | Import positions from JSON        | `lynx -ni import portfolio.json`           |
+| Command   | Description                       | Example                                           |
+|-----------|-----------------------------------|----------------------------------------------------|
+| `add`     | Add a new position                | `lynx -c add --ticker AAPL --shares 10 --avg-price 185.50` |
+| `add`     | Add by name search                | `lynx -c add --name "Apple" --shares 10`           |
+| `list`    | Show all portfolio positions      | `lynx -c list`                                     |
+| `show`    | Show details for one instrument   | `lynx -c show --ticker AAPL`                       |
+| `show`    | Show by name search               | `lynx -c show --name "Apple"`                      |
+| `update`  | Update shares or avg price        | `lynx -c update AAPL --shares 15`          |
+| `delete`  | Remove a position                 | `lynx -c delete AAPL`                      |
+| `refresh` | Refresh market data for a ticker  | `lynx -c refresh AAPL`                     |
+| `import`  | Import positions from JSON        | `lynx -c import portfolio.json`            |
 
 ### Examples
 
 ```bash
 # Add a position without cost tracking (avg_purchase_price omitted)
-lynx -ni add MSFT 5
+lynx -c add MSFT 5
 
 # Add with cost tracking
-lynx -ni add MSFT 5 --price 420.00
+lynx -c add MSFT 5 --price 420.00
 
 # Update only the share count
-lynx -ni update MSFT --shares 10
+lynx -c update MSFT --shares 10
 
 # Refresh all cached data
 lynx -rc
 ```
 
-## Interactive REPL (`-i`)
+## Interactive REPL (default)
 
 Launch with:
 
 ```bash
-lynx -i
+lynx
 ```
 
 You get a prompt where you can type commands interactively.
@@ -170,6 +171,94 @@ Only `ticker` and `shares` are required. The remaining fields are optional:
 
 Positions without `avg_price` will display "Not tracked" for P&L fields.
 
+## First-time Setup Wizard (`-w`)
+
+Run the wizard for a guided first-time setup:
+
+```bash
+lynx -w
+```
+
+The wizard walks you through:
+
+1. **Database location** — Choose where to store the portfolio database
+   (default: `~/.local/share/lynx`). If a database already exists, you are
+   warned and can choose to replace it or pick a different directory.
+2. **Encryption** — Optionally encrypt the database with a password vault.
+3. **First instrument** — Add your first stock or ETF right away.
+
+## Database Encryption (Vault)
+
+Lynx can encrypt your portfolio database with a password to protect your
+investment data.
+
+### Enable encryption
+
+```bash
+lynx --production --encrypt
+# or
+lynx --production -en
+```
+
+You will be asked to set a password three times (enter, confirm, confirm again).
+While typing, press `*` to toggle between showing and hiding the password.
+
+The plain database is encrypted into `portfolio.db.enc` + `portfolio.db.salt`
+and the unencrypted file is removed.
+
+### Using an encrypted database
+
+On subsequent runs Lynx auto-detects the encrypted vault and prompts for the
+password:
+
+```bash
+lynx --production -i        # prompts for password automatically
+lynx --production -tui      # same
+lynx --production -x        # same
+```
+
+For non-interactive / scripted use, pass the password inline:
+
+```bash
+lynx --production -d "mypassword" -c list
+lynx --production --decrypt "mypassword" -c show --ticker AAPL
+```
+
+### Disable encryption
+
+To permanently remove encryption and return to a plain database:
+
+```bash
+lynx --production --disable-encryption
+# or
+lynx --production -de
+```
+
+You will be asked for the current password. The vault files are removed and
+the plain database is restored.
+
+### Signal safety
+
+When the vault is open, Lynx installs signal handlers for `SIGINT` (Ctrl+C),
+`SIGTERM`, and `SIGHUP`. If the process is interrupted, the vault is
+re-encrypted and the temporary working file is securely deleted before exit.
+
+## Backup and Restore
+
+Lynx automatically creates a backup (`.bak`) of the database each time it is
+opened. For encrypted databases the backup covers the `.enc` and `.salt` files.
+
+### Restore from backup
+
+```bash
+lynx --production --restore
+# or
+lynx --production -r
+```
+
+Lynx detects whether the backup is for a plain or encrypted database and
+restores accordingly.
+
 ## Cache management
 
 Lynx caches instrument metadata in the SQLite database to avoid redundant API
@@ -203,14 +292,14 @@ curl http://localhost:5000/api/forex/rates
 
 ## Tips
 
-- Use `--devel-mode` (the default) while learning the tool. Switch to
-  `--production-mode` when you are confident in your workflow.
+- Use `--devel` while learning the tool. Once configured, Lynx automatically
+  uses the persistent database.
 - The `-v` flag enables verbose output, useful for debugging data-fetch issues.
-- Combine `--import` with `--production-mode` to bulk-load your real portfolio:
+- Combine `--import` with `--production` to bulk-load your real portfolio:
   ```bash
-  lynx --production-mode --import portfolio.json
+  lynx --production --import portfolio.json
   ```
 - Positions added without a price can be updated later:
   ```bash
-  lynx -ni update AAPL --price 185.50
+  lynx -c update AAPL --price 185.50
   ```

@@ -40,7 +40,7 @@ Stop API Server
 # ---------------------------------------------------------------------------
 Run Lynx
     [Arguments]    @{args}
-    ${result}=    Run Process    ${PYTHON}    ${LYNX_SCRIPT}    @{args}
+    ${result}=    Run Process    ${PYTHON}    ${LYNX_SCRIPT}    -c    @{args}
     ...    env:LYNX_DB_PATH=${TEMP_DB}
     Set Test Variable    ${LAST_RESULT}    ${result}
     RETURN    ${result}

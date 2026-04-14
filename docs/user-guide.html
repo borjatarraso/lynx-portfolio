@@ -1,0 +1,415 @@
+<h1>User Guide</h1>
+<p>This guide covers day-to-day usage of Lynx Portfolio across all four
+interfaces.</p>
+<h2>Configuration</h2>
+<p>Run the configuration wizard to set your database directory:</p>
+<pre><code class="language-bash">lynx --configure
+</code></pre>
+<p>The resulting config is stored at <code>~/.config/lynx/config.json</code>. It contains the
+path where Lynx will create and look for its SQLite database files.</p>
+<h2>Development vs Production mode</h2>
+<p>When a database directory has been configured (<code>lynx --configure</code>), Lynx
+automatically uses it in <strong>production mode</strong>. If no directory is configured,
+it falls back to <strong>development mode</strong> with a temporary database.</p>
+<p>You can force a mode explicitly:</p>
+<pre><code class="language-bash">lynx --devel                # temporary DB, nothing persisted
+lynx --production -c list   # persistent DB, console mode
+</code></pre>
+<h2>Console mode (<code>-c</code>)</h2>
+<p>Best for scripting, cron jobs, and quick one-liners.</p>
+<h3>Subcommands</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Description</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>add</code></td>
+<td>Add a new position</td>
+<td><code>lynx -c add --ticker AAPL --shares 10 --avg-price 185.50</code></td>
+</tr>
+<tr>
+<td><code>add</code></td>
+<td>Add by name search</td>
+<td><code>lynx -c add --name "Apple" --shares 10</code></td>
+</tr>
+<tr>
+<td><code>list</code></td>
+<td>Show all portfolio positions</td>
+<td><code>lynx -c list</code></td>
+</tr>
+<tr>
+<td><code>show</code></td>
+<td>Show details for one instrument</td>
+<td><code>lynx -c show --ticker AAPL</code></td>
+</tr>
+<tr>
+<td><code>show</code></td>
+<td>Show by name search</td>
+<td><code>lynx -c show --name "Apple"</code></td>
+</tr>
+<tr>
+<td><code>update</code></td>
+<td>Update shares or avg price</td>
+<td><code>lynx -c update AAPL --shares 15</code></td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td>Remove a position</td>
+<td><code>lynx -c delete AAPL</code></td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td>Refresh market data for a ticker</td>
+<td><code>lynx -c refresh AAPL</code></td>
+</tr>
+<tr>
+<td><code>import</code></td>
+<td>Import positions from JSON</td>
+<td><code>lynx -c import portfolio.json</code></td>
+</tr>
+</tbody>
+</table>
+<h3>Examples</h3>
+<pre><code class="language-bash"># Add a position without cost tracking (avg_purchase_price omitted)
+lynx -c add MSFT 5
+
+# Add with cost tracking
+lynx -c add MSFT 5 --price 420.00
+
+# Update only the share count
+lynx -c update MSFT --shares 10
+
+# Refresh all cached data
+lynx -rc
+</code></pre>
+<h2>Interactive REPL (default)</h2>
+<p>Launch with:</p>
+<pre><code class="language-bash">lynx
+</code></pre>
+<p>You get a prompt where you can type commands interactively.</p>
+<h3>Available commands</h3>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Alias</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list</code></td>
+<td><code>ls</code></td>
+<td>List all positions</td>
+</tr>
+<tr>
+<td><code>add</code></td>
+<td></td>
+<td>Add a position (prompts for details)</td>
+</tr>
+<tr>
+<td><code>show</code></td>
+<td></td>
+<td>Show instrument detail</td>
+</tr>
+<tr>
+<td><code>update</code></td>
+<td></td>
+<td>Update a position</td>
+</tr>
+<tr>
+<td><code>delete</code></td>
+<td></td>
+<td>Remove a position</td>
+</tr>
+<tr>
+<td><code>refresh</code></td>
+<td></td>
+<td>Refresh market data</td>
+</tr>
+<tr>
+<td><code>import</code></td>
+<td></td>
+<td>Import from JSON file</td>
+</tr>
+<tr>
+<td><code>clear-cache</code></td>
+<td></td>
+<td>Clear the instrument cache</td>
+</tr>
+<tr>
+<td><code>markets</code></td>
+<td></td>
+<td>Show market/exchange info</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td></td>
+<td>Show current configuration</td>
+</tr>
+<tr>
+<td><code>help</code></td>
+<td></td>
+<td>Print available commands</td>
+</tr>
+<tr>
+<td><code>quit</code></td>
+<td></td>
+<td>Exit the REPL</td>
+</tr>
+</tbody>
+</table>
+<h2>Full-screen TUI (<code>-tui</code>)</h2>
+<p>Launch with:</p>
+<pre><code class="language-bash">lynx -tui
+</code></pre>
+<p>The TUI displays your portfolio in a table with live data. Navigate with the
+keyboard.</p>
+<h3>Keybindings</h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>a</code></td>
+<td>Add a new position</td>
+</tr>
+<tr>
+<td><code>d</code></td>
+<td>Delete selected position</td>
+</tr>
+<tr>
+<td><code>e</code></td>
+<td>Edit selected position</td>
+</tr>
+<tr>
+<td><code>r</code></td>
+<td>Refresh selected instrument</td>
+</tr>
+<tr>
+<td><code>R</code></td>
+<td>Refresh all instruments</td>
+</tr>
+<tr>
+<td><code>i</code></td>
+<td>Import from JSON file</td>
+</tr>
+<tr>
+<td><code>c</code></td>
+<td>Clear instrument cache</td>
+</tr>
+<tr>
+<td><code>t</code></td>
+<td>Cycle through themes</td>
+</tr>
+<tr>
+<td><code>q</code></td>
+<td>Quit</td>
+</tr>
+<tr>
+<td><code>Enter</code></td>
+<td>Show detail view</td>
+</tr>
+<tr>
+<td><code>Esc</code></td>
+<td>Go back / close dialog</td>
+</tr>
+</tbody>
+</table>
+<h3>Theme cycling</h3>
+<p>Press <code>t</code> in the TUI to cycle through available color themes. The current theme
+is applied immediately.</p>
+<h2>REST API (<code>--api</code>)</h2>
+<p>Start the API server (Flask, default port 5000):</p>
+<pre><code class="language-bash">lynx --api
+</code></pre>
+<p>The server exposes a full CRUD interface for portfolio management. See the
+<a href="api-reference.md">API Reference</a> for every endpoint.</p>
+<p>Quick smoke test:</p>
+<pre><code class="language-bash">curl http://localhost:5000/api/health
+# {&quot;status&quot;: &quot;ok&quot;, &quot;timestamp&quot;: &quot;2026-04-12T10:00:00Z&quot;}
+</code></pre>
+<h2>JSON import format</h2>
+<p>The <code>import</code> command (available in all interfaces) expects a JSON file with an
+array of position objects:</p>
+<pre><code class="language-json">[
+  {
+    &quot;ticker&quot;: &quot;AAPL&quot;,
+    &quot;shares&quot;: 10,
+    &quot;avg_price&quot;: 185.50,
+    &quot;isin&quot;: &quot;US0378331005&quot;,
+    &quot;exchange&quot;: &quot;NMS&quot;
+  },
+  {
+    &quot;ticker&quot;: &quot;MSFT&quot;,
+    &quot;shares&quot;: 5
+  }
+]
+</code></pre>
+<p>Only <code>ticker</code> and <code>shares</code> are required. The remaining fields are optional:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ticker</code></td>
+<td>Yes</td>
+<td>Yahoo Finance ticker symbol</td>
+</tr>
+<tr>
+<td><code>shares</code></td>
+<td>Yes</td>
+<td>Number of shares held</td>
+</tr>
+<tr>
+<td><code>avg_price</code></td>
+<td>No</td>
+<td>Average purchase price (cost tracking)</td>
+</tr>
+<tr>
+<td><code>isin</code></td>
+<td>No</td>
+<td>ISIN code for the instrument</td>
+</tr>
+<tr>
+<td><code>exchange</code></td>
+<td>No</td>
+<td>Exchange identifier</td>
+</tr>
+</tbody>
+</table>
+<p>Positions without <code>avg_price</code> will display "Not tracked" for P&amp;L fields.</p>
+<h2>First-time Setup Wizard (<code>-w</code>)</h2>
+<p>Run the wizard for a guided first-time setup:</p>
+<pre><code class="language-bash">lynx -w
+</code></pre>
+<p>The wizard walks you through:</p>
+<ol>
+<li><strong>Database location</strong> — Choose where to store the portfolio database
+   (default: <code>~/.local/share/lynx</code>). If a database already exists, you are
+   warned and can choose to replace it or pick a different directory.</li>
+<li><strong>Encryption</strong> — Optionally encrypt the database with a password vault.</li>
+<li><strong>First instrument</strong> — Add your first stock or ETF right away.</li>
+</ol>
+<h2>Database Encryption (Vault)</h2>
+<p>Lynx can encrypt your portfolio database with a password to protect your
+investment data.</p>
+<h3>Enable encryption</h3>
+<pre><code class="language-bash">lynx --production --encrypt
+# or
+lynx --production -en
+</code></pre>
+<p>You will be asked to set a password three times (enter, confirm, confirm again).
+While typing, press <code>*</code> to toggle between showing and hiding the password.</p>
+<p>The plain database is encrypted into <code>portfolio.db.enc</code> + <code>portfolio.db.salt</code>
+and the unencrypted file is removed.</p>
+<h3>Using an encrypted database</h3>
+<p>On subsequent runs Lynx auto-detects the encrypted vault and prompts for the
+password:</p>
+<pre><code class="language-bash">lynx --production -i        # prompts for password automatically
+lynx --production -tui      # same
+lynx --production -x        # same
+</code></pre>
+<p>For non-interactive / scripted use, pass the password inline:</p>
+<pre><code class="language-bash">lynx --production -d &quot;mypassword&quot; -c list
+lynx --production --decrypt &quot;mypassword&quot; -c show --ticker AAPL
+</code></pre>
+<h3>Disable encryption</h3>
+<p>To permanently remove encryption and return to a plain database:</p>
+<pre><code class="language-bash">lynx --production --disable-encryption
+# or
+lynx --production -de
+</code></pre>
+<p>You will be asked for the current password. The vault files are removed and
+the plain database is restored.</p>
+<h3>Signal safety</h3>
+<p>When the vault is open, Lynx installs signal handlers for <code>SIGINT</code> (Ctrl+C),
+<code>SIGTERM</code>, and <code>SIGHUP</code>. If the process is interrupted, the vault is
+re-encrypted and the temporary working file is securely deleted before exit.</p>
+<h2>Backup and Restore</h2>
+<p>Lynx automatically creates a backup (<code>.bak</code>) of the database each time it is
+opened. For encrypted databases the backup covers the <code>.enc</code> and <code>.salt</code> files.</p>
+<h3>Restore from backup</h3>
+<pre><code class="language-bash">lynx --production --restore
+# or
+lynx --production -r
+</code></pre>
+<p>Lynx detects whether the backup is for a plain or encrypted database and
+restores accordingly.</p>
+<h2>Cache management</h2>
+<p>Lynx caches instrument metadata in the SQLite database to avoid redundant API
+calls.</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>CLI flag / command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Delete entire cache</td>
+<td><code>lynx -dc</code></td>
+</tr>
+<tr>
+<td>Refresh entire cache</td>
+<td><code>lynx -rc</code></td>
+</tr>
+<tr>
+<td>Auto-refresh on interval</td>
+<td><code>lynx -arc=3600</code> (seconds)</td>
+</tr>
+<tr>
+<td>Clear cache (REPL)</td>
+<td><code>clear-cache</code></td>
+</tr>
+<tr>
+<td>Clear cache (TUI)</td>
+<td>Press <code>c</code></td>
+</tr>
+<tr>
+<td>Clear cache (API)</td>
+<td><code>DELETE /api/cache?force=true</code></td>
+</tr>
+<tr>
+<td>Clear single ticker</td>
+<td><code>DELETE /api/cache/&lt;ticker&gt;</code></td>
+</tr>
+</tbody>
+</table>
+<p>The <code>-arc</code> flag sets an automatic refresh interval in seconds. For example,
+<code>-arc=3600</code> refreshes the cache every hour.</p>
+<h2>Forex conversion</h2>
+<p>Lynx fetches EUR exchange rates once per session via yfinance. All monetary
+values (market value, P&amp;L) are shown in both the instrument's native currency
+and EUR. The rates are cached in memory for the duration of the session -- no
+repeated network calls.</p>
+<p>You can inspect the current rates through the API:</p>
+<pre><code class="language-bash">curl http://localhost:5000/api/forex/rates
+</code></pre>
+<h2>Tips</h2>
+<ul>
+<li>Use <code>--devel</code> while learning the tool. Once configured, Lynx automatically
+  uses the persistent database.</li>
+<li>The <code>-v</code> flag enables verbose output, useful for debugging data-fetch issues.</li>
+<li>Combine <code>--import</code> with <code>--production</code> to bulk-load your real portfolio:
+  <code>bash
+  lynx --production --import portfolio.json</code></li>
+<li>Positions added without a price can be updated later:
+  <code>bash
+  lynx -c update AAPL --price 185.50</code></li>
+</ul>

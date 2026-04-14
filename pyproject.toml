@@ -4,17 +4,19 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name            = "lynx-portfolio"
-version         = "0.3"
+version         = "0.4"
 description     = "Investment portfolio tracker with Yahoo Finance integration"
 readme          = "README.md"
 requires-python = ">=3.9"
-license         = { text = "MIT" }
+license         = { text = "BSD" }
+authors         = [{ name = "Borja Tarraso", email = "borja.tarraso@member.fsf.org" }]
 dependencies    = [
     "yfinance>=0.2.36",
     "requests>=2.31.0",
     "rich>=13.7.0",
     "textual>=1.0.0",
     "flask>=3.0.0",
+    "cryptography>=41.0.0",
 ]
 
 [project.scripts]

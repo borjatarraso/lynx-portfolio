@@ -415,15 +415,16 @@ def fetch_instrument_data(yahoo_symbol: str, isin: Optional[str] = None) -> Opti
                 pass
 
         return {
-            "name":          name,
-            "current_price": current_price,
-            "currency":      info.get("currency"),
-            "sector":        sector,
-            "industry":      industry,
-            "description":   description,
-            "isin":          resolved_isin,
-            "exchange_code": info.get("exchange"),
-            "quote_type":    info.get("quoteType", "").upper() or None,
+            "name":                  name,
+            "current_price":         current_price,
+            "regular_market_change": info.get("regularMarketChange"),
+            "currency":              info.get("currency"),
+            "sector":                sector,
+            "industry":              industry,
+            "description":           description,
+            "isin":                  resolved_isin,
+            "exchange_code":         info.get("exchange"),
+            "quote_type":            info.get("quoteType", "").upper() or None,
         }
     except Exception:
         return None
@@ -432,6 +433,17 @@ def fetch_instrument_data(yahoo_symbol: str, isin: Optional[str] = None) -> Opti
 # ---------------------------------------------------------------------------
 # Main resolution entry point
 # ---------------------------------------------------------------------------
+
+def search_by_name(name: str, max_results: int = 10) -> List[Dict]:
+    """Search for instruments by company/fund name.
+
+    Uses Yahoo Finance search which performs fuzzy name matching.
+    Returns the same dict format as ``search_markets()``, limited to
+    *max_results* entries.
+    """
+    markets = search_markets(name)
+    return markets[:max_results]
+
 
 def resolve_markets_for_input(
     ticker: Optional[str],

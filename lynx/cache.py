@@ -20,8 +20,9 @@ def get(ticker: str, max_age: int = DEFAULT_TTL) -> Optional[Dict]:
     if age > max_age:
         return None
     # Re-map 'price' → 'current_price' for uniform interface
-    row["current_price"] = row.pop("price", None)
-    return row
+    result = dict(row)
+    result["current_price"] = result.pop("price", None)
+    return result
 
 def put(ticker: str, data: Dict) -> None:
     database.cache_put(ticker, data)

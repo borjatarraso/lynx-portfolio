@@ -6,6 +6,7 @@ Launched via: lynx -tui  /  lynx --textual-ui
 from __future__ import annotations
 
 import json
+import textwrap
 from typing import Optional, List, Dict
 
 from textual import work
@@ -20,6 +21,7 @@ from textual.widgets import (
 
 from textual.theme import BUILTIN_THEMES, Theme
 
+from . import ABOUT_LINES
 from . import database, cache, config, forex
 from .display import _split_shares, _shares_str
 from .operations import (
@@ -75,6 +77,14 @@ DataTable > .datatable--cursor {
     background: $surface-darken-1;
     color: $text-muted;
     padding: 0 2;
+}
+
+#portfolio-summary {
+    height: auto;
+    max-height: 5;
+    padding: 0 2;
+    background: $surface-darken-1;
+    border-top: solid $accent;
 }
 
 .form-container {
@@ -290,6 +300,31 @@ class ClearCacheScreen(ModalScreen[bool]):
 
 
 # ---------------------------------------------------------------------------
+# About screen
+# ---------------------------------------------------------------------------
+
+class AboutScreen(ModalScreen):
+    """Display application information."""
+
+    BINDINGS = [
+        Binding("escape", "dismiss", "Close"),
+        Binding("enter", "dismiss", "Close"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="confirm-dialog"):
+            yield Label("\n".join(ABOUT_LINES))
+            with Horizontal(classes="btn-row"):
+                yield Button("Close", variant="primary", id="btn-close")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss()
+
+    def action_dismiss(self) -> None:
+        self.dismiss()
+
+
+# ---------------------------------------------------------------------------
 # Portfolio screen (main screen)
 # ---------------------------------------------------------------------------
 
@@ -297,19 +332,25 @@ class PortfolioScreen(Screen):
     """Main portfolio table view."""
 
     BINDINGS = [
-        Binding("a",       "add",         "Add"),
-        Binding("d",       "delete",      "Delete"),
-        Binding("e",       "edit",        "Edit"),
-        Binding("r",       "refresh_one", "Refresh"),
-        Binding("R",       "refresh_all", "Refresh All"),
-        Binding("i",       "import_json", "Import"),
-        Binding("c",       "clear_cache", "Clear Cache"),
-        Binding("q",       "quit_app",    "Quit"),
+        Binding("a",       "add",           "Add"),
+        Binding("d",       "delete",        "Delete"),
+        Binding("e",       "edit",          "Edit"),
+        Binding("r",       "refresh_one",   "Refresh"),
+        Binding("R",       "refresh_all",   "Refresh All"),
+        Binding("A",       "auto_update",   "Auto-Update"),
+        Binding("i",       "import_json",   "Import"),
+        Binding("c",       "clear_cache",   "Clear Cache"),
+        Binding("?",       "about",         "About"),
+        Binding("q",       "quit_app",      "Quit"),
     ]
+
+    _auto_update_timer = None
+    _AUTO_UPDATE_INTERVAL = 60  # seconds
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         yield DataTable(id="portfolio-table")
+        yield Static(id="portfolio-summary")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -343,7 +384,16 @@ class PortfolioScreen(Screen):
         table.clear()
         instruments = database.get_all_instruments()
         if not instruments:
+            self.query_one("#portfolio-summary", Static).update("")
             return
+
+        total_invested     = 0.0
+        total_market       = 0.0
+        total_invested_eur = 0.0
+        total_market_eur   = 0.0
+        total_today_eur    = 0.0
+        has_today_data     = False
+        has_eur_gap        = False
 
         for inst in instruments:
             shares    = inst.get("shares") or 0.0
@@ -354,12 +404,28 @@ class PortfolioScreen(Screen):
             qt        = inst.get("quote_type")
             shares_s  = _shares_str(shares, qt)
 
+            if has_cost:
+                invested = shares * avg_price
+                total_invested += invested
+                invested_eur = forex.to_eur(invested, ccy)
+                if invested_eur is not None:
+                    total_invested_eur += invested_eur
+                else:
+                    has_eur_gap = True
+
+            rmc = inst.get("regular_market_change")
+            if rmc is not None:
+                day_change_eur = forex.to_eur(rmc * shares, ccy)
+                if day_change_eur is not None:
+                    total_today_eur += day_change_eur
+                    has_today_data = True
+
             if curr is not None:
                 mkt_val = shares * curr
+                total_market += mkt_val
                 curr_s  = f"{curr:,.2f}"
                 mkt_s   = f"{mkt_val:,.2f}"
                 if has_cost:
-                    invested = shares * avg_price
                     pnl = mkt_val - invested
                     pct = (pnl / invested * 100) if invested else 0.0
                     pnl_s = _pnl_text(pnl, pct)
@@ -369,7 +435,12 @@ class PortfolioScreen(Screen):
                     pnl_s = "—"
                 if self._show_eur:
                     mkt_eur = forex.to_eur(mkt_val, ccy)
-                    eur_mkt_s = f"{mkt_eur:,.2f}" if mkt_eur is not None else "N/A"
+                    if mkt_eur is not None:
+                        total_market_eur += mkt_eur
+                        eur_mkt_s = f"{mkt_eur:,.2f}"
+                    else:
+                        has_eur_gap = True
+                        eur_mkt_s = "N/A"
                     if pnl is not None:
                         pnl_eur = forex.to_eur(pnl, ccy)
                         eur_pnl_s = _pnl_text(pnl_eur, pct) if pnl_eur is not None else "N/A"
@@ -406,6 +477,58 @@ class PortfolioScreen(Screen):
                 row.append(pnl_s)
 
             table.add_row(*row, key=inst.get("ticker"))
+
+        # Update summary bar
+        self._update_summary(
+            total_invested, total_market,
+            total_invested_eur, total_market_eur,
+            total_today_eur, has_today_data, has_eur_gap,
+        )
+
+    def _update_summary(
+        self,
+        total_invested: float,
+        total_market: float,
+        total_invested_eur: float,
+        total_market_eur: float,
+        total_today_eur: float,
+        has_today_data: bool,
+        has_eur_gap: bool,
+    ) -> None:
+        today_sign  = "+" if total_today_eur >= 0 else ""
+        today_color = "green" if total_today_eur >= 0 else "red"
+        today_str   = (
+            f"[{today_color}]{today_sign}{total_today_eur:,.2f}[/{today_color}]"
+            if has_today_data else "[dim]N/A[/dim]"
+        )
+
+        if self._show_eur:
+            total_pnl_eur = total_market_eur - total_invested_eur
+            total_pct_eur = (total_pnl_eur / total_invested_eur * 100) if total_invested_eur else 0.0
+            eur_color = "green" if total_pnl_eur >= 0 else "red"
+            eur_sign  = "+" if total_pnl_eur >= 0 else ""
+            partial   = " [dim](partial)[/dim]" if has_eur_gap else ""
+            text = (
+                f"[bold cyan]EUR Invested:[/bold cyan] {total_invested_eur:,.2f}  "
+                f"[bold cyan]EUR Market Value:[/bold cyan] {total_market_eur:,.2f}  "
+                f"[bold cyan]EUR P&L:[/bold cyan] [{eur_color}]{eur_sign}{total_pnl_eur:,.2f} "
+                f"({eur_sign}{total_pct_eur:.2f}%)[/{eur_color}]{partial}  "
+                f"[bold cyan]EUR Market Today:[/bold cyan] {today_str}"
+            )
+        else:
+            total_pnl = total_market - total_invested
+            total_pct = (total_pnl / total_invested * 100) if total_invested else 0.0
+            color = "green" if total_pnl >= 0 else "red"
+            sign  = "+" if total_pnl >= 0 else ""
+            text = (
+                f"[bold cyan]Invested:[/bold cyan] {total_invested:,.2f}  "
+                f"[bold cyan]Market Value:[/bold cyan] {total_market:,.2f}  "
+                f"[bold cyan]P&L:[/bold cyan] [{color}]{sign}{total_pnl:,.2f} "
+                f"({sign}{total_pct:.2f}%)[/{color}]  "
+                f"[bold cyan]EUR Market Today:[/bold cyan] {today_str}"
+            )
+
+        self.query_one("#portfolio-summary", Static).update(text)
 
     def _get_selected_ticker(self) -> Optional[str]:
         table = self.query_one(DataTable)
@@ -495,6 +618,29 @@ class PortfolioScreen(Screen):
         else:
             self.notify("Cache clear aborted", severity="warning")
 
+    def action_auto_update(self) -> None:
+        if self._auto_update_timer is not None:
+            self._auto_update_timer.stop()
+            self._auto_update_timer = None
+            self.notify("Auto-update OFF", severity="information")
+        else:
+            self._auto_update_timer = self.set_interval(
+                self._AUTO_UPDATE_INTERVAL, self._auto_refresh_tick,
+            )
+            self.notify(
+                f"Auto-update ON (every {self._AUTO_UPDATE_INTERVAL}s)",
+                severity="information",
+            )
+
+    @work(thread=True)
+    def _auto_refresh_tick(self) -> None:
+        from .operations import refresh_all as ops_refresh_all
+        ops_refresh_all()
+        self.app.call_from_thread(self._reload_table)
+
+    def action_about(self) -> None:
+        self.app.push_screen(AboutScreen())
+
     def action_quit_app(self) -> None:
         self.app.exit()
 
@@ -546,58 +692,70 @@ class DetailScreen(Screen):
 
         ccy = (inst.get("currency") or "EUR").upper()
 
+        # Label column is 22 chars so even the longest label
+        # ("Total Invested (EUR)" = 20 chars) gets 2 spaces of padding.
         lines = [
             f"[bold cyan]{'─' * 60}[/bold cyan]",
             f"[bold cyan]  {self._ticker}[/bold cyan]",
             f"[bold cyan]{'─' * 60}[/bold cyan]",
             "",
-            f"  [bold cyan]Ticker[/bold cyan]              {inst.get('ticker', '')}",
-            f"  [bold cyan]ISIN[/bold cyan]                {inst.get('isin') or '—'}",
-            f"  [bold cyan]Name[/bold cyan]                {inst.get('name') or '—'}",
-            f"  [bold cyan]Exchange[/bold cyan]            {exch}",
-            f"  [bold cyan]Currency[/bold cyan]            {inst.get('currency') or '—'}",
-            f"  [bold cyan]Sector[/bold cyan]              {inst.get('sector') or '—'}",
-            f"  [bold cyan]Industry[/bold cyan]            {inst.get('industry') or '—'}",
-            f"  [bold cyan]Shares[/bold cyan]              {_shares_str(shares, qt)}",
-            f"  [bold cyan]Avg Purchase Price[/bold cyan]  {avg_price:,.2f}" if has_cost else f"  [bold cyan]Avg Purchase Price[/bold cyan]  [dim]Not tracked[/dim]",
-            f"  [bold cyan]Current Price[/bold cyan]       {curr:,.2f}" if curr is not None else f"  [bold cyan]Current Price[/bold cyan]       N/A",
+            f"  [bold cyan]Ticker[/bold cyan]                {inst.get('ticker', '')}",
+            f"  [bold cyan]ISIN[/bold cyan]                  {inst.get('isin') or '—'}",
+            f"  [bold cyan]Name[/bold cyan]                  {inst.get('name') or '—'}",
+            f"  [bold cyan]Exchange[/bold cyan]              {exch}",
+            f"  [bold cyan]Currency[/bold cyan]              {inst.get('currency') or '—'}",
+            f"  [bold cyan]Sector[/bold cyan]                {inst.get('sector') or '—'}",
+            f"  [bold cyan]Industry[/bold cyan]              {inst.get('industry') or '—'}",
+            f"  [bold cyan]Shares[/bold cyan]                {_shares_str(shares, qt)}",
+            f"  [bold cyan]Avg Purchase Price[/bold cyan]    {avg_price:,.2f}" if has_cost else f"  [bold cyan]Avg Purchase Price[/bold cyan]    [dim]Not tracked[/dim]",
+            f"  [bold cyan]Current Price[/bold cyan]         {curr:,.2f}" if curr is not None else f"  [bold cyan]Current Price[/bold cyan]         N/A",
         ]
 
         if has_cost:
             invested = shares * avg_price
-            lines.append(f"  [bold cyan]Total Invested[/bold cyan]      {invested:,.2f}")
+            lines.append(f"  [bold cyan]Total Invested[/bold cyan]        {invested:,.2f}")
             if ccy != "EUR":
                 inv_eur = forex.to_eur(invested, ccy)
                 if inv_eur is not None:
-                    lines.append(f"  [bold cyan]Total Invested (EUR)[/bold cyan] {inv_eur:,.2f}")
+                    lines.append(f"  [bold cyan]Total Invested (EUR)[/bold cyan]  {inv_eur:,.2f}")
         else:
-            lines.append(f"  [bold cyan]Total Invested[/bold cyan]      [dim]Not tracked[/dim]")
+            lines.append(f"  [bold cyan]Total Invested[/bold cyan]        [dim]Not tracked[/dim]")
 
         if curr is not None:
             mkt_val = shares * curr
-            lines.append(f"  [bold cyan]Market Value[/bold cyan]        {mkt_val:,.2f}")
+            lines.append(f"  [bold cyan]Market Value[/bold cyan]          {mkt_val:,.2f}")
             if ccy != "EUR":
                 mkt_eur = forex.to_eur(mkt_val, ccy)
                 if mkt_eur is not None:
-                    lines.append(f"  [bold cyan]Market Value (EUR)[/bold cyan]  {mkt_eur:,.2f}")
+                    lines.append(f"  [bold cyan]Market Value (EUR)[/bold cyan]    {mkt_eur:,.2f}")
             if has_cost:
                 pnl   = mkt_val - invested
                 pct   = (pnl / invested * 100) if invested else 0.0
                 color = "green" if pnl >= 0 else "red"
                 sign  = "+" if pnl >= 0 else ""
-                lines.append(f"  [bold cyan]P&L[/bold cyan]                 [{color}]{sign}{pnl:,.2f} ({sign}{pct:.2f}%)[/{color}]")
+                lines.append(f"  [bold cyan]P&L[/bold cyan]                   [{color}]{sign}{pnl:,.2f} ({sign}{pct:.2f}%)[/{color}]")
                 if ccy != "EUR":
                     pnl_eur = forex.to_eur(pnl, ccy)
                     if pnl_eur is not None:
-                        lines.append(f"  [bold cyan]P&L (EUR)[/bold cyan]           [{color}]{sign}{pnl_eur:,.2f} ({sign}{pct:.2f}%)[/{color}]")
+                        lines.append(f"  [bold cyan]P&L (EUR)[/bold cyan]             [{color}]{sign}{pnl_eur:,.2f} ({sign}{pct:.2f}%)[/{color}]")
             else:
-                lines.append(f"  [bold cyan]P&L[/bold cyan]                 [dim]Not tracked[/dim]")
+                lines.append(f"  [bold cyan]P&L[/bold cyan]                   [dim]Not tracked[/dim]")
 
         if inst.get("description"):
-            lines.append(f"  [bold cyan]Description[/bold cyan]         {inst['description']}")
+            # Wrap long descriptions so continuation lines align with the value column.
+            # The value column starts at visible position 24 (2-space indent + 22-char label area).
+            indent = " " * 24
+            max_width = 60  # matches the separator line width
+            wrapped = textwrap.fill(
+                inst["description"],
+                width=max_width,
+                initial_indent="",
+                subsequent_indent=indent,
+            )
+            lines.append(f"  [bold cyan]Description[/bold cyan]           {wrapped}")
 
-        lines.append(f"  [bold cyan]Added[/bold cyan]               {inst.get('created_at') or '—'}")
-        lines.append(f"  [bold cyan]Updated[/bold cyan]             {inst.get('updated_at') or '—'}")
+        lines.append(f"  [bold cyan]Added[/bold cyan]                 {inst.get('created_at') or '—'}")
+        lines.append(f"  [bold cyan]Updated[/bold cyan]               {inst.get('updated_at') or '—'}")
         lines.append("")
 
         self.query_one("#detail-content", Static).update("\n".join(lines))
@@ -621,6 +779,11 @@ class AddScreen(Screen):
         yield Header(show_clock=True)
         with VerticalScroll(classes="form-container"):
             yield Static("[bold cyan]Add New Instrument[/bold cyan]\n", classes="msg-info")
+            yield Label("Search by name  [dim](e.g. 'Apple', 'Vanguard FTSE')[/dim]")
+            with Horizontal(classes="btn-row"):
+                yield Input(placeholder="Company or fund name", id="inp-search-name")
+                yield Button("Search", variant="primary", id="btn-search")
+            yield Static("", id="search-results")
             yield Label("Ticker  [dim](e.g. AAPL, NESN.SW, VWCE.DE)[/dim]")
             yield Input(placeholder="Ticker (Enter to skip if using ISIN)", id="inp-ticker")
             yield Label("ISIN  [dim](optional)[/dim]")
@@ -637,11 +800,70 @@ class AddScreen(Screen):
             yield Static("", id="add-status")
         yield Footer()
 
+    _search_results: list = []
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "btn-cancel":
             self.dismiss()
+        elif event.button.id == "btn-search":
+            self._do_search()
         elif event.button.id == "btn-add":
             self._do_add()
+        elif event.button.id and event.button.id.startswith("btn-pick-"):
+            idx = int(event.button.id.split("-")[-1])
+            if 0 <= idx < len(self._search_results):
+                chosen = self._search_results[idx]
+                self.query_one("#inp-ticker", Input).value = chosen["symbol"]
+                self.query_one("#search-results", Static).update(
+                    f"[green]Selected: {chosen['symbol']} — "
+                    f"{chosen.get('longname') or chosen.get('shortname', '')}[/green]"
+                )
+
+    @work(thread=True)
+    def _do_search(self) -> None:
+        query = self.query_one("#inp-search-name", Input).value.strip()
+        if not query:
+            self.app.call_from_thread(
+                self.query_one("#search-results", Static).update,
+                "[yellow]Enter a name to search.[/yellow]",
+            )
+            return
+        self.app.call_from_thread(
+            self.query_one("#search-results", Static).update,
+            f"[dim]Searching for '{query}'…[/dim]",
+        )
+        from . import fetcher
+        results = fetcher.search_by_name(query)
+        # Update results list on main thread for thread safety
+        def _set_results():
+            self._search_results = results
+        self.app.call_from_thread(_set_results)
+        if not results:
+            self.app.call_from_thread(
+                self.query_one("#search-results", Static).update,
+                f"[red]No results for '{query}'.[/red]",
+            )
+            return
+        lines = [f"[bold]Results for '{query}':[/bold]\n"]
+        for i, r in enumerate(results):
+            name = r.get("longname") or r.get("shortname", "")
+            lines.append(
+                f"  [cyan]{i + 1:>2}[/cyan]  "
+                f"[bold]{r['symbol']:<14}[/bold]  "
+                f"{name:<30}  "
+                f"[dim]{r['exchange_display']}  {r['quote_type']}[/dim]"
+            )
+        lines.append("\n[dim]Click a result number or type the ticker below.[/dim]")
+        self.app.call_from_thread(
+            self.query_one("#search-results", Static).update,
+            "\n".join(lines),
+        )
+        # Auto-fill ticker with the top result
+        if results:
+            self.app.call_from_thread(
+                setattr, self.query_one("#inp-ticker", Input), "value",
+                results[0]["symbol"],
+            )
 
     def _do_add(self) -> None:
         ticker   = self.query_one("#inp-ticker", Input).value.strip()
@@ -855,12 +1077,13 @@ class ImportScreen(Screen):
             ticker    = entry.get("ticker")
             shares    = entry.get("shares")
             avg_price = entry.get("avg_price")
-            if not ticker or shares is None or avg_price is None:
+            if not ticker or shares is None:
                 skipped += 1
                 continue
             try:
                 shares    = float(shares)
-                avg_price = float(avg_price)
+                if avg_price is not None:
+                    avg_price = float(avg_price)
             except (TypeError, ValueError):
                 skipped += 1
                 continue

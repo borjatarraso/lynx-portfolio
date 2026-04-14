@@ -1,6 +1,6 @@
 # Lynx Portfolio
 
-**Version:** v0.2 | **Python:** >= 3.9 | **License:** MIT
+**Version:** v0.4 | **Python:** >= 3.9 | **License:** BSD
 
 Lynx Portfolio is a command-line investment portfolio manager that tracks your
 holdings, fetches live market data from Yahoo Finance, and converts everything
@@ -9,15 +9,15 @@ to EUR so you can see your real exposure at a glance.
 ## Features
 
 - **Four interfaces** -- pick the one that fits your workflow:
-  - Non-interactive CLI (`-ni`) for scripting and one-shot commands
-  - Interactive REPL (`-i`) with tab completion
+  - Interactive REPL (default) with command history
+  - Console mode (`-c`) for scripting and one-shot commands
   - Full-screen TUI (`-tui`) built on Textual
   - REST API (`--api`) powered by Flask
 - **Live market data** from Yahoo Finance via `yfinance`
 - **ISIN resolution** through OpenFIGI
 - **Automatic EUR conversion** -- forex rates fetched once per session
 - **SQLite storage** with WAL mode for safe concurrent reads
-- **Development mode** by default -- experiment without touching your real data
+- **Smart mode selection** -- uses persistent DB if configured, devel otherwise
 - **Optional cost tracking** -- positions without `avg_purchase_price` display
   "Not tracked" instead of misleading zeros
 
@@ -49,32 +49,29 @@ pip install -e .
 lynx --configure
 
 # 2. Add a position
-lynx -ni add AAPL 10 --price 185.50
+lynx -c add AAPL 10 --price 185.50
 
 # 3. List your portfolio
-lynx -ni list
+lynx -c list
 ```
 
-By default Lynx runs in **development mode** (temporary database). When you are
-ready to use real data, switch to production:
-
-```bash
-lynx --production-mode -ni list
-```
+Lynx automatically uses the persistent database if configured. For testing,
+use `--devel` to get a temporary database.
 
 ## Running modes
 
-| Flag               | Database            | Use case               |
-|--------------------|---------------------|------------------------|
-| `--devel-mode`     | Temporary (default) | Testing and exploration|
-| `--production-mode`| Persistent          | Real portfolio data    |
+| Flag               | Database                                     | Use case               |
+|--------------------|----------------------------------------------|------------------------|
+| *(default)*        | Persistent if configured, temporary otherwise | Normal usage           |
+| `--devel`          | Temporary                                    | Testing and exploration|
+| `--production`     | Persistent                                   | Explicit production    |
 
 ## Interfaces at a glance
 
 | Flag    | Description                  | Example                          |
 |---------|------------------------------|----------------------------------|
-| `-ni`   | Non-interactive CLI          | `lynx -ni list`                  |
-| `-i`    | Interactive REPL             | `lynx -i`                        |
+| *(none)*| Interactive REPL (default)   | `lynx`                           |
+| `-c`    | Console (non-interactive)    | `lynx -c list`                   |
 | `-tui`  | Textual full-screen TUI      | `lynx -tui`                      |
 | `--api` | REST API (Flask, port 5000)  | `lynx --api`                     |
 
@@ -101,8 +98,8 @@ lynx --production-mode -ni list
 
 ```bash
 # Via pip-installed command
-lynx -ni list
+lynx -c list
 
 # Directly
-python lynx.py -ni list
+python lynx.py -c list
 ```

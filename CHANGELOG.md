@@ -11,12 +11,40 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ---
 
+## [v0.4] — 2026-04-14
+
+### Changed
+- **Interactive mode is now the default**: running `lynx` without a mode flag
+  launches the interactive REPL. The previous non-interactive (console) mode is
+  now available via `-c` / `--console`.
+- **Shortened run-mode flags**: `--production-mode` → `--production`,
+  `--devel-mode` → `--devel`.
+- **Smart run-mode default**: if a database directory is configured, Lynx
+  automatically uses production mode. Falls back to devel only when no
+  configuration exists.
+- **Database encryption (vault)**: password-based AES encryption for the
+  portfolio database using Fernet + PBKDF2-HMAC-SHA256 key derivation.
+  New flags: `--encrypt`, `--disable-encryption`, `--decrypt` / `-d`.
+- **Backup and restore**: automatic `.bak` backups on every session open.
+  Restore with `--restore` / `-r`.
+- **Setup wizard** (`-w` / `--wizard`): guided first-time setup for database
+  location, encryption, default mode, and first instrument.
+- **Instrument search by name** (`--name` / `-n`): available in console `add`
+  and `show` subcommands, interactive REPL, and TUI.
+- **Configurable default interface mode** (`--default-mode` / `-dm`): persist
+  your preferred interface (interactive, console, tui, gui) to config.
+- **Parallel refresh**: `refresh_all()` uses ThreadPoolExecutor for concurrent
+  data fetching (4 parallel workers by default).
+- Legacy `-ni` flag mapped to `--console` for backwards compatibility.
+
+---
+
 ## [v0.3] — 2026-04-12
 
 ### Added
 - **REST API** (`--api` / `--port`): Flask-based API with 12 endpoints for portfolio
   CRUD, refresh, cache management, and forex rates. Instruments include computed fields
-  (market_value, pnl, pnl_pct, EUR equivalents). Start with `lynx --production-mode --api`.
+  (market_value, pnl, pnl_pct, EUR equivalents). Start with `lynx --production --api`.
 - **Optional cost tracking**: `avg_purchase_price` is now optional. Instruments without
   it show "Not tracked" / "—" and are excluded from Invested / P&L totals.
 - **Notifier abstraction** in `operations.py`: decouples business logic from Rich terminal
@@ -74,10 +102,10 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ### Added
 - **`--import FILE`** top-level flag: bulk-add instruments from a JSON file directly
-  from the command line, without needing `-ni import --file` or any interactive mode.
+  from the command line, without needing `-c import --file` or any interactive mode.
   Optional `--exchange SUFFIX` sets the default exchange for all entries in the file.
-  Example: `lynx --production-mode --import portfolio.json --exchange V`
-  The existing `-ni import --file` subcommand is unchanged.
+  Example: `lynx --production --import portfolio.json --exchange V`
+  The existing `-c import --file` subcommand is unchanged.
 
 - **EUR currency conversion** using Yahoo Finance forex rates (`yfinance`):
   - Rates are fetched once per session at startup for all non-EUR currencies in the portfolio.
@@ -132,11 +160,11 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 - **`--configure` option**: interactive wizard to set up the database directory.
   Configuration is stored at `$XDG_CONFIG_HOME/lynx/config.json`
   (default `~/.config/lynx/config.json`). Required before first use in
-  `--production-mode`.
+  `--production`.
 - **Configurable data directory**: the database is no longer hardcoded to
   `~/.lynx/`. The user chooses the location during `--configure`.
 - **`import` subcommand**: bulk-add instruments from a JSON file via
-  `lynx -ni import --file portfolio.json`. Each entry requires `ticker`,
+  `lynx -c import --file portfolio.json`. Each entry requires `ticker`,
   `shares`, `avg_price`; optional `isin`, `exchange`. Example file included
   at `examples/portfolio.json`.
 - **Interactive `import` and `config` commands**: `import <file.json>` and

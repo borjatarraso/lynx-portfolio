@@ -5,11 +5,14 @@ Terminal display helpers using Rich.
 import io
 import re
 import sys
-from typing import List, Dict, Optional, Tuple
+import time
+from typing import List, Dict, Optional, Tuple, Callable
 
 from rich.console import Console
+from rich.live import Live
 from rich.table import Table
 from rich.panel import Panel
+from rich.text import Text
 from rich import box
 
 from . import forex
@@ -136,7 +139,7 @@ def display_portfolio(instruments: List[Dict]) -> None:
     if not instruments:
         console.print(
             "[yellow]Portfolio is empty. "
-            "Add instruments with: lynx -ni add --ticker AAPL --shares 10 "
+            "Add instruments with: lynx -c add --ticker AAPL --shares 10 "
             "--avg-price 150[/yellow]"
         )
         _flush_console()
@@ -200,6 +203,8 @@ def display_portfolio(instruments: List[Dict]) -> None:
     total_market       = 0.0
     total_invested_eur = 0.0
     total_market_eur   = 0.0
+    total_today_eur    = 0.0     # sum of (regularMarketChange * shares) in EUR
+    has_today_data     = False   # True if at least one instrument has 1d change
     missing_prices     = 0
     untracked_cost     = 0       # positions without avg_purchase_price
     has_eur_gap        = False   # True if any EUR conversion was unavailable
@@ -221,6 +226,15 @@ def display_portfolio(instruments: List[Dict]) -> None:
                 has_eur_gap = True
         else:
             untracked_cost += 1
+
+        # Accumulate today's change in EUR
+        rmc = inst.get("regular_market_change")
+        if rmc is not None:
+            day_change = rmc * shares
+            day_change_eur = forex.to_eur(day_change, ccy)
+            if day_change_eur is not None:
+                total_today_eur += day_change_eur
+                has_today_data = True
 
         if curr is not None:
             mkt_val = shares * curr
@@ -304,11 +318,18 @@ def display_portfolio(instruments: List[Dict]) -> None:
         eur_color = "green" if total_pnl_eur >= 0 else "red"
         eur_sign  = "+" if total_pnl_eur >= 0 else ""
         eur_note  = "[dim] (partial)[/dim]" if has_eur_gap else ""
+        today_color = "green" if total_today_eur >= 0 else "red"
+        today_sign  = "+" if total_today_eur >= 0 else ""
+        today_str   = (
+            f"[{today_color}]{today_sign}{total_today_eur:,.2f}[/{today_color}]"
+            if has_today_data else "[dim]N/A[/dim]"
+        )
         summary = (
             f"EUR Invested: [green]{total_invested_eur:,.2f}[/green]  |  "
             f"EUR Market Value: [green]{total_market_eur:,.2f}[/green]  |  "
             f"EUR P&L: [{eur_color}]{eur_sign}{total_pnl_eur:,.2f} "
-            f"({eur_sign}{total_pct_eur:.2f}%)[/{eur_color}]{eur_note}"
+            f"({eur_sign}{total_pct_eur:.2f}%)[/{eur_color}]{eur_note}  |  "
+            f"EUR Market Today: {today_str}"
         )
         # Exchange rates used
         rate_parts = []
@@ -321,10 +342,17 @@ def display_portfolio(instruments: List[Dict]) -> None:
         if rate_parts:
             summary += f"\n[dim]Rates: {'  '.join(rate_parts)}[/dim]"
     else:
+        today_color = "green" if total_today_eur >= 0 else "red"
+        today_sign  = "+" if total_today_eur >= 0 else ""
+        today_str   = (
+            f"[{today_color}]{today_sign}{total_today_eur:,.2f}[/{today_color}]"
+            if has_today_data else "[dim]N/A[/dim]"
+        )
         summary = (
             f"Invested: [green]{total_invested:,.2f}[/green]  |  "
             f"Market Value: [green]{total_market:,.2f}[/green]  |  "
-            f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]"
+            f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]  |  "
+            f"EUR Market Today: {today_str}"
         )
 
     if missing_prices:
@@ -424,6 +452,87 @@ def ok(msg: str)   -> None: console.print(f"[green]✓[/green] {msg}"); _flush_c
 def err(msg: str)  -> None: console.print(f"[red]✗[/red] {msg}"); _flush_console()
 def info(msg: str) -> None: console.print(f"[cyan]ℹ[/cyan] {msg}"); _flush_console()
 def warn(msg: str) -> None: console.print(f"[yellow]⚠[/yellow] {msg}"); _flush_console()
+
+
+# ---------------------------------------------------------------------------
+# Elegant startup refresh with inline progress
+# ---------------------------------------------------------------------------
+
+def startup_refresh(
+    instruments: List[Dict],
+    refresh_fn: Callable[[str], bool],
+    verbose: bool = False,
+) -> int:
+    """
+    Refresh instruments with elegant two-line progress display.
+
+    When *verbose* is True, shows animated "Refreshing [TIKR]…" /
+    "Refreshed [TIKR] ✓" progress, overwriting in place.
+    When *verbose* is False, runs silently.
+
+    Returns the number of instruments successfully refreshed.
+    """
+    if not instruments:
+        return 0
+
+    if not verbose:
+        ok_count = 0
+        for inst in instruments:
+            if refresh_fn(inst["ticker"]):
+                ok_count += 1
+        return ok_count
+
+    total = len(instruments)
+    ok_count = 0
+
+    def _make_display(idx: int, ticker: str, state: str) -> Text:
+        """Build a two-line Text renderable for the current progress."""
+        t = Text()
+        # Line 1: overall progress bar
+        filled = int((idx / total) * 20)
+        bar = "━" * filled + "╺" + "─" * (19 - filled)
+        t.append("  ")
+        t.append(bar, style="cyan")
+        t.append(f"  {idx}/{total}\n", style="dim")
+        # Line 2: current ticker status
+        if state == "refreshing":
+            t.append("  ⟳ ", style="bold cyan")
+            t.append("Refreshing ", style="cyan")
+            t.append(f"[{ticker}]", style="bold white")
+            t.append(" …", style="dim")
+        elif state == "done":
+            t.append("  ✓ ", style="bold green")
+            t.append("Refreshed  ", style="green")
+            t.append(f"[{ticker}]", style="bold white")
+        elif state == "fail":
+            t.append("  ✗ ", style="bold red")
+            t.append("Failed     ", style="red")
+            t.append(f"[{ticker}]", style="bold white")
+        return t
+
+    with Live(_make_display(0, instruments[0]["ticker"], "refreshing"),
+              console=console, refresh_per_second=12, transient=True) as live:
+        for idx, inst in enumerate(instruments):
+            ticker = inst["ticker"]
+            live.update(_make_display(idx, ticker, "refreshing"))
+            try:
+                success = refresh_fn(ticker)
+            except Exception:
+                success = False
+            if success:
+                ok_count += 1
+                live.update(_make_display(idx + 1, ticker, "done"))
+            else:
+                live.update(_make_display(idx + 1, ticker, "fail"))
+            # Brief pause so the user can see the "done" state before next
+            time.sleep(0.15)
+
+    # Final summary line (persisted after Live clears)
+    console.print(
+        f"  [green]✓[/green] Refreshed {ok_count}/{total} instruments"
+    )
+    _flush_console()
+    return ok_count
 
 
 # ---------------------------------------------------------------------------

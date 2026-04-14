@@ -9,14 +9,15 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 
 # DB_PATH is set at runtime by cli.py (via set_db_path) before init_db().
-# In production mode it comes from the config file; in devel mode it's a
-# temporary file.  The env-var override is kept as a last-resort escape hatch.
+# In production mode it comes from the config file; in devel mode (--devel)
+# it's a temporary file.  The env-var override is kept as a last-resort escape hatch.
 DB_PATH: Optional[str] = os.environ.get("LYNX_DB_PATH")
 
 ALLOWED_UPDATE_FIELDS = {
     "isin", "name", "shares", "avg_purchase_price",
     "currency", "sector", "industry", "description",
-    "current_price", "exchange_code", "exchange_display",
+    "current_price", "regular_market_change",
+    "exchange_code", "exchange_display",
     "quote_type", "updated_at",
 }
 
@@ -43,10 +44,13 @@ def _ensure_dir() -> None:
 
 def get_connection() -> sqlite3.Connection:
     _ensure_dir()
-    conn = sqlite3.connect(get_db_path(), timeout=10)
+    conn = sqlite3.connect(
+        get_db_path(), timeout=30, check_same_thread=False,
+    )
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 
@@ -54,39 +58,41 @@ def init_db() -> None:
     conn = get_connection()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS portfolio (
-            id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-            isin               TEXT,
-            ticker             TEXT NOT NULL,
-            name               TEXT,
-            shares             REAL NOT NULL,
-            avg_purchase_price REAL,
-            current_price      REAL,
-            currency           TEXT,
-            sector             TEXT,
-            industry           TEXT,
-            description        TEXT,
-            exchange_code      TEXT,
-            exchange_display   TEXT,
-            quote_type         TEXT,
-            created_at         TEXT DEFAULT (datetime('now')),
-            updated_at         TEXT DEFAULT (datetime('now'))
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            isin                  TEXT,
+            ticker                TEXT NOT NULL,
+            name                  TEXT,
+            shares                REAL NOT NULL,
+            avg_purchase_price    REAL,
+            current_price         REAL,
+            regular_market_change REAL,
+            currency              TEXT,
+            sector                TEXT,
+            industry              TEXT,
+            description           TEXT,
+            exchange_code         TEXT,
+            exchange_display      TEXT,
+            quote_type            TEXT,
+            created_at            TEXT DEFAULT (datetime('now')),
+            updated_at            TEXT DEFAULT (datetime('now'))
         );
 
         CREATE UNIQUE INDEX IF NOT EXISTS idx_portfolio_ticker
             ON portfolio(ticker);
 
         CREATE TABLE IF NOT EXISTS instrument_cache (
-            ticker           TEXT PRIMARY KEY,
-            isin             TEXT,
-            name             TEXT,
-            price            REAL,
-            currency         TEXT,
-            sector           TEXT,
-            industry         TEXT,
-            description      TEXT,
-            exchange_code    TEXT,
-            exchange_display TEXT,
-            cached_at        TEXT DEFAULT (datetime('now'))
+            ticker                TEXT PRIMARY KEY,
+            isin                  TEXT,
+            name                  TEXT,
+            price                 REAL,
+            regular_market_change REAL,
+            currency              TEXT,
+            sector                TEXT,
+            industry              TEXT,
+            description           TEXT,
+            exchange_code         TEXT,
+            exchange_display      TEXT,
+            cached_at             TEXT DEFAULT (datetime('now'))
         );
     """)
     # Migrations: add columns to existing tables if they are absent
@@ -95,9 +101,10 @@ def init_db() -> None:
         for row in conn.execute("PRAGMA table_info(portfolio)").fetchall()
     }
     for col, definition in [
-        ("exchange_code",    "TEXT"),
-        ("exchange_display", "TEXT"),
-        ("quote_type",       "TEXT"),
+        ("exchange_code",         "TEXT"),
+        ("exchange_display",      "TEXT"),
+        ("quote_type",            "TEXT"),
+        ("regular_market_change", "REAL"),
     ]:
         if col not in existing:
             conn.execute(f"ALTER TABLE portfolio ADD COLUMN {col} {definition}")
@@ -107,8 +114,9 @@ def init_db() -> None:
         for row in conn.execute("PRAGMA table_info(instrument_cache)").fetchall()
     }
     for col, definition in [
-        ("exchange_code",    "TEXT"),
-        ("exchange_display", "TEXT"),
+        ("exchange_code",         "TEXT"),
+        ("exchange_display",      "TEXT"),
+        ("regular_market_change", "REAL"),
     ]:
         if col not in cache_existing:
             conn.execute(
@@ -121,22 +129,23 @@ def init_db() -> None:
         if col_info[1] == "avg_purchase_price" and col_info[3] == 1:  # notnull=1
             conn.executescript("""
                 CREATE TABLE portfolio_new (
-                    id                 INTEGER PRIMARY KEY AUTOINCREMENT,
-                    isin               TEXT,
-                    ticker             TEXT NOT NULL,
-                    name               TEXT,
-                    shares             REAL NOT NULL,
-                    avg_purchase_price REAL,
-                    current_price      REAL,
-                    currency           TEXT,
-                    sector             TEXT,
-                    industry           TEXT,
-                    description        TEXT,
-                    exchange_code      TEXT,
-                    exchange_display   TEXT,
-                    quote_type         TEXT,
-                    created_at         TEXT DEFAULT (datetime('now')),
-                    updated_at         TEXT DEFAULT (datetime('now'))
+                    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                    isin                  TEXT,
+                    ticker                TEXT NOT NULL,
+                    name                  TEXT,
+                    shares                REAL NOT NULL,
+                    avg_purchase_price    REAL,
+                    current_price         REAL,
+                    regular_market_change REAL,
+                    currency              TEXT,
+                    sector                TEXT,
+                    industry              TEXT,
+                    description           TEXT,
+                    exchange_code         TEXT,
+                    exchange_display      TEXT,
+                    quote_type            TEXT,
+                    created_at            TEXT DEFAULT (datetime('now')),
+                    updated_at            TEXT DEFAULT (datetime('now'))
                 );
                 INSERT INTO portfolio_new SELECT * FROM portfolio;
                 DROP TABLE portfolio;
@@ -156,6 +165,7 @@ def add_instrument(
     isin: Optional[str] = None,
     name: Optional[str] = None,
     current_price: Optional[float] = None,
+    regular_market_change: Optional[float] = None,
     currency: Optional[str] = None,
     sector: Optional[str] = None,
     industry: Optional[str] = None,
@@ -171,12 +181,14 @@ def add_instrument(
             """
             INSERT INTO portfolio
                 (ticker, isin, name, shares, avg_purchase_price, current_price,
+                 regular_market_change,
                  currency, sector, industry, description,
                  exchange_code, exchange_display, quote_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (ticker.upper(), isin, name, shares, avg_purchase_price,
-             current_price, currency, sector, industry, description,
+             current_price, regular_market_change,
+             currency, sector, industry, description,
              exchange_code, exchange_display, quote_type),
         )
         conn.commit()
@@ -217,6 +229,31 @@ def get_all_instruments() -> List[Dict]:
         conn.close()
 
 
+def was_refreshed_today() -> bool:
+    """Return True if any instrument was updated today (local date).
+
+    The ``updated_at`` column may contain UTC timestamps (from the SQLite
+    ``datetime('now')`` default) or local timestamps (written explicitly by
+    ``update_instrument``).  We compare the raw date string against today's
+    date string — after a real refresh, ``update_instrument`` writes local
+    time so this comparison is accurate.
+    """
+    conn = get_connection()
+    try:
+        row = conn.execute(
+            "SELECT MAX(updated_at) AS last_update FROM portfolio"
+        ).fetchone()
+        if not row or not row["last_update"]:
+            return False
+        # Compare the date portion (YYYY-MM-DD) of the most recent
+        # updated_at against today's local date.
+        last_date_str = row["last_update"][:10]   # "2026-04-14"
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        return last_date_str == today_str
+    finally:
+        conn.close()
+
+
 def get_instrument(ticker: str) -> Optional[Dict]:
     conn = get_connection()
     try:
@@ -242,9 +279,9 @@ def apply_cache_to_portfolio(ticker: str, data: Dict) -> None:
     """Push fetched data into the portfolio row."""
     kwargs: Dict[str, Any] = {
         k: data[k]
-        for k in ("name", "current_price", "currency", "sector",
-                  "industry", "description", "exchange_code",
-                  "exchange_display", "quote_type", "isin")
+        for k in ("name", "current_price", "regular_market_change",
+                  "currency", "sector", "industry", "description",
+                  "exchange_code", "exchange_display", "quote_type", "isin")
         if data.get(k) is not None
     }
     if kwargs:
@@ -270,15 +307,17 @@ def cache_put(ticker: str, data: Dict) -> None:
         conn.execute(
             """
             INSERT OR REPLACE INTO instrument_cache
-                (ticker, isin, name, price, currency, sector, industry,
+                (ticker, isin, name, price, regular_market_change,
+                 currency, sector, industry,
                  description, exchange_code, exchange_display, cached_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 ticker.upper(),
                 data.get("isin"),
                 data.get("name"),
                 data.get("current_price"),
+                data.get("regular_market_change"),
                 data.get("currency"),
                 data.get("sector"),
                 data.get("industry"),
@@ -305,6 +344,20 @@ def cache_delete(ticker: Optional[str] = None) -> int:
             conn.execute("DELETE FROM instrument_cache")
         conn.commit()
         return conn.total_changes
+    finally:
+        conn.close()
+
+
+def checkpoint_wal() -> None:
+    """Force a WAL checkpoint so all data is in the main DB file.
+
+    Must be called before encrypting the database file, otherwise the
+    WAL sidecar (which is a separate file) would not be included in the
+    encrypted archive.
+    """
+    conn = get_connection()
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     finally:
         conn.close()
 
