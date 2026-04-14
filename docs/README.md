@@ -1,6 +1,6 @@
 # Lynx Portfolio
 
-**Version:** v0.4 | **Python:** >= 3.9 | **License:** BSD
+**Version:** v0.4 | **Python:** >= 3.9 | **License:** BSD 3-Clause
 
 Lynx Portfolio is a command-line investment portfolio manager that tracks your
 holdings, fetches live market data from Yahoo Finance, and converts everything

@@ -3,7 +3,7 @@
 interfaces.</p>
 <h2>Configuration</h2>
 <p>Run the configuration wizard to set your database directory:</p>
-<pre><code class="language-bash">lynx --configure
+<pre><code class="language-bash">lynx-portfolio --configure
 </code></pre>
 <p>The resulting config is stored at <code>~/.config/lynx/config.json</code>. It contains the
 path where Lynx will create and look for its SQLite database files.</p>
@@ -15,13 +15,13 @@ optionally enabling encryption, and adding your first instrument.</p>
 Lynx enters the interactive REPL. On subsequent runs, Lynx opens the existing
 database directly — no wizard.</p>
 <p>If you quit with an empty portfolio, Lynx reminds you that you can re-run the
-wizard at any time with <code>lynx -w</code>.</p>
+wizard at any time with <code>lynx-portfolio -w</code>.</p>
 <h2>Production vs Development mode</h2>
 <p>By default Lynx runs in <strong>production mode</strong>, using the persistent database. If
 no database is configured yet, the setup wizard runs automatically.</p>
 <p>Use <code>--devel</code> to experiment with a temporary database:</p>
-<pre><code class="language-bash">lynx --devel                # temporary DB, nothing persisted
-lynx --production -c list   # explicitly force production mode
+<pre><code class="language-bash">lynx-portfolio --devel                # temporary DB, nothing persisted
+lynx-portfolio --production -c list   # explicitly force production mode
 </code></pre>
 <h2>Console mode (<code>-c</code>)</h2>
 <p>Best for scripting, cron jobs, and quick one-liners.</p>
@@ -38,66 +38,66 @@ lynx --production -c list   # explicitly force production mode
 <tr>
 <td><code>add</code></td>
 <td>Add a new position</td>
-<td><code>lynx -c add --ticker AAPL --shares 10 --avg-price 185.50</code></td>
+<td><code>lynx-portfolio -c add --ticker AAPL --shares 10 --avg-price 185.50</code></td>
 </tr>
 <tr>
 <td><code>add</code></td>
 <td>Add by name search</td>
-<td><code>lynx -c add --name "Apple" --shares 10</code></td>
+<td><code>lynx-portfolio -c add --name "Apple" --shares 10</code></td>
 </tr>
 <tr>
 <td><code>list</code></td>
 <td>Show all portfolio positions</td>
-<td><code>lynx -c list</code></td>
+<td><code>lynx-portfolio -c list</code></td>
 </tr>
 <tr>
 <td><code>show</code></td>
 <td>Show details for one instrument</td>
-<td><code>lynx -c show --ticker AAPL</code></td>
+<td><code>lynx-portfolio -c show --ticker AAPL</code></td>
 </tr>
 <tr>
 <td><code>show</code></td>
 <td>Show by name search</td>
-<td><code>lynx -c show --name "Apple"</code></td>
+<td><code>lynx-portfolio -c show --name "Apple"</code></td>
 </tr>
 <tr>
 <td><code>update</code></td>
 <td>Update shares or avg price</td>
-<td><code>lynx -c update AAPL --shares 15</code></td>
+<td><code>lynx-portfolio -c update AAPL --shares 15</code></td>
 </tr>
 <tr>
 <td><code>delete</code></td>
 <td>Remove a position</td>
-<td><code>lynx -c delete AAPL</code></td>
+<td><code>lynx-portfolio -c delete AAPL</code></td>
 </tr>
 <tr>
 <td><code>refresh</code></td>
 <td>Refresh market data for a ticker</td>
-<td><code>lynx -c refresh AAPL</code></td>
+<td><code>lynx-portfolio -c refresh AAPL</code></td>
 </tr>
 <tr>
 <td><code>import</code></td>
 <td>Import positions from JSON</td>
-<td><code>lynx -c import portfolio.json</code></td>
+<td><code>lynx-portfolio -c import portfolio.json</code></td>
 </tr>
 </tbody>
 </table>
 <h3>Examples</h3>
 <pre><code class="language-bash"># Add a position without cost tracking (avg_purchase_price omitted)
-lynx -c add MSFT 5
+lynx-portfolio -c add MSFT 5
 
 # Add with cost tracking
-lynx -c add MSFT 5 --price 420.00
+lynx-portfolio -c add MSFT 5 --price 420.00
 
 # Update only the share count
-lynx -c update MSFT --shares 10
+lynx-portfolio -c update MSFT --shares 10
 
 # Refresh all cached data
-lynx -rc
+lynx-portfolio -rc
 </code></pre>
 <h2>Interactive REPL (default)</h2>
 <p>Launch with:</p>
-<pre><code class="language-bash">lynx
+<pre><code class="language-bash">lynx-portfolio
 </code></pre>
 <p>You get a prompt where you can type commands interactively.</p>
 <h3>Available commands</h3>
@@ -174,7 +174,7 @@ lynx -rc
 </table>
 <h2>Full-screen TUI (<code>-tui</code>)</h2>
 <p>Launch with:</p>
-<pre><code class="language-bash">lynx -tui
+<pre><code class="language-bash">lynx-portfolio -tui
 </code></pre>
 <p>The TUI displays your portfolio in a table with live data. Navigate with the
 keyboard.</p>
@@ -238,7 +238,7 @@ keyboard.</p>
 is applied immediately.</p>
 <h2>REST API (<code>--api</code>)</h2>
 <p>Start the API server (Flask, default port 5000):</p>
-<pre><code class="language-bash">lynx --api
+<pre><code class="language-bash">lynx-portfolio --api
 </code></pre>
 <p>The server exposes a full CRUD interface for portfolio management. See the
 <a href="api-reference.md">API Reference</a> for every endpoint.</p>
@@ -303,7 +303,7 @@ array of position objects:</p>
 <p>Positions without <code>avg_price</code> will display "Not tracked" for P&amp;L fields.</p>
 <h2>First-time Setup Wizard (<code>-w</code>)</h2>
 <p>Run the wizard for a guided first-time setup:</p>
-<pre><code class="language-bash">lynx -w
+<pre><code class="language-bash">lynx-portfolio -w
 </code></pre>
 <p>The wizard walks you through:</p>
 <ol>
@@ -317,9 +317,9 @@ array of position objects:</p>
 <p>Lynx can encrypt your portfolio database with a password to protect your
 investment data.</p>
 <h3>Enable encryption</h3>
-<pre><code class="language-bash">lynx --production --encrypt
+<pre><code class="language-bash">lynx-portfolio --production --encrypt
 # or
-lynx --production -en
+lynx-portfolio --production -en
 </code></pre>
 <p>You will be asked to set a password three times (enter, confirm, confirm again).
 While typing, press <code>*</code> to toggle between showing and hiding the password.</p>
@@ -328,19 +328,19 @@ and the unencrypted file is removed.</p>
 <h3>Using an encrypted database</h3>
 <p>On subsequent runs Lynx auto-detects the encrypted vault and prompts for the
 password:</p>
-<pre><code class="language-bash">lynx --production -i        # prompts for password automatically
-lynx --production -tui      # same
-lynx --production -x        # same
+<pre><code class="language-bash">lynx-portfolio --production -i        # prompts for password automatically
+lynx-portfolio --production -tui      # same
+lynx-portfolio --production -x        # same
 </code></pre>
 <p>For non-interactive / scripted use, pass the password inline:</p>
-<pre><code class="language-bash">lynx --production -d &quot;mypassword&quot; -c list
-lynx --production --decrypt &quot;mypassword&quot; -c show --ticker AAPL
+<pre><code class="language-bash">lynx-portfolio --production -d &quot;mypassword&quot; -c list
+lynx-portfolio --production --decrypt &quot;mypassword&quot; -c show --ticker AAPL
 </code></pre>
 <h3>Disable encryption</h3>
 <p>To permanently remove encryption and return to a plain database:</p>
-<pre><code class="language-bash">lynx --production --disable-encryption
+<pre><code class="language-bash">lynx-portfolio --production --disable-encryption
 # or
-lynx --production -de
+lynx-portfolio --production -de
 </code></pre>
 <p>You will be asked for the current password. The vault files are removed and
 the plain database is restored.</p>
@@ -352,9 +352,9 @@ re-encrypted and the temporary working file is securely deleted before exit.</p>
 <p>Lynx automatically creates a backup (<code>.bak</code>) of the database each time it is
 opened. For encrypted databases the backup covers the <code>.enc</code> and <code>.salt</code> files.</p>
 <h3>Restore from backup</h3>
-<pre><code class="language-bash">lynx --production --restore
+<pre><code class="language-bash">lynx-portfolio --production --restore
 # or
-lynx --production -r
+lynx-portfolio --production -r
 </code></pre>
 <p>Lynx detects whether the backup is for a plain or encrypted database and
 restores accordingly.</p>
@@ -371,15 +371,15 @@ calls.</p>
 <tbody>
 <tr>
 <td>Delete entire cache</td>
-<td><code>lynx -dc</code></td>
+<td><code>lynx-portfolio -dc</code></td>
 </tr>
 <tr>
 <td>Refresh entire cache</td>
-<td><code>lynx -rc</code></td>
+<td><code>lynx-portfolio -rc</code></td>
 </tr>
 <tr>
 <td>Auto-refresh on interval</td>
-<td><code>lynx -arc=3600</code> (seconds)</td>
+<td><code>lynx-portfolio -arc=3600</code> (seconds)</td>
 </tr>
 <tr>
 <td>Clear cache (REPL)</td>
@@ -412,7 +412,7 @@ repeated network calls.</p>
 <h2>Tips</h2>
 <ul>
 <li>On first run, the setup wizard launches automatically. After that, just
-  run <code>lynx</code> to start the interactive REPL.</li>
+  run <code>lynx-portfolio</code> to start the interactive REPL.</li>
 <li>Use <code>--devel</code> while learning the tool — it creates a temporary database.</li>
 <li>The <code>-v</code> flag enables verbose output, useful for debugging data-fetch issues.</li>
 <li>Bulk-load your portfolio from JSON:

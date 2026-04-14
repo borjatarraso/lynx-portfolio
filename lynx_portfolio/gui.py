@@ -15,7 +15,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict
 
-from . import APP_NAME, VERSION, LICENSE, ABOUT_LINES
+from . import APP_NAME, VERSION, LICENSE, LICENSE_URL, LICENSE_TEXT, ABOUT_LINES
 from . import database, cache, forex
 from .display import _shares_str
 from .operations import (
@@ -426,46 +426,48 @@ class LynxGUI:
                   foreground=_C["fg_dim"],
                   background=_C["surface2"]).pack(side="left", padx=(0, 16))
 
-        # Group 1: Portfolio actions
-        for label, cmd in [("Add", self._on_add),
-                           ("Edit", self._on_edit),
-                           ("Delete", self._on_delete)]:
-            ttk.Button(toolbar, text=label, command=cmd).pack(side="left", padx=2)
+        # ── Group 1: Portfolio management ────────────────────────────────
+        ttk.Button(toolbar, text="\u2795 Add", command=self._on_add,
+                   style="Accent.TButton").pack(side="left", padx=2)
+        ttk.Button(toolbar, text="\u270e Edit", command=self._on_edit).pack(
+            side="left", padx=2)
+        ttk.Button(toolbar, text="\u2716 Delete", command=self._on_delete,
+                   style="Danger.TButton").pack(side="left", padx=2)
+        ttk.Button(toolbar, text="\U0001f50d Detail", command=self._on_detail).pack(
+            side="left", padx=2)
 
         _toolbar_sep(toolbar)
 
-        # Group 2: Data
-        for label, cmd in [("Refresh", self._on_refresh_one),
-                           ("Refresh All", self._on_refresh_all),
-                           ("Import JSON", self._on_import)]:
-            ttk.Button(toolbar, text=label, command=cmd).pack(side="left", padx=2)
+        # ── Group 2: Data refresh ───────────────────────────────────────
+        ttk.Button(toolbar, text="\u21bb Refresh",
+                   command=self._on_refresh_one).pack(side="left", padx=2)
+        ttk.Button(toolbar, text="\u21bb All",
+                   command=self._on_refresh_all).pack(side="left", padx=2)
         self._auto_update_btn = ttk.Button(
-            toolbar, text="Auto-Update: OFF", command=self._on_toggle_auto_update)
+            toolbar, text="\u23f0 Auto: OFF",
+            command=self._on_toggle_auto_update)
         self._auto_update_btn.pack(side="left", padx=2)
         self._auto_update_id = None
         self._AUTO_UPDATE_INTERVAL = 60_000  # ms
 
         _toolbar_sep(toolbar)
 
-        # Group 3: View & cache
-        ttk.Button(toolbar, text="Detail", command=self._on_detail).pack(
-            side="left", padx=2)
-        ttk.Button(toolbar, text="Clear Cache", command=self._on_clear_cache,
+        # ── Group 3: Import & cache ─────────────────────────────────────
+        ttk.Button(toolbar, text="\U0001f4c2 Import",
+                   command=self._on_import).pack(side="left", padx=2)
+        ttk.Button(toolbar, text="\U0001f5d1 Clear Cache",
+                   command=self._on_clear_cache,
                    style="Danger.TButton").pack(side="left", padx=2)
 
-        _toolbar_sep(toolbar)
-
-        # Group 4: Info
-        ttk.Button(toolbar, text="About", command=self._on_about).pack(
-            side="left", padx=2)
-
-        # Right side: Quit + version
+        # ── Right side: About, version, Quit ────────────────────────────
+        ttk.Button(toolbar, text="Quit", command=self._root.destroy,
+                   style="Danger.TButton").pack(side="right", padx=2)
         ttk.Label(toolbar, text=VERSION,
                   font=("Consolas", 9),
                   foreground=_C["fg_dim"],
                   background=_C["surface2"]).pack(side="right", padx=8)
-        ttk.Button(toolbar, text="Quit", command=self._root.destroy,
-                   style="Danger.TButton").pack(side="right", padx=2)
+        ttk.Button(toolbar, text="\u2139 About",
+                   command=self._on_about).pack(side="right", padx=2)
 
         # ── Thin accent line under toolbar ───────────────────────────────
         tk.Frame(root, height=2, bg=_C["accent_dark"]).pack(side="top", fill="x")
@@ -790,7 +792,7 @@ class LynxGUI:
     # ----- About -------------------------------------------------------------
 
     def _on_about(self) -> None:
-        messagebox.showinfo("About", "\n".join(ABOUT_LINES), parent=self._root)
+        _AboutDialog(self._root)
 
     # ----- Auto-update -------------------------------------------------------
 
@@ -798,10 +800,10 @@ class LynxGUI:
         if self._auto_update_id is not None:
             self._root.after_cancel(self._auto_update_id)
             self._auto_update_id = None
-            self._auto_update_btn.configure(text="Auto-Update: OFF")
+            self._auto_update_btn.configure(text="\u23f0 Auto: OFF")
             self._set_status("Auto-update OFF", "info")
         else:
-            self._auto_update_btn.configure(text="Auto-Update: ON")
+            self._auto_update_btn.configure(text="\u23f0 Auto: ON")
             self._set_status(
                 f"Auto-update ON (every {self._AUTO_UPDATE_INTERVAL // 1000}s)",
                 "info",
@@ -1432,6 +1434,96 @@ class ImportDialog(_BaseDialog):
         self._destroyed = True
         self._dlg.destroy()
         self._on_done()
+
+
+# ---------------------------------------------------------------------------
+# About dialog  (proper custom dialog with license)
+# ---------------------------------------------------------------------------
+
+class _AboutDialog(_BaseDialog):
+    """Application About dialog with license text."""
+
+    def __init__(self, parent: tk.Tk) -> None:
+        self._dlg = self._init_dialog(parent, f"About {APP_NAME}", 560, 520,
+                                      resizable=True, grab=True)
+
+        outer = ttk.Frame(self._dlg, style="Card.TFrame", padding=24)
+        outer.pack(fill="both", expand=True)
+
+        # ── Title ────────────────────────────────────────────────────────
+        ttk.Label(outer, text=APP_NAME,
+                  font=("Segoe UI", 18, "bold"),
+                  foreground=_C["accent"],
+                  background=_C["surface"]).pack(anchor="w")
+
+        ttk.Label(outer, text=VERSION,
+                  font=("Consolas", 11),
+                  foreground=_C["fg_dim"],
+                  background=_C["surface"]).pack(anchor="w", pady=(0, 4))
+
+        ttk.Label(outer, text="Part of the Lince Investor suite (LINCE)",
+                  font=("Segoe UI", 10),
+                  foreground=_C["fg"],
+                  background=_C["surface"]).pack(anchor="w")
+
+        # ── Author ───────────────────────────────────────────────────────
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
+
+        ttk.Label(outer,
+                  text="Author:  Borja Tarraso <borja.tarraso@member.fsf.org>",
+                  font=("Segoe UI", 10),
+                  foreground=_C["fg"],
+                  background=_C["surface"]).pack(anchor="w")
+
+        # ── License ──────────────────────────────────────────────────────
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=10)
+
+        license_hdr = ttk.Frame(outer, style="Card.TFrame")
+        license_hdr.pack(fill="x")
+        ttk.Label(license_hdr, text=f"License:  {LICENSE}",
+                  font=("Segoe UI", 10, "bold"),
+                  foreground=_C["accent"],
+                  background=_C["surface"]).pack(side="left")
+
+        link_label = tk.Label(license_hdr, text=LICENSE_URL,
+                              fg=_C["accent"], bg=_C["surface"],
+                              font=("Segoe UI", 9, "underline"),
+                              cursor="hand2")
+        link_label.pack(side="left", padx=(12, 0))
+        link_label.bind("<Button-1>", lambda _: self._open_url(LICENSE_URL))
+
+        # License text box
+        license_frame = ttk.Frame(outer, style="Card.TFrame")
+        license_frame.pack(fill="both", expand=True, pady=(8, 0))
+
+        license_text = tk.Text(license_frame, wrap="word", height=12,
+                               font=("Consolas", 9), relief="flat",
+                               bg=_C["entry_bg"], fg=_C["fg"],
+                               insertbackground=_C["fg"],
+                               padx=10, pady=8)
+        license_sb = ttk.Scrollbar(license_frame, orient="vertical",
+                                   command=license_text.yview)
+        license_text.configure(yscrollcommand=license_sb.set)
+
+        license_text.pack(side="left", fill="both", expand=True)
+        license_sb.pack(side="right", fill="y")
+
+        license_text.insert("1.0", LICENSE_TEXT)
+        license_text.configure(state="disabled")
+
+        # ── Close button ─────────────────────────────────────────────────
+        btn_frame = ttk.Frame(outer, style="Card.TFrame")
+        btn_frame.pack(fill="x", pady=(12, 0))
+        ttk.Button(btn_frame, text="Close", command=self._dlg.destroy,
+                   style="Accent.TButton", width=12).pack(side="right")
+
+    @staticmethod
+    def _open_url(url: str) -> None:
+        try:
+            import webbrowser
+            webbrowser.open(url)
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------

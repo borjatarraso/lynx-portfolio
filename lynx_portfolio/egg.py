@@ -611,6 +611,250 @@ def run_terminal_egg():
 
 
 # ---------------------------------------------------------------------------
+# Interactive REPL easter egg (inline, no screen clearing)
+# ---------------------------------------------------------------------------
+
+_STOCK_SYMBOLS = [
+    "AAPL", "MSFT", "GOOG", "AMZN", "TSLA", "NVDA", "META", "BRK.B",
+    "JPM", "V", "JNJ", "WMT", "PG", "MA", "UNH", "HD", "DIS", "BAC",
+    "NFLX", "ADBE", "CRM", "PYPL", "INTC", "CMCSA", "PEP", "COST",
+    "TMO", "ABT", "AVGO", "NKE", "MRK", "LLY", "ORCL", "AMD", "QCOM",
+    "T", "LOW", "UPS", "SBUX", "GS", "BLK", "LYNX",
+]
+
+_WISDOMS = [
+    "Buy the dip... but which dip? That is the question.",
+    "Time in the market beats timing the market. Except that one time.",
+    "Diversification: owning many things you don't understand.",
+    "The stock market is a device to transfer money from the impatient to the patient. -- Warren Buffett",
+    "Rule #1: Never lose money. Rule #2: Never forget Rule #1.",
+    "In the short run the market is a voting machine; in the long run it is a weighing machine.",
+    "A lynx never panics. Be the lynx.",
+    "The four most dangerous words in investing: 'This time it's different.'",
+    "Behind every great portfolio is a mass of unrealised losses nobody talks about.",
+    "Compound interest is the eighth wonder of the world.",
+    "Bears make headlines. Bulls make money. Lynxes make portfolios.",
+]
+
+_MINI_LYNX = r"""
+    /\_/\
+   ( o.o )  *purrrr*
+    > ^ <
+   /|   |\
+  (_|   |_)"""
+
+
+def run_interactive_egg():
+    """Inline REPL easter egg — fun without clearing the screen."""
+    import random
+
+    sound_thread = _play_sound_async()
+
+    # --- Phase 1: Matrix-style stock ticker rain (about 2s) ---
+    sys.stdout.write("\n")
+    _TICKER_COLORS = [
+        "\033[1;32m",  # bright green
+        "\033[0;32m",  # green
+        "\033[1;36m",  # bright cyan
+        "\033[0;36m",  # cyan
+        "\033[1;33m",  # bright yellow
+    ]
+    _RESET = "\033[0m"
+    for _ in range(6):
+        symbols = random.sample(_STOCK_SYMBOLS, k=min(10, len(_STOCK_SYMBOLS)))
+        line_parts = []
+        for sym in symbols:
+            change = random.uniform(-9.99, 15.99)
+            arrow = "\u2191" if change >= 0 else "\u2193"
+            color = "\033[1;32m" if change >= 0 else "\033[1;31m"
+            price = random.uniform(10.0, 3500.0)
+            part = (
+                f"{random.choice(_TICKER_COLORS)}{sym}{_RESET} "
+                f"{color}{price:>8.2f} {arrow}{change:+.2f}%{_RESET}"
+            )
+            line_parts.append(part)
+        sys.stdout.write("  " + "  ".join(line_parts[:5]) + "\n")
+        sys.stdout.flush()
+        time.sleep(0.3)
+
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+    time.sleep(0.2)
+
+    # --- Phase 2: Sparkle / progress effect (about 1.5s) ---
+    sparkle_chars = list(_SPARKLES)
+    bar_width = 30
+    label = " Scanning market alpha "
+    sys.stdout.write(f"  \033[1;35m{label}\033[0m [")
+    sys.stdout.flush()
+    for i in range(bar_width):
+        ch = random.choice(sparkle_chars)
+        color_code = 31 + (i % 6)
+        sys.stdout.write(f"\033[1;{color_code}m{ch}\033[0m")
+        sys.stdout.flush()
+        time.sleep(0.05)
+    sys.stdout.write("] \033[1;32mDONE\033[0m\n\n")
+    sys.stdout.flush()
+    time.sleep(0.3)
+
+    # --- Phase 3: ASCII lynx types a message character-by-character (about 2.5s) ---
+    for line in _MINI_LYNX.split("\n"):
+        sys.stdout.write(f"  \033[1;36m{line}\033[0m\n")
+    sys.stdout.flush()
+    time.sleep(0.3)
+
+    wisdom = random.choice(_WISDOMS)
+    bubble_top = "  " + "." + "-" * (len(wisdom) + 2) + "."
+    bubble_mid_prefix = "  | "
+    bubble_mid_suffix = " |"
+    bubble_bot = "  " + "'" + "-" * (len(wisdom) + 2) + "'"
+
+    sys.stdout.write(f"\033[1;33m{bubble_top}\033[0m\n")
+    sys.stdout.write(f"\033[1;33m{bubble_mid_prefix}\033[0m")
+    sys.stdout.flush()
+
+    for ch in wisdom:
+        sys.stdout.write(f"\033[1;37m{ch}\033[0m")
+        sys.stdout.flush()
+        time.sleep(random.uniform(0.02, 0.06))
+
+    sys.stdout.write(f"\033[1;33m{bubble_mid_suffix}\033[0m\n")
+    sys.stdout.write(f"\033[1;33m{bubble_bot}\033[0m\n")
+    sys.stdout.flush()
+    time.sleep(0.5)
+
+    # --- Phase 4: Final flourish — rainbow LYNX PORTFOLIO banner (about 1s) ---
+    sys.stdout.write("\n")
+    final_text = "★  L Y N X   P O R T F O L I O  ★"
+    for i in range(5):
+        sys.stdout.write("\r  " + _rainbow(final_text, i))
+        sys.stdout.flush()
+        time.sleep(0.2)
+    sys.stdout.write("\n\n")
+    sys.stdout.flush()
+
+    sound_thread.join(timeout=2)
+
+
+def run_console_egg():
+    """Quick one-shot console easter egg for non-interactive mode (~4-5s)."""
+    rows, cols = _get_terminal_size()
+    sound_thread = _play_sound_async()
+
+    _clear_screen()
+    sys.stdout.write("\033[?25l")  # hide cursor
+    sys.stdout.flush()
+
+    try:
+        # --- Scene: Lynx perched on a pile of money and stocks ---
+        scene = [
+            r"                    *  .  *  .  *",
+            r"               .  *    .  *    .  *  .",
+            r"                      /\_/\ ",
+            r"                     ( ^.^ )    *",
+            r"                      > ^ <   . ",
+            r"                  ___/|   |\___  ",
+            r"                 /    |   |    \ ",
+            r"                /     |   |     \\",
+            r"          ~~~~~/______|   |______\~~~~~",
+            r"         /  $$$  $$$ AAPL  TSLA $$$  $$$ \\",
+            r"        / $$$ MSFT $$$ GOOG $$$ NVDA $$$  \\",
+            r"       / $  AMZN $$ META $$$$ BRK.B $$ JPM \\",
+            r"      /$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\\",
+            r"     /  $$$  DIS  $$$  NFLX  $$$  AMD  $$$   \\",
+            r"    /_______________________________________________\\",
+        ]
+
+        _move_cursor(1, 1)
+        for line in scene:
+            centered = line.center(cols)
+            if "/\\_/\\" in line or "^.^" in line or "> ^ <" in line:
+                sys.stdout.write(_color(centered, 36) + "\n")    # cyan lynx
+            elif "___/" in line or "~~~~" in line:
+                sys.stdout.write(_color(centered, 36) + "\n")    # cyan body
+            elif "*" in line and "$" not in line:
+                sys.stdout.write(_color(centered, 33) + "\n")    # yellow sparkles
+            elif "$" in line or "AAPL" in line:
+                sys.stdout.write(_color(centered, 32) + "\n")    # green money
+            else:
+                sys.stdout.write(_color(centered, 37) + "\n")    # white default
+        sys.stdout.flush()
+
+        time.sleep(1.2)
+
+        # --- Animated loading bar that fills with stock symbols ---
+        symbols = [
+            "AAPL", "TSLA", "MSFT", "GOOG", "AMZN",
+            "NVDA", "META", "JPM", "BRK.B", "V",
+            "JNJ", "WMT", "DIS", "NFLX", "AMD",
+        ]
+        bar_row = 18
+        bar_width = min(56, cols - 14)
+
+        _move_cursor(bar_row, 1)
+        label = "Scanning the market..."
+        sys.stdout.write(_color(label.center(cols), 33) + "\n")
+        sys.stdout.flush()
+
+        for i in range(len(symbols)):
+            _move_cursor(bar_row + 2, 1)
+            filled = int((i + 1) / len(symbols) * bar_width)
+            sym_fill = " ".join(symbols[: i + 1])
+            # Truncate or pad to exactly the filled width
+            if len(sym_fill) > filled:
+                sym_fill = sym_fill[:filled]
+            else:
+                sym_fill = sym_fill.ljust(filled)
+            empty = bar_width - filled
+            pct = int((i + 1) / len(symbols) * 100)
+            bar_str = (
+                f"  [{_color(sym_fill, 32)}{'.' * empty}] {pct:>3}%"
+            )
+            pad = max(0, (cols - bar_width - 12) // 2)
+            sys.stdout.write(f"\033[{bar_row + 2};{pad + 1}H{bar_str}")
+            sys.stdout.flush()
+            time.sleep(0.18)
+
+        time.sleep(0.4)
+
+        # --- Stylish closing quote and banner ---
+        msg_row = bar_row + 5
+        _move_cursor(msg_row, 1)
+        q1 = "\"In the long run, it's not just about the returns --\""
+        sys.stdout.write(_color(q1.center(cols), 35) + "\n")  # magenta
+        _move_cursor(msg_row + 1, 1)
+        q2 = "\"it's about the lynx watching over them.\""
+        sys.stdout.write(_color(q2.center(cols), 35) + "\n")
+
+        _move_cursor(msg_row + 3, 1)
+        sparkle_line = " ".join(
+            _SPARKLES[i % len(_SPARKLES)] for i in range(min(20, cols // 3))
+        )
+        sys.stdout.write(sparkle_line.center(cols) + "\n")
+
+        _move_cursor(msg_row + 5, 1)
+        banner_text = "★  L Y N X   P O R T F O L I O  ★"
+        pad = max(0, (cols - 34) // 2)
+        for i in range(8):
+            sys.stdout.write(f"\033[{msg_row + 5};{pad + 1}H")
+            sys.stdout.write(_rainbow(banner_text, i))
+            sys.stdout.flush()
+            time.sleep(0.15)
+
+        sys.stdout.write("\n")
+        sys.stdout.flush()
+        time.sleep(0.8)
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sys.stdout.write("\033[?25h")  # show cursor
+        sys.stdout.flush()
+        sound_thread.join(timeout=2)
+        _clear_screen()
+
+
+# ---------------------------------------------------------------------------
 # GUI (tkinter) easter egg
 # ---------------------------------------------------------------------------
 

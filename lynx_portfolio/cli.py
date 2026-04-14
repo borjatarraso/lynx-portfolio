@@ -484,8 +484,8 @@ def run() -> None:
     args   = parser.parse_args(argv)
 
     if getattr(args, "egg", False):
-        from .egg import run_terminal_egg
-        run_terminal_egg()
+        from .egg import run_console_egg
+        run_console_egg()
         return
 
     # ── --default-mode: save preference ─────────────────────────────────
