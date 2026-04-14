@@ -330,27 +330,39 @@ class AboutScreen(ModalScreen):
 
 _EGG_CSS = """
 EggScreen {
-    align: center middle;
-    background: $surface;
+    background: #000000;
 }
-#egg-canvas {
+EggScreen > Vertical {
+    background: #000000;
     width: 100%;
     height: 100%;
+}
+EggScreen #egg-canvas {
+    width: 100%;
+    height: 1fr;
     content-align: center middle;
     text-align: center;
     background: #000000;
     color: #00ff00;
 }
+EggScreen #egg-hint {
+    width: 100%;
+    height: 1;
+    text-align: center;
+    background: #000000;
+    color: #444444;
+    dock: bottom;
+}
 """
 
-class EggScreen(ModalScreen):
+class EggScreen(Screen):
     """Nothing to see here."""
 
     CSS = _EGG_CSS
     BINDINGS = [
-        Binding("escape", "dismiss", "", show=False),
-        Binding("space", "dismiss", "", show=False),
-        Binding("q", "dismiss", "", show=False),
+        Binding("escape", "go_back", "", show=False, priority=True),
+        Binding("space", "go_back", "", show=False, priority=True),
+        Binding("q", "go_back", "", show=False, priority=True),
     ]
 
     _FRAMES = [
@@ -390,10 +402,12 @@ class EggScreen(ModalScreen):
         self._sound_started = False
 
     def compose(self) -> ComposeResult:
-        yield Static(id="egg-canvas")
+        with Vertical():
+            yield Static(id="egg-canvas")
+            yield Static("Press Esc to close", id="egg-hint")
 
     def on_mount(self) -> None:
-        self._timer = self.set_interval(0.22, self._animate)
+        self._timer = self.set_interval(0.22, self._tick_frame)
         # Start sound
         if not self._sound_started:
             self._sound_started = True
@@ -403,7 +417,7 @@ class EggScreen(ModalScreen):
             except Exception:
                 pass
 
-    def _animate(self) -> None:
+    def _tick_frame(self) -> None:
         canvas = self.query_one("#egg-canvas", Static)
         t = self._tick
         p = self._phase
@@ -557,14 +571,14 @@ class EggScreen(ModalScreen):
             )
             if t > 14:
                 self._timer.stop()
-                self.dismiss()
+                self.app.pop_screen()
                 return
 
         self._tick += 1
 
-    def action_dismiss(self) -> None:
+    def action_go_back(self) -> None:
         self._timer.stop()
-        self.dismiss()
+        self.app.pop_screen()
 
 
 # ---------------------------------------------------------------------------
