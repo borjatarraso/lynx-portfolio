@@ -1,7 +1,301 @@
-<h1>Architecture</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — Lynx Portfolio</title>
+<style>
+/* ── Reset & base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d1117;
+  --bg-sidebar:  #0a0e14;
+  --bg-card:     #131920;
+  --bg-code:     #1a2230;
+  --border:      #1e2a38;
+  --fg:          #c9d1d9;
+  --fg-dim:      #7a8595;
+  --fg-heading:  #e6edf3;
+  --accent:      #58a6ff;
+  --accent-dim:  #2d6cb4;
+  --green:       #3fb950;
+  --yellow:      #d29922;
+  --red:         #f85149;
+  --purple:      #bc8cff;
+  --sidebar-w:   260px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 100;
+}
+.topbar .logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.topbar .logo span {
+  color: var(--fg-dim);
+  font-weight: 400;
+  font-size: 13px;
+  margin-left: 10px;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 0;
+  z-index: 90;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.sidebar .nav-section {
+  padding: 0 16px;
+  margin-bottom: 18px;
+}
+.sidebar .nav-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--fg-dim);
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+.sidebar a {
+  display: block;
+  padding: 5px 8px 5px 12px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar a:hover {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent);
+}
+.sidebar a.active {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sidebar a.toc-h3 {
+  padding-left: 28px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.sidebar a.toc-h3:hover {
+  color: var(--accent);
+}
+
+/* ── Main content ──────────────────────────────────────────────── */
+.content {
+  margin-left: var(--sidebar-w);
+  margin-top: 52px;
+  padding: 36px 48px 80px;
+  max-width: 900px;
+}
+
+/* ── Typography ────────────────────────────────────────────────── */
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--fg-heading);
+  margin-bottom: 8px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent-dim);
+}
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 48px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--purple);
+  margin-top: 32px;
+  margin-bottom: 10px;
+}
+h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--yellow);
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 14px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+strong { color: var(--fg-heading); }
+
+/* ── Lists ─────────────────────────────────────────────────────── */
+ul, ol {
+  margin: 0 0 16px 24px;
+}
+li {
+  margin-bottom: 4px;
+}
+li > ul, li > ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* ── Code ──────────────────────────────────────────────────────── */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-code);
+  color: var(--green);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+  line-height: 1.5;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+/* ── Tables ────────────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+thead {
+  background: var(--bg-card);
+}
+th {
+  text-align: left;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+tr:hover {
+  background: rgba(88, 166, 255, 0.04);
+}
+
+/* ── Blockquote ────────────────────────────────────────────────── */
+blockquote {
+  border-left: 3px solid var(--accent-dim);
+  margin: 16px 0;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border-radius: 0 8px 8px 0;
+  color: var(--fg-dim);
+}
+
+/* ── Horizontal rule ───────────────────────────────────────────── */
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 32px 0;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .sidebar { display: none; }
+  .content { margin-left: 0; padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">LYNX <span>Portfolio Documentation</span></div>
+</div>
+
+<nav class="sidebar">
+  <div class="nav-section">
+    <div class="nav-section-title">Documentation</div>
+        <a href="README.html">Overview</a>
+    <a href="user-guide.html">User Guide</a>
+    <a href="api-reference.html">API Reference</a>
+    <a href="architecture.html" class="active">Architecture</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">On this page</div>
+        <a href="#module-responsibilities" class="">Module responsibilities</a>
+    <a href="#data-flow" class="">Data flow</a>
+    <a href="#adding-a-position" class="toc-h3">Adding a position</a>
+    <a href="#listing-the-portfolio" class="toc-h3">Listing the portfolio</a>
+    <a href="#sqlite-schema" class="">SQLite schema</a>
+    <a href="#positions-table" class="toc-h3">positions table</a>
+    <a href="#instrument_cache-table" class="toc-h3">instrument_cache table</a>
+    <a href="#design-decisions" class="">Design decisions</a>
+    <a href="#notifier-pattern" class="toc-h3">Notifier pattern</a>
+    <a href="#forex-session-cache" class="toc-h3">Forex session cache</a>
+    <a href="#suffix-inference-for-exchange-detection" class="toc-h3">Suffix-inference for exchange detection</a>
+    <a href="#optional-cost-tracking" class="toc-h3">Optional cost tracking</a>
+    <a href="#first-run-wizard-and-production-default" class="toc-h3">First-run wizard and production default</a>
+    <a href="#wal-mode-for-sqlite" class="toc-h3">WAL mode for SQLite</a>
+    <a href="#database-encryption-vault" class="toc-h3">Database encryption (vault)</a>
+    <a href="#automatic-backups" class="toc-h3">Automatic backups</a>
+  </div>
+</nav>
+
+<main class="content">
+<h1 id="architecture">Architecture</h1>
 <p>This document describes Lynx Portfolio's internal structure, data flow, storage
 schema, and key design decisions.</p>
-<h2>Module responsibilities</h2>
+<h2 id="module-responsibilities">Module responsibilities</h2>
 <table>
 <thead>
 <tr>
@@ -72,8 +366,8 @@ schema, and key design decisions.</p>
 </tr>
 </tbody>
 </table>
-<h2>Data flow</h2>
-<h3>Adding a position</h3>
+<h2 id="data-flow">Data flow</h2>
+<h3 id="adding-a-position">Adding a position</h3>
 <pre><code>User input (any interface)
        |
        v
@@ -93,7 +387,7 @@ schema, and key design decisions.</p>
        v
   Notifier --&gt; display / API response / TUI refresh
 </code></pre>
-<h3>Listing the portfolio</h3>
+<h3 id="listing-the-portfolio">Listing the portfolio</h3>
 <pre><code>User requests list
        |
        v
@@ -115,9 +409,9 @@ schema, and key design decisions.</p>
        v
   Formatted output (table / JSON / TUI widget)
 </code></pre>
-<h2>SQLite schema</h2>
+<h2 id="sqlite-schema">SQLite schema</h2>
 <p>The database uses WAL (Write-Ahead Logging) mode for safe concurrent reads.</p>
-<h3>positions table</h3>
+<h3 id="positions-table">positions table</h3>
 <table>
 <thead>
 <tr>
@@ -172,7 +466,7 @@ schema, and key design decisions.</p>
 </tr>
 </tbody>
 </table>
-<h3>instrument_cache table</h3>
+<h3 id="instrument_cache-table">instrument_cache table</h3>
 <table>
 <thead>
 <tr>
@@ -221,31 +515,31 @@ schema, and key design decisions.</p>
 </tr>
 </tbody>
 </table>
-<h2>Design decisions</h2>
-<h3>Notifier pattern</h3>
+<h2 id="design-decisions">Design decisions</h2>
+<h3 id="notifier-pattern">Notifier pattern</h3>
 <p>Interface modules (CLI, interactive, TUI, API) do not call business logic
 directly. Instead, <code>operations.py</code> acts as the single source of truth and
 notifies the caller of results. This keeps the four interfaces thin and
 prevents logic duplication. Each interface only needs to translate user input
 into an <code>operations</code> call and render the result.</p>
-<h3>Forex session cache</h3>
+<h3 id="forex-session-cache">Forex session cache</h3>
 <p>Exchange rates are fetched exactly once per session from yfinance and held in
 memory. This avoids redundant network calls when listing a portfolio with many
 positions in different currencies. The rates are not persisted to disk -- a
 fresh set is fetched each time Lynx starts.</p>
-<h3>Suffix-inference for exchange detection</h3>
+<h3 id="suffix-inference-for-exchange-detection">Suffix-inference for exchange detection</h3>
 <p>Yahoo Finance tickers carry exchange information in their suffix (e.g., <code>.L</code>
 for London, <code>.DE</code> for XETRA). The fetcher module infers the exchange from the
 ticker suffix when no explicit exchange is provided. This lets users add
 positions with just a ticker symbol while still getting correct exchange
 metadata.</p>
-<h3>Optional cost tracking</h3>
+<h3 id="optional-cost-tracking">Optional cost tracking</h3>
 <p>The <code>avg_purchase_price</code> column is nullable. When omitted, Lynx still tracks
 the position and shows its current market value, but all P&amp;L fields display
 "Not tracked". This is intentional: many users want to monitor holdings they
 acquired at unknown or irrelevant cost bases (gifts, transfers, long-held
 positions). Forcing a price would produce misleading P&amp;L numbers.</p>
-<h3>First-run wizard and production default</h3>
+<h3 id="first-run-wizard-and-production-default">First-run wizard and production default</h3>
 <p>The default run mode is production. On the very first run (no config file
 exists), Lynx auto-launches the setup wizard which creates the database
 directory and file. Even if the user skips adding instruments, the empty
@@ -253,11 +547,11 @@ database file is created so subsequent runs detect the configured state.
 The <code>--devel</code> flag explicitly uses a temporary database; <code>--production</code>
 is available for scripting but is rarely needed since production is the
 default.</p>
-<h3>WAL mode for SQLite</h3>
+<h3 id="wal-mode-for-sqlite">WAL mode for SQLite</h3>
 <p>WAL (Write-Ahead Logging) is enabled on every database connection. It allows
 concurrent readers without blocking writes, which matters when the API server
 handles multiple requests or when the TUI refreshes data in the background.</p>
-<h3>Database encryption (vault)</h3>
+<h3 id="database-encryption-vault">Database encryption (vault)</h3>
 <p>The vault module encrypts the entire SQLite database file using the
 <code>cryptography</code> library (Fernet symmetric encryption with PBKDF2-HMAC-SHA256
 key derivation). The encrypted database is stored as <code>portfolio.db.enc</code> with
@@ -275,10 +569,34 @@ a companion salt file <code>portfolio.db.salt</code>.</p>
 file-level encryption. The trade-off is that the database is briefly present
 as a plaintext temp file during the session, but it is created with
 restrictive permissions and cleaned up immediately on exit.</p>
-<h3>Automatic backups</h3>
+<h3 id="automatic-backups">Automatic backups</h3>
 <p>A <code>.bak</code> copy of the database (or <code>.enc.bak</code> for encrypted vaults) is created
 automatically each time the database is opened. Only one backup is kept
 (overwritten per session). The <code>--restore</code> flag copies the backup back. This
 provides crash recovery: if the process is killed with SIGKILL or the machine
 loses power, the <code>.enc</code> file is still the pre-session version and the <code>.bak</code>
 provides an additional fallback.</p>
+</main>
+
+<script>
+// Highlight active sidebar link on scroll
+(function() {
+  const headings = document.querySelectorAll('h2[id], h3[id]');
+  const tocLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+  if (!headings.length || !tocLinks.length) return;
+
+  function update() {
+    let current = '';
+    for (const h of headings) {
+      if (h.getBoundingClientRect().top <= 100) current = h.id;
+    }
+    tocLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

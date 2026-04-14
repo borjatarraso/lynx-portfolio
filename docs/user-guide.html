@@ -1,13 +1,315 @@
-<h1>User Guide</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Guide — Lynx Portfolio</title>
+<style>
+/* ── Reset & base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d1117;
+  --bg-sidebar:  #0a0e14;
+  --bg-card:     #131920;
+  --bg-code:     #1a2230;
+  --border:      #1e2a38;
+  --fg:          #c9d1d9;
+  --fg-dim:      #7a8595;
+  --fg-heading:  #e6edf3;
+  --accent:      #58a6ff;
+  --accent-dim:  #2d6cb4;
+  --green:       #3fb950;
+  --yellow:      #d29922;
+  --red:         #f85149;
+  --purple:      #bc8cff;
+  --sidebar-w:   260px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 100;
+}
+.topbar .logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.topbar .logo span {
+  color: var(--fg-dim);
+  font-weight: 400;
+  font-size: 13px;
+  margin-left: 10px;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 0;
+  z-index: 90;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.sidebar .nav-section {
+  padding: 0 16px;
+  margin-bottom: 18px;
+}
+.sidebar .nav-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--fg-dim);
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+.sidebar a {
+  display: block;
+  padding: 5px 8px 5px 12px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar a:hover {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent);
+}
+.sidebar a.active {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sidebar a.toc-h3 {
+  padding-left: 28px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.sidebar a.toc-h3:hover {
+  color: var(--accent);
+}
+
+/* ── Main content ──────────────────────────────────────────────── */
+.content {
+  margin-left: var(--sidebar-w);
+  margin-top: 52px;
+  padding: 36px 48px 80px;
+  max-width: 900px;
+}
+
+/* ── Typography ────────────────────────────────────────────────── */
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--fg-heading);
+  margin-bottom: 8px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent-dim);
+}
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 48px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--purple);
+  margin-top: 32px;
+  margin-bottom: 10px;
+}
+h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--yellow);
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 14px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+strong { color: var(--fg-heading); }
+
+/* ── Lists ─────────────────────────────────────────────────────── */
+ul, ol {
+  margin: 0 0 16px 24px;
+}
+li {
+  margin-bottom: 4px;
+}
+li > ul, li > ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* ── Code ──────────────────────────────────────────────────────── */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-code);
+  color: var(--green);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+  line-height: 1.5;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+/* ── Tables ────────────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+thead {
+  background: var(--bg-card);
+}
+th {
+  text-align: left;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+tr:hover {
+  background: rgba(88, 166, 255, 0.04);
+}
+
+/* ── Blockquote ────────────────────────────────────────────────── */
+blockquote {
+  border-left: 3px solid var(--accent-dim);
+  margin: 16px 0;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border-radius: 0 8px 8px 0;
+  color: var(--fg-dim);
+}
+
+/* ── Horizontal rule ───────────────────────────────────────────── */
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 32px 0;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .sidebar { display: none; }
+  .content { margin-left: 0; padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">LYNX <span>Portfolio Documentation</span></div>
+</div>
+
+<nav class="sidebar">
+  <div class="nav-section">
+    <div class="nav-section-title">Documentation</div>
+        <a href="README.html">Overview</a>
+    <a href="user-guide.html" class="active">User Guide</a>
+    <a href="api-reference.html">API Reference</a>
+    <a href="architecture.html">Architecture</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">On this page</div>
+        <a href="#configuration" class="">Configuration</a>
+    <a href="#first-run-and-setup" class="">First Run and Setup</a>
+    <a href="#production-vs-development-mode" class="">Production vs Development mode</a>
+    <a href="#console-mode-c" class="">Console mode (-c)</a>
+    <a href="#subcommands" class="toc-h3">Subcommands</a>
+    <a href="#examples" class="toc-h3">Examples</a>
+    <a href="#interactive-repl-default" class="">Interactive REPL (default)</a>
+    <a href="#available-commands" class="toc-h3">Available commands</a>
+    <a href="#full-screen-tui-tui" class="">Full-screen TUI (-tui)</a>
+    <a href="#keybindings" class="toc-h3">Keybindings</a>
+    <a href="#theme-cycling" class="toc-h3">Theme cycling</a>
+    <a href="#rest-api-api" class="">REST API (--api)</a>
+    <a href="#json-import-format" class="">JSON import format</a>
+    <a href="#first-time-setup-wizard-w" class="">First-time Setup Wizard (-w)</a>
+    <a href="#database-encryption-vault" class="">Database Encryption (Vault)</a>
+    <a href="#enable-encryption" class="toc-h3">Enable encryption</a>
+    <a href="#using-an-encrypted-database" class="toc-h3">Using an encrypted database</a>
+    <a href="#disable-encryption" class="toc-h3">Disable encryption</a>
+    <a href="#signal-safety" class="toc-h3">Signal safety</a>
+    <a href="#backup-and-restore" class="">Backup and Restore</a>
+    <a href="#restore-from-backup" class="toc-h3">Restore from backup</a>
+    <a href="#cache-management" class="">Cache management</a>
+    <a href="#forex-conversion" class="">Forex conversion</a>
+    <a href="#tips" class="">Tips</a>
+  </div>
+</nav>
+
+<main class="content">
+<h1 id="user-guide">User Guide</h1>
 <p>This guide covers day-to-day usage of Lynx Portfolio across all four
 interfaces.</p>
-<h2>Configuration</h2>
+<h2 id="configuration">Configuration</h2>
 <p>Run the configuration wizard to set your database directory:</p>
 <pre><code class="language-bash">lynx-portfolio --configure
 </code></pre>
 <p>The resulting config is stored at <code>~/.config/lynx/config.json</code>. It contains the
 path where Lynx will create and look for its SQLite database files.</p>
-<h2>First Run and Setup</h2>
+<h2 id="first-run-and-setup">First Run and Setup</h2>
 <p>On the very first run (no database configured), Lynx automatically launches the
 <strong>setup wizard</strong>. The wizard walks you through choosing a database directory,
 optionally enabling encryption, and adding your first instrument.</p>
@@ -16,16 +318,16 @@ Lynx enters the interactive REPL. On subsequent runs, Lynx opens the existing
 database directly — no wizard.</p>
 <p>If you quit with an empty portfolio, Lynx reminds you that you can re-run the
 wizard at any time with <code>lynx-portfolio -w</code>.</p>
-<h2>Production vs Development mode</h2>
+<h2 id="production-vs-development-mode">Production vs Development mode</h2>
 <p>By default Lynx runs in <strong>production mode</strong>, using the persistent database. If
 no database is configured yet, the setup wizard runs automatically.</p>
 <p>Use <code>--devel</code> to experiment with a temporary database:</p>
 <pre><code class="language-bash">lynx-portfolio --devel                # temporary DB, nothing persisted
 lynx-portfolio --production -c list   # explicitly force production mode
 </code></pre>
-<h2>Console mode (<code>-c</code>)</h2>
+<h2 id="console-mode-c">Console mode (<code>-c</code>)</h2>
 <p>Best for scripting, cron jobs, and quick one-liners.</p>
-<h3>Subcommands</h3>
+<h3 id="subcommands">Subcommands</h3>
 <table>
 <thead>
 <tr>
@@ -82,7 +384,7 @@ lynx-portfolio --production -c list   # explicitly force production mode
 </tr>
 </tbody>
 </table>
-<h3>Examples</h3>
+<h3 id="examples">Examples</h3>
 <pre><code class="language-bash"># Add a position without cost tracking (avg_purchase_price omitted)
 lynx-portfolio -c add MSFT 5
 
@@ -95,12 +397,12 @@ lynx-portfolio -c update MSFT --shares 10
 # Refresh all cached data
 lynx-portfolio -rc
 </code></pre>
-<h2>Interactive REPL (default)</h2>
+<h2 id="interactive-repl-default">Interactive REPL (default)</h2>
 <p>Launch with:</p>
 <pre><code class="language-bash">lynx-portfolio
 </code></pre>
 <p>You get a prompt where you can type commands interactively.</p>
-<h3>Available commands</h3>
+<h3 id="available-commands">Available commands</h3>
 <table>
 <thead>
 <tr>
@@ -172,13 +474,13 @@ lynx-portfolio -rc
 </tr>
 </tbody>
 </table>
-<h2>Full-screen TUI (<code>-tui</code>)</h2>
+<h2 id="full-screen-tui-tui">Full-screen TUI (<code>-tui</code>)</h2>
 <p>Launch with:</p>
 <pre><code class="language-bash">lynx-portfolio -tui
 </code></pre>
 <p>The TUI displays your portfolio in a table with live data. Navigate with the
 keyboard.</p>
-<h3>Keybindings</h3>
+<h3 id="keybindings">Keybindings</h3>
 <table>
 <thead>
 <tr>
@@ -233,10 +535,10 @@ keyboard.</p>
 </tr>
 </tbody>
 </table>
-<h3>Theme cycling</h3>
+<h3 id="theme-cycling">Theme cycling</h3>
 <p>Press <code>t</code> in the TUI to cycle through available color themes. The current theme
 is applied immediately.</p>
-<h2>REST API (<code>--api</code>)</h2>
+<h2 id="rest-api-api">REST API (<code>--api</code>)</h2>
 <p>Start the API server (Flask, default port 5000):</p>
 <pre><code class="language-bash">lynx-portfolio --api
 </code></pre>
@@ -246,7 +548,7 @@ is applied immediately.</p>
 <pre><code class="language-bash">curl http://localhost:5000/api/health
 # {&quot;status&quot;: &quot;ok&quot;, &quot;timestamp&quot;: &quot;2026-04-12T10:00:00Z&quot;}
 </code></pre>
-<h2>JSON import format</h2>
+<h2 id="json-import-format">JSON import format</h2>
 <p>The <code>import</code> command (available in all interfaces) expects a JSON file with an
 array of position objects:</p>
 <pre><code class="language-json">[
@@ -301,7 +603,7 @@ array of position objects:</p>
 </tbody>
 </table>
 <p>Positions without <code>avg_price</code> will display "Not tracked" for P&amp;L fields.</p>
-<h2>First-time Setup Wizard (<code>-w</code>)</h2>
+<h2 id="first-time-setup-wizard-w">First-time Setup Wizard (<code>-w</code>)</h2>
 <p>Run the wizard for a guided first-time setup:</p>
 <pre><code class="language-bash">lynx-portfolio -w
 </code></pre>
@@ -313,10 +615,10 @@ array of position objects:</p>
 <li><strong>Encryption</strong> — Optionally encrypt the database with a password vault.</li>
 <li><strong>First instrument</strong> — Add your first stock or ETF right away.</li>
 </ol>
-<h2>Database Encryption (Vault)</h2>
+<h2 id="database-encryption-vault">Database Encryption (Vault)</h2>
 <p>Lynx can encrypt your portfolio database with a password to protect your
 investment data.</p>
-<h3>Enable encryption</h3>
+<h3 id="enable-encryption">Enable encryption</h3>
 <pre><code class="language-bash">lynx-portfolio --production --encrypt
 # or
 lynx-portfolio --production -en
@@ -325,7 +627,7 @@ lynx-portfolio --production -en
 While typing, press <code>*</code> to toggle between showing and hiding the password.</p>
 <p>The plain database is encrypted into <code>portfolio.db.enc</code> + <code>portfolio.db.salt</code>
 and the unencrypted file is removed.</p>
-<h3>Using an encrypted database</h3>
+<h3 id="using-an-encrypted-database">Using an encrypted database</h3>
 <p>On subsequent runs Lynx auto-detects the encrypted vault and prompts for the
 password:</p>
 <pre><code class="language-bash">lynx-portfolio --production -i        # prompts for password automatically
@@ -336,7 +638,7 @@ lynx-portfolio --production -x        # same
 <pre><code class="language-bash">lynx-portfolio --production -d &quot;mypassword&quot; -c list
 lynx-portfolio --production --decrypt &quot;mypassword&quot; -c show --ticker AAPL
 </code></pre>
-<h3>Disable encryption</h3>
+<h3 id="disable-encryption">Disable encryption</h3>
 <p>To permanently remove encryption and return to a plain database:</p>
 <pre><code class="language-bash">lynx-portfolio --production --disable-encryption
 # or
@@ -344,21 +646,21 @@ lynx-portfolio --production -de
 </code></pre>
 <p>You will be asked for the current password. The vault files are removed and
 the plain database is restored.</p>
-<h3>Signal safety</h3>
+<h3 id="signal-safety">Signal safety</h3>
 <p>When the vault is open, Lynx installs signal handlers for <code>SIGINT</code> (Ctrl+C),
 <code>SIGTERM</code>, and <code>SIGHUP</code>. If the process is interrupted, the vault is
 re-encrypted and the temporary working file is securely deleted before exit.</p>
-<h2>Backup and Restore</h2>
+<h2 id="backup-and-restore">Backup and Restore</h2>
 <p>Lynx automatically creates a backup (<code>.bak</code>) of the database each time it is
 opened. For encrypted databases the backup covers the <code>.enc</code> and <code>.salt</code> files.</p>
-<h3>Restore from backup</h3>
+<h3 id="restore-from-backup">Restore from backup</h3>
 <pre><code class="language-bash">lynx-portfolio --production --restore
 # or
 lynx-portfolio --production -r
 </code></pre>
 <p>Lynx detects whether the backup is for a plain or encrypted database and
 restores accordingly.</p>
-<h2>Cache management</h2>
+<h2 id="cache-management">Cache management</h2>
 <p>Lynx caches instrument metadata in the SQLite database to avoid redundant API
 calls.</p>
 <table>
@@ -401,7 +703,7 @@ calls.</p>
 </table>
 <p>The <code>-arc</code> flag sets an automatic refresh interval in seconds. For example,
 <code>-arc=3600</code> refreshes the cache every hour.</p>
-<h2>Forex conversion</h2>
+<h2 id="forex-conversion">Forex conversion</h2>
 <p>Lynx fetches EUR exchange rates once per session via yfinance. All monetary
 values (market value, P&amp;L) are shown in both the instrument's native currency
 and EUR. The rates are cached in memory for the duration of the session -- no
@@ -409,7 +711,7 @@ repeated network calls.</p>
 <p>You can inspect the current rates through the API:</p>
 <pre><code class="language-bash">curl http://localhost:5000/api/forex/rates
 </code></pre>
-<h2>Tips</h2>
+<h2 id="tips">Tips</h2>
 <ul>
 <li>On first run, the setup wizard launches automatically. After that, just
   run <code>lynx-portfolio</code> to start the interactive REPL.</li>
@@ -422,3 +724,27 @@ repeated network calls.</p>
   <code>bash
   lynx -c update AAPL --price 185.50</code></li>
 </ul>
+</main>
+
+<script>
+// Highlight active sidebar link on scroll
+(function() {
+  const headings = document.querySelectorAll('h2[id], h3[id]');
+  const tocLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+  if (!headings.length || !tocLinks.length) return;
+
+  function update() {
+    let current = '';
+    for (const h of headings) {
+      if (h.getBoundingClientRect().top <= 100) current = h.id;
+    }
+    tocLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

@@ -1,12 +1,315 @@
-<h1>API Reference</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Reference — Lynx Portfolio</title>
+<style>
+/* ── Reset & base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d1117;
+  --bg-sidebar:  #0a0e14;
+  --bg-card:     #131920;
+  --bg-code:     #1a2230;
+  --border:      #1e2a38;
+  --fg:          #c9d1d9;
+  --fg-dim:      #7a8595;
+  --fg-heading:  #e6edf3;
+  --accent:      #58a6ff;
+  --accent-dim:  #2d6cb4;
+  --green:       #3fb950;
+  --yellow:      #d29922;
+  --red:         #f85149;
+  --purple:      #bc8cff;
+  --sidebar-w:   260px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 100;
+}
+.topbar .logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.topbar .logo span {
+  color: var(--fg-dim);
+  font-weight: 400;
+  font-size: 13px;
+  margin-left: 10px;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 0;
+  z-index: 90;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.sidebar .nav-section {
+  padding: 0 16px;
+  margin-bottom: 18px;
+}
+.sidebar .nav-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--fg-dim);
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+.sidebar a {
+  display: block;
+  padding: 5px 8px 5px 12px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar a:hover {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent);
+}
+.sidebar a.active {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sidebar a.toc-h3 {
+  padding-left: 28px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.sidebar a.toc-h3:hover {
+  color: var(--accent);
+}
+
+/* ── Main content ──────────────────────────────────────────────── */
+.content {
+  margin-left: var(--sidebar-w);
+  margin-top: 52px;
+  padding: 36px 48px 80px;
+  max-width: 900px;
+}
+
+/* ── Typography ────────────────────────────────────────────────── */
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--fg-heading);
+  margin-bottom: 8px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent-dim);
+}
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 48px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--purple);
+  margin-top: 32px;
+  margin-bottom: 10px;
+}
+h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--yellow);
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 14px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+strong { color: var(--fg-heading); }
+
+/* ── Lists ─────────────────────────────────────────────────────── */
+ul, ol {
+  margin: 0 0 16px 24px;
+}
+li {
+  margin-bottom: 4px;
+}
+li > ul, li > ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* ── Code ──────────────────────────────────────────────────────── */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-code);
+  color: var(--green);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+  line-height: 1.5;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+/* ── Tables ────────────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+thead {
+  background: var(--bg-card);
+}
+th {
+  text-align: left;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+tr:hover {
+  background: rgba(88, 166, 255, 0.04);
+}
+
+/* ── Blockquote ────────────────────────────────────────────────── */
+blockquote {
+  border-left: 3px solid var(--accent-dim);
+  margin: 16px 0;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border-radius: 0 8px 8px 0;
+  color: var(--fg-dim);
+}
+
+/* ── Horizontal rule ───────────────────────────────────────────── */
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 32px 0;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .sidebar { display: none; }
+  .content { margin-left: 0; padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">LYNX <span>Portfolio Documentation</span></div>
+</div>
+
+<nav class="sidebar">
+  <div class="nav-section">
+    <div class="nav-section-title">Documentation</div>
+        <a href="README.html">Overview</a>
+    <a href="user-guide.html">User Guide</a>
+    <a href="api-reference.html" class="active">API Reference</a>
+    <a href="architecture.html">Architecture</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">On this page</div>
+        <a href="#health-check" class="">Health check</a>
+    <a href="#get-apihealth" class="toc-h3">GET /api/health</a>
+    <a href="#version" class="">Version</a>
+    <a href="#get-apiversion" class="toc-h3">GET /api/version</a>
+    <a href="#list-portfolio" class="">List portfolio</a>
+    <a href="#get-apiportfolio" class="toc-h3">GET /api/portfolio</a>
+    <a href="#show-single-instrument" class="">Show single instrument</a>
+    <a href="#get-apiportfolioticker" class="toc-h3">GET /api/portfolio/&lt;ticker&gt;</a>
+    <a href="#add-position" class="">Add position</a>
+    <a href="#post-apiportfolio" class="toc-h3">POST /api/portfolio</a>
+    <a href="#update-position" class="">Update position</a>
+    <a href="#put-apiportfolioticker" class="toc-h3">PUT /api/portfolio/&lt;ticker&gt;</a>
+    <a href="#delete-position" class="">Delete position</a>
+    <a href="#delete-apiportfolioticker" class="toc-h3">DELETE /api/portfolio/&lt;ticker&gt;</a>
+    <a href="#refresh-single-instrument" class="">Refresh single instrument</a>
+    <a href="#post-apiportfoliotickerrefresh" class="toc-h3">POST /api/portfolio/&lt;ticker&gt;/refresh</a>
+    <a href="#refresh-all-instruments" class="">Refresh all instruments</a>
+    <a href="#post-apiportfoliorefresh" class="toc-h3">POST /api/portfolio/refresh</a>
+    <a href="#delete-entire-cache" class="">Delete entire cache</a>
+    <a href="#delete-apicache" class="toc-h3">DELETE /api/cache</a>
+    <a href="#delete-single-cache-entry" class="">Delete single cache entry</a>
+    <a href="#delete-apicacheticker" class="toc-h3">DELETE /api/cache/&lt;ticker&gt;</a>
+    <a href="#forex-rates" class="">Forex rates</a>
+    <a href="#get-apiforexrates" class="toc-h3">GET /api/forex/rates</a>
+    <a href="#error-responses" class="">Error responses</a>
+  </div>
+</nav>
+
+<main class="content">
+<h1 id="api-reference">API Reference</h1>
 <p>Lynx Portfolio exposes a REST API via Flask. Start the server with:</p>
 <pre><code class="language-bash">lynx --api
 # Listening on http://localhost:5000
 </code></pre>
 <p>All endpoints return JSON. Timestamps follow ISO 8601.</p>
 <hr />
-<h2>Health check</h2>
-<h3><code>GET /api/health</code></h3>
+<h2 id="health-check">Health check</h2>
+<h3 id="get-apihealth"><code>GET /api/health</code></h3>
 <p>Returns server health status.</p>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
@@ -18,8 +321,8 @@
 <pre><code class="language-bash">curl http://localhost:5000/api/health
 </code></pre>
 <hr />
-<h2>Version</h2>
-<h3><code>GET /api/version</code></h3>
+<h2 id="version">Version</h2>
+<h3 id="get-apiversion"><code>GET /api/version</code></h3>
 <p>Returns application name and version.</p>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
@@ -31,8 +334,8 @@
 <pre><code class="language-bash">curl http://localhost:5000/api/version
 </code></pre>
 <hr />
-<h2>List portfolio</h2>
-<h3><code>GET /api/portfolio</code></h3>
+<h2 id="list-portfolio">List portfolio</h2>
+<h3 id="get-apiportfolio"><code>GET /api/portfolio</code></h3>
 <p>Returns all positions enriched with live market data. Each instrument includes
 computed fields: <code>market_value</code>, <code>pnl</code>, <code>pnl_pct</code>, and their EUR equivalents.</p>
 <p><strong>Response</strong> <code>200 OK</code></p>
@@ -60,8 +363,8 @@ computed fields: <code>market_value</code>, <code>pnl</code>, <code>pnl_pct</cod
 <pre><code class="language-bash">curl http://localhost:5000/api/portfolio
 </code></pre>
 <hr />
-<h2>Show single instrument</h2>
-<h3><code>GET /api/portfolio/&lt;ticker&gt;</code></h3>
+<h2 id="show-single-instrument">Show single instrument</h2>
+<h3 id="get-apiportfolioticker"><code>GET /api/portfolio/&lt;ticker&gt;</code></h3>
 <p>Returns detail for a single position.</p>
 <p><strong>Path parameters</strong></p>
 <table>
@@ -86,8 +389,8 @@ computed fields: <code>market_value</code>, <code>pnl</code>, <code>pnl_pct</cod
 <pre><code class="language-bash">curl http://localhost:5000/api/portfolio/AAPL
 </code></pre>
 <hr />
-<h2>Add position</h2>
-<h3><code>POST /api/portfolio</code></h3>
+<h2 id="add-position">Add position</h2>
+<h3 id="post-apiportfolio"><code>POST /api/portfolio</code></h3>
 <p>Add a new instrument to the portfolio.</p>
 <p><strong>Request body</strong> (<code>application/json</code>)</p>
 <table>
@@ -152,8 +455,8 @@ curl -X POST http://localhost:5000/api/portfolio \
   -d '{&quot;ticker&quot;: &quot;MSFT&quot;, &quot;shares&quot;: 5}'
 </code></pre>
 <hr />
-<h2>Update position</h2>
-<h3><code>PUT /api/portfolio/&lt;ticker&gt;</code></h3>
+<h2 id="update-position">Update position</h2>
+<h3 id="put-apiportfolioticker"><code>PUT /api/portfolio/&lt;ticker&gt;</code></h3>
 <p>Update an existing position's share count or average purchase price.</p>
 <p><strong>Path parameters</strong></p>
 <table>
@@ -211,8 +514,8 @@ curl -X POST http://localhost:5000/api/portfolio \
   -d '{&quot;shares&quot;: 15, &quot;avg_purchase_price&quot;: 190.00}'
 </code></pre>
 <hr />
-<h2>Delete position</h2>
-<h3><code>DELETE /api/portfolio/&lt;ticker&gt;</code></h3>
+<h2 id="delete-position">Delete position</h2>
+<h3 id="delete-apiportfolioticker"><code>DELETE /api/portfolio/&lt;ticker&gt;</code></h3>
 <p>Remove a position from the portfolio.</p>
 <p><strong>Path parameters</strong></p>
 <table>
@@ -242,8 +545,8 @@ curl -X POST http://localhost:5000/api/portfolio \
 <pre><code class="language-bash">curl -X DELETE http://localhost:5000/api/portfolio/AAPL
 </code></pre>
 <hr />
-<h2>Refresh single instrument</h2>
-<h3><code>POST /api/portfolio/&lt;ticker&gt;/refresh</code></h3>
+<h2 id="refresh-single-instrument">Refresh single instrument</h2>
+<h3 id="post-apiportfoliotickerrefresh"><code>POST /api/portfolio/&lt;ticker&gt;/refresh</code></h3>
 <p>Re-fetch market data for a single instrument from Yahoo Finance.</p>
 <p><strong>Path parameters</strong></p>
 <table>
@@ -272,8 +575,8 @@ curl -X POST http://localhost:5000/api/portfolio \
 <pre><code class="language-bash">curl -X POST http://localhost:5000/api/portfolio/AAPL/refresh
 </code></pre>
 <hr />
-<h2>Refresh all instruments</h2>
-<h3><code>POST /api/portfolio/refresh</code></h3>
+<h2 id="refresh-all-instruments">Refresh all instruments</h2>
+<h3 id="post-apiportfoliorefresh"><code>POST /api/portfolio/refresh</code></h3>
 <p>Re-fetch market data for every instrument in the portfolio.</p>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
@@ -284,8 +587,8 @@ curl -X POST http://localhost:5000/api/portfolio \
 <pre><code class="language-bash">curl -X POST http://localhost:5000/api/portfolio/refresh
 </code></pre>
 <hr />
-<h2>Delete entire cache</h2>
-<h3><code>DELETE /api/cache</code></h3>
+<h2 id="delete-entire-cache">Delete entire cache</h2>
+<h3 id="delete-apicache"><code>DELETE /api/cache</code></h3>
 <p>Clear the entire instrument cache. Requires the <code>force=true</code> query parameter as
 a safety measure.</p>
 <p><strong>Query parameters</strong></p>
@@ -325,8 +628,8 @@ curl -X DELETE http://localhost:5000/api/cache
 curl -X DELETE &quot;http://localhost:5000/api/cache?force=true&quot;
 </code></pre>
 <hr />
-<h2>Delete single cache entry</h2>
-<h3><code>DELETE /api/cache/&lt;ticker&gt;</code></h3>
+<h2 id="delete-single-cache-entry">Delete single cache entry</h2>
+<h3 id="delete-apicacheticker"><code>DELETE /api/cache/&lt;ticker&gt;</code></h3>
 <p>Remove a single ticker from the instrument cache.</p>
 <p><strong>Path parameters</strong></p>
 <table>
@@ -355,8 +658,8 @@ curl -X DELETE &quot;http://localhost:5000/api/cache?force=true&quot;
 <pre><code class="language-bash">curl -X DELETE http://localhost:5000/api/cache/AAPL
 </code></pre>
 <hr />
-<h2>Forex rates</h2>
-<h3><code>GET /api/forex/rates</code></h3>
+<h2 id="forex-rates">Forex rates</h2>
+<h3 id="get-apiforexrates"><code>GET /api/forex/rates</code></h3>
 <p>Returns the EUR exchange rates used for the current session. Rates are fetched
 once from yfinance when the server starts and reused for all subsequent
 requests.</p>
@@ -375,7 +678,7 @@ requests.</p>
 <pre><code class="language-bash">curl http://localhost:5000/api/forex/rates
 </code></pre>
 <hr />
-<h2>Error responses</h2>
+<h2 id="error-responses">Error responses</h2>
 <p>All error responses follow a consistent shape:</p>
 <pre><code class="language-json">{
   &quot;error&quot;: &quot;Human-readable error message&quot;
@@ -412,3 +715,27 @@ requests.</p>
 </tr>
 </tbody>
 </table>
+</main>
+
+<script>
+// Highlight active sidebar link on scroll
+(function() {
+  const headings = document.querySelectorAll('h2[id], h3[id]');
+  const tocLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+  if (!headings.length || !tocLinks.length) return;
+
+  function update() {
+    let current = '';
+    for (const h of headings) {
+      if (h.getBoundingClientRect().top <= 100) current = h.id;
+    }
+    tocLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>
