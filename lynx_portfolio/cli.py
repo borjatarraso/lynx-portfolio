@@ -520,16 +520,15 @@ def run() -> None:
         or getattr(args, "console", False)
     )
     if _no_mode and not args.configure and not args.wizard:
-        saved_mode = config.get_default_mode()
-        if saved_mode:
-            if saved_mode == "interactive":
-                args.interactive = True
-            elif saved_mode == "tui":
-                args.textual_ui = True
-            elif saved_mode == "gui":
-                args.gui = True
-            elif saved_mode == "console":
-                args.console = True
+        saved_mode = config.get_default_mode() or "interactive"
+        if saved_mode == "interactive":
+            args.interactive = True
+        elif saved_mode == "tui":
+            args.textual_ui = True
+        elif saved_mode == "gui":
+            args.gui = True
+        elif saved_mode == "console":
+            args.console = True
 
     # ── --wizard: run first-time setup and exit ─────────────────────────
     if args.wizard:
