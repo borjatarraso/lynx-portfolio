@@ -495,8 +495,10 @@ def run() -> None:
         run_console_egg()
         return
 
-    # ── --default-mode: save preference ─────────────────────────────────
-    if args.default_mode:
+    # ── --default-mode: save preference (skipped in devel mode) ─────────
+    if args.default_mode and args.devel_mode:
+        display.warn("--default-mode is ignored in --devel mode (not persisted).")
+    elif args.default_mode:
         config.set_default_mode(args.default_mode)
         from .config import VALID_MODES
         display.ok(

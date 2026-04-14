@@ -11,6 +11,46 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ---
 
+## [v0.5] — 2026-04-14
+
+### Added
+- **Graphical setup wizard**: first-run wizard now shows native tkinter dialogs
+  when using GUI mode (`-x`), with database location picker, default mode
+  selection, instrument form, and encryption setup.
+- **TUI search auto-fill**: search results in the TUI Add screen now
+  auto-populate ticker, ISIN, and exchange suffix when a result is selected.
+- **Project README.md**: comprehensive documentation for GitHub with
+  installation, quick start, interfaces, encryption, testing, and project
+  structure.
+- **BSD 3-Clause LICENSE file** at project root with full license text.
+- **About dialog** (GUI): custom dialog with author, clickable license URL,
+  and scrollable full license text.
+
+### Fixed
+- **First-run wizard not launching**: `_setup_default_mode()` now checks
+  that the database file actually exists on disk, not just that `db_path`
+  is set in config. A stale config with a deleted DB correctly triggers
+  the wizard.
+- **Wizard crash with encryption + first instrument**: reordered wizard
+  steps so encryption runs last (after adding instruments), preventing the
+  "database file not found" crash.
+- **Devel mode data isolation**: `--default-mode` no longer modifies
+  production config when `--devel` is active. All devel-mode operations
+  use an isolated temporary database.
+- **TUI animation black screen**: renamed internal `_animate` method to
+  avoid collision with Textual's `Widget._animate` BoundAnimator slot.
+- **TUI keybinding reliability**: added `priority=True` and `on_key()`
+  fallback for keybindings that were swallowed by focused widgets.
+- **GUI toolbar layout**: reorganised buttons into logical groups with
+  icons (Portfolio, Data, Import/Cache, About/Quit).
+
+### Changed
+- **License**: upgraded to BSD 3-Clause with full text in `__init__.py`,
+  `LICENSE` file, and GUI About dialog.
+- Version bumped to v0.5.
+
+---
+
 ## [v0.4] — 2026-04-14
 
 ### Changed
