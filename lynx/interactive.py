@@ -104,6 +104,17 @@ _HELP = """
 """
 
 
+def _show_empty_portfolio_hint() -> None:
+    """Show a hint when quitting with an empty portfolio."""
+    instruments = database.get_all_instruments()
+    if not instruments:
+        display.console.print(
+            "\n[yellow]Your portfolio is empty.[/yellow]  "
+            "You can re-run the setup wizard at any time with "
+            "[bold]lynx -w[/bold] or [bold]lynx --wizard[/bold].\n"
+        )
+
+
 def run() -> None:
     display.console.print(
         "\n[bold cyan]Lynx Portfolio Manager[/bold cyan]  —  Interactive Mode\n"
@@ -115,6 +126,7 @@ def run() -> None:
             raw = _read_command()
         except (KeyboardInterrupt, EOFError):
             display.console.print("\n[cyan]Goodbye![/cyan]")
+            _show_empty_portfolio_hint()
             break
 
         if not raw:
@@ -126,6 +138,7 @@ def run() -> None:
 
         if cmd in ("quit", "exit", "q"):
             display.console.print("[cyan]Goodbye![/cyan]")
+            _show_empty_portfolio_hint()
             break
 
         elif cmd == "help":

@@ -245,12 +245,14 @@ the position and shows its current market value, but all P&amp;L fields display
 "Not tracked". This is intentional: many users want to monitor holdings they
 acquired at unknown or irrelevant cost bases (gifts, transfers, long-held
 positions). Forcing a price would produce misleading P&amp;L numbers.</p>
-<h3>Automatic mode selection</h3>
-<p>When a database directory is configured (<code>lynx --configure</code>), Lynx
-automatically uses the persistent database (production mode). If no
-directory is configured, it falls back to development mode with a
-temporary database. The <code>--devel</code> and <code>--production</code> flags allow
-explicit override.</p>
+<h3>First-run wizard and production default</h3>
+<p>The default run mode is production. On the very first run (no config file
+exists), Lynx auto-launches the setup wizard which creates the database
+directory and file. Even if the user skips adding instruments, the empty
+database file is created so subsequent runs detect the configured state.
+The <code>--devel</code> flag explicitly uses a temporary database; <code>--production</code>
+is available for scripting but is rarely needed since production is the
+default.</p>
 <h3>WAL mode for SQLite</h3>
 <p>WAL (Write-Ahead Logging) is enabled on every database connection. It allows
 concurrent readers without blocking writes, which matters when the API server

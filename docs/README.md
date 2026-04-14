@@ -55,16 +55,17 @@ lynx -c add AAPL 10 --price 185.50
 lynx -c list
 ```
 
-Lynx automatically uses the persistent database if configured. For testing,
-use `--devel` to get a temporary database.
+On the first run, the setup wizard launches automatically to configure your
+database directory. After that, `lynx` opens the persistent database directly.
+Use `--devel` for a temporary database during testing.
 
 ## Running modes
 
 | Flag               | Database                                     | Use case               |
 |--------------------|----------------------------------------------|------------------------|
-| *(default)*        | Persistent if configured, temporary otherwise | Normal usage           |
+| *(default)*        | Persistent (wizard on first run)             | Normal usage           |
 | `--devel`          | Temporary                                    | Testing and exploration|
-| `--production`     | Persistent                                   | Explicit production    |
+| `--production`     | Persistent (explicit)                        | Scripting              |
 
 ## Interfaces at a glance
 

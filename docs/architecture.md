@@ -133,13 +133,15 @@ the position and shows its current market value, but all P&L fields display
 acquired at unknown or irrelevant cost bases (gifts, transfers, long-held
 positions). Forcing a price would produce misleading P&L numbers.
 
-### Automatic mode selection
+### First-run wizard and production default
 
-When a database directory is configured (`lynx --configure`), Lynx
-automatically uses the persistent database (production mode). If no
-directory is configured, it falls back to development mode with a
-temporary database. The `--devel` and `--production` flags allow
-explicit override.
+The default run mode is production. On the very first run (no config file
+exists), Lynx auto-launches the setup wizard which creates the database
+directory and file. Even if the user skips adding instruments, the empty
+database file is created so subsequent runs detect the configured state.
+The `--devel` flag explicitly uses a temporary database; `--production`
+is available for scripting but is rarely needed since production is the
+default.
 
 ### WAL mode for SQLite
 

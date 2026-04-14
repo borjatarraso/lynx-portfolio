@@ -14,17 +14,29 @@ lynx --configure
 The resulting config is stored at `~/.config/lynx/config.json`. It contains the
 path where Lynx will create and look for its SQLite database files.
 
-## Development vs Production mode
+## First Run and Setup
 
-When a database directory has been configured (`lynx --configure`), Lynx
-automatically uses it in **production mode**. If no directory is configured,
-it falls back to **development mode** with a temporary database.
+On the very first run (no database configured), Lynx automatically launches the
+**setup wizard**. The wizard walks you through choosing a database directory,
+optionally enabling encryption, and adding your first instrument.
 
-You can force a mode explicitly:
+After the wizard completes, the database file is created (even if empty) and
+Lynx enters the interactive REPL. On subsequent runs, Lynx opens the existing
+database directly — no wizard.
+
+If you quit with an empty portfolio, Lynx reminds you that you can re-run the
+wizard at any time with `lynx -w`.
+
+## Production vs Development mode
+
+By default Lynx runs in **production mode**, using the persistent database. If
+no database is configured yet, the setup wizard runs automatically.
+
+Use `--devel` to experiment with a temporary database:
 
 ```bash
 lynx --devel                # temporary DB, nothing persisted
-lynx --production -c list   # persistent DB, console mode
+lynx --production -c list   # explicitly force production mode
 ```
 
 ## Console mode (`-c`)
@@ -292,12 +304,13 @@ curl http://localhost:5000/api/forex/rates
 
 ## Tips
 
-- Use `--devel` while learning the tool. Once configured, Lynx automatically
-  uses the persistent database.
+- On first run, the setup wizard launches automatically. After that, just
+  run `lynx` to start the interactive REPL.
+- Use `--devel` while learning the tool — it creates a temporary database.
 - The `-v` flag enables verbose output, useful for debugging data-fetch issues.
-- Combine `--import` with `--production` to bulk-load your real portfolio:
+- Bulk-load your portfolio from JSON:
   ```bash
-  lynx --production --import portfolio.json
+  lynx --import portfolio.json
   ```
 - Positions added without a price can be updated later:
   ```bash

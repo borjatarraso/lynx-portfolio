@@ -7,13 +7,21 @@ interfaces.</p>
 </code></pre>
 <p>The resulting config is stored at <code>~/.config/lynx/config.json</code>. It contains the
 path where Lynx will create and look for its SQLite database files.</p>
-<h2>Development vs Production mode</h2>
-<p>When a database directory has been configured (<code>lynx --configure</code>), Lynx
-automatically uses it in <strong>production mode</strong>. If no directory is configured,
-it falls back to <strong>development mode</strong> with a temporary database.</p>
-<p>You can force a mode explicitly:</p>
+<h2>First Run and Setup</h2>
+<p>On the very first run (no database configured), Lynx automatically launches the
+<strong>setup wizard</strong>. The wizard walks you through choosing a database directory,
+optionally enabling encryption, and adding your first instrument.</p>
+<p>After the wizard completes, the database file is created (even if empty) and
+Lynx enters the interactive REPL. On subsequent runs, Lynx opens the existing
+database directly — no wizard.</p>
+<p>If you quit with an empty portfolio, Lynx reminds you that you can re-run the
+wizard at any time with <code>lynx -w</code>.</p>
+<h2>Production vs Development mode</h2>
+<p>By default Lynx runs in <strong>production mode</strong>, using the persistent database. If
+no database is configured yet, the setup wizard runs automatically.</p>
+<p>Use <code>--devel</code> to experiment with a temporary database:</p>
 <pre><code class="language-bash">lynx --devel                # temporary DB, nothing persisted
-lynx --production -c list   # persistent DB, console mode
+lynx --production -c list   # explicitly force production mode
 </code></pre>
 <h2>Console mode (<code>-c</code>)</h2>
 <p>Best for scripting, cron jobs, and quick one-liners.</p>
@@ -403,12 +411,13 @@ repeated network calls.</p>
 </code></pre>
 <h2>Tips</h2>
 <ul>
-<li>Use <code>--devel</code> while learning the tool. Once configured, Lynx automatically
-  uses the persistent database.</li>
+<li>On first run, the setup wizard launches automatically. After that, just
+  run <code>lynx</code> to start the interactive REPL.</li>
+<li>Use <code>--devel</code> while learning the tool — it creates a temporary database.</li>
 <li>The <code>-v</code> flag enables verbose output, useful for debugging data-fetch issues.</li>
-<li>Combine <code>--import</code> with <code>--production</code> to bulk-load your real portfolio:
+<li>Bulk-load your portfolio from JSON:
   <code>bash
-  lynx --production --import portfolio.json</code></li>
+  lynx --import portfolio.json</code></li>
 <li>Positions added without a price can be updated later:
   <code>bash
   lynx -c update AAPL --price 185.50</code></li>

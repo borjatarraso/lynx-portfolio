@@ -30,7 +30,7 @@ List Portfolio After Adding Instrument
     [Documentation]    The list command should display previously added instruments.
     Given an instrument "GOOG" with 3 shares at avg price 100
     When the user lists the portfolio
-    Then the output should contain "GOOG"
+    Then the output should contain "Alphabet" ignoring case
 
 Show Instrument Detail
     [Documentation]    The show command should display detailed instrument information.

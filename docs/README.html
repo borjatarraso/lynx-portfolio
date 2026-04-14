@@ -67,8 +67,9 @@ lynx -c add AAPL 10 --price 185.50
 # 3. List your portfolio
 lynx -c list
 </code></pre>
-<p>Lynx automatically uses the persistent database if configured. For testing,
-use <code>--devel</code> to get a temporary database.</p>
+<p>On the first run, the setup wizard launches automatically to configure your
+database directory. After that, <code>lynx</code> opens the persistent database directly.
+Use <code>--devel</code> for a temporary database during testing.</p>
 <h2>Running modes</h2>
 <table>
 <thead>
@@ -81,7 +82,7 @@ use <code>--devel</code> to get a temporary database.</p>
 <tbody>
 <tr>
 <td><em>(default)</em></td>
-<td>Persistent if configured, temporary otherwise</td>
+<td>Persistent (wizard on first run)</td>
 <td>Normal usage</td>
 </tr>
 <tr>
@@ -91,8 +92,8 @@ use <code>--devel</code> to get a temporary database.</p>
 </tr>
 <tr>
 <td><code>--production</code></td>
-<td>Persistent</td>
-<td>Explicit production</td>
+<td>Persistent (explicit)</td>
+<td>Scripting</td>
 </tr>
 </tbody>
 </table>

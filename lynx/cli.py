@@ -89,7 +89,8 @@ def _setup_production_mode() -> bool:
     if not db_path:
         display.err(
             "No database path configured.\n"
-            "  Run [bold]lynx --configure[/bold] first to set up your data directory."
+            "  Run [bold]lynx -w[/bold] (setup wizard) or "
+            "[bold]lynx --configure[/bold] first."
         )
         return False
 
@@ -101,10 +102,11 @@ def _setup_production_mode() -> bool:
     return True
 
 
-def _setup_default_mode() -> bool:
+def _setup_default_mode() -> str:
     """
-    Set up the default run mode: production if configured, devel otherwise.
-    Returns True on success.
+    Set up the default run mode: production if configured.
+    Returns "production" if a configured DB path exists, "first_run" if not
+    (caller should launch the wizard).
     """
     db_path = config.get_db_path()
     if db_path:
@@ -113,10 +115,9 @@ def _setup_default_mode() -> bool:
             "[bold green]✔  PRODUCTION MODE[/bold green]  —  "
             f"using persistent database at [cyan]{db_path}[/cyan]"
         )
-        return True
+        return "production"
     else:
-        _setup_devel_mode()
-        return True
+        return "first_run"
 
 
 # ---------------------------------------------------------------------------
@@ -251,9 +252,9 @@ configuration:
   config file location:      $XDG_CONFIG_HOME/lynx/config.json
                              (default: ~/.config/lynx/config.json)
 
-run modes (default: production if configured, devel otherwise):
+run modes (default: production — wizard runs automatically on first use):
   --devel                    fresh empty DB every run, nothing persisted
-  --production               use the configured persistent database
+  --production               use the configured persistent database (explicit)
 
 json import format (for 'import --file'):
   [
@@ -271,32 +272,31 @@ interface modes (default: interactive REPL):
   -x,  --gui             graphical interface (tkinter window)
 
 vault / encryption:
-  lynx --production --encrypt             encrypt the database (asks password 3x)
-  lynx --production                       auto-detects encrypted DB and prompts
-  lynx --production -d "pass" -c list     decrypt inline (console mode)
-  lynx --production --disable-encryption  remove encryption permanently
-  lynx --production --restore             restore from most recent backup
+  lynx --encrypt                          encrypt the database (asks password 3x)
+  lynx                                    auto-detects encrypted DB and prompts
+  lynx -d "pass" -c list                  decrypt inline (console mode)
+  lynx --disable-encryption               remove encryption permanently
+  lynx --restore                          restore from most recent backup
   lynx -w                                 first-time setup wizard
 
 examples:
-  lynx --configure
-  lynx --production -tui
-  lynx --production -x
-  lynx --production
-  lynx --production -c add --ticker NESN.SW --shares 50 --avg-price 110
-  lynx --production -c add --isin CH0038863350 --shares 50 --avg-price 110
-  lynx --production -c add --isin IE00B4L5Y983 -s 15 -p 70 --exchange AS
-  lynx --production --import portfolio.json
-  lynx --production --import portfolio.json --exchange DE
-  lynx --production -c import --file portfolio.json
-  lynx --production -c list
-  lynx --production -c show --ticker NESN.SW
-  lynx --production -c update --ticker AAPL --shares 15
-  lynx --production -c delete --ticker AAPL
-  lynx --production -c refresh
-  lynx --production -rc
-  lynx --production -dc
-  lynx --production -arc=300
+  lynx                                    start interactive REPL (default)
+  lynx -tui                               start full-screen TUI
+  lynx -x                                 start graphical interface
+  lynx -c add --ticker NESN.SW --shares 50 --avg-price 110
+  lynx -c add --isin CH0038863350 --shares 50 --avg-price 110
+  lynx -c add --isin IE00B4L5Y983 -s 15 -p 70 --exchange AS
+  lynx --import portfolio.json
+  lynx --import portfolio.json --exchange DE
+  lynx -c import --file portfolio.json
+  lynx -c list
+  lynx -c show --ticker NESN.SW
+  lynx -c update --ticker AAPL --shares 15
+  lynx -c delete --ticker AAPL
+  lynx -c refresh
+  lynx -rc
+  lynx -dc
+  lynx -arc=300
 """,
     )
 
@@ -542,6 +542,7 @@ def run() -> None:
 
     # ── run-mode setup (must happen before init_db) ───────────────────────
     # LYNX_DB_PATH env-var override takes precedence (used by tests).
+    _wizard_just_ran = False
     if os.environ.get("LYNX_DB_PATH"):
         database.set_db_path(os.environ["LYNX_DB_PATH"])
     elif args.devel_mode:
@@ -550,8 +551,19 @@ def run() -> None:
         if not _setup_production_mode():
             return
     else:
-        # No explicit flag → production if configured, devel otherwise
-        _setup_default_mode()
+        # No explicit flag → production if configured, wizard if first run
+        result = _setup_default_mode()
+        if result == "first_run":
+            display.console.print(
+                "\n[bold cyan]Welcome to Lynx Portfolio![/bold cyan]\n"
+                "No database configured — launching the setup wizard.\n"
+            )
+            from .wizard import run_wizard
+            cfg = run_wizard(display.console)
+            if not cfg.get("db_path"):
+                return
+            database.set_db_path(cfg["db_path"])
+            _wizard_just_ran = True
 
     # ── vault / encryption operations ────────────────────────────────────
     from .vault import is_vault_present, VaultSession, prompt_password
@@ -560,10 +572,7 @@ def run() -> None:
 
     db_path = database.get_db_path()
     _is_env_db = bool(os.environ.get("LYNX_DB_PATH"))
-    _is_production_db = args.production_mode or (
-        not args.devel_mode and config.get_db_path() is not None
-    )
-    _requires_production = not _is_env_db and not _is_production_db
+    _requires_production = not _is_env_db and args.devel_mode
 
     # Validate mutually exclusive vault operations
     _vault_ops = sum([
@@ -578,7 +587,7 @@ def run() -> None:
     # --encrypt: set up encryption on existing plain DB
     if args.encrypt:
         if _requires_production:
-            display.err("--encrypt requires --production.")
+            display.err("--encrypt cannot be used with --devel.")
             return
         if is_vault_present(db_path):
             display.err("Database is already encrypted.")
@@ -599,7 +608,7 @@ def run() -> None:
     # --disable-encryption: remove encryption
     if args.disable_encryption:
         if _requires_production:
-            display.err("--disable-encryption requires --production.")
+            display.err("--disable-encryption cannot be used with --devel.")
             return
         if not is_vault_present(db_path):
             display.err("Database is not encrypted.")
@@ -621,7 +630,7 @@ def run() -> None:
     # --restore: restore from backup
     if args.restore:
         if _requires_production:
-            display.err("--restore requires --production.")
+            display.err("--restore cannot be used with --devel.")
             return
         if restore_backup(db_path):
             display.ok("Database restored from backup.")
@@ -631,7 +640,7 @@ def run() -> None:
 
     # Auto-detect encrypted DB and open vault session
     _vault_session = None
-    if is_vault_present(db_path):
+    if is_vault_present(db_path) and not _wizard_just_ran:
         # Determine the password
         if args.decrypt is not None:
             if isinstance(args.decrypt, str) and args.decrypt is not True:
