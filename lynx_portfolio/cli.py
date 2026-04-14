@@ -104,20 +104,27 @@ def _setup_production_mode() -> bool:
 
 def _setup_default_mode() -> str:
     """
-    Set up the default run mode: production if configured.
-    Returns "production" if a configured DB path exists, "first_run" if not
-    (caller should launch the wizard).
+    Set up the default run mode: production if configured and DB exists.
+    Returns "production" if a configured DB (or vault) exists, "first_run"
+    if not (caller should launch the wizard).
     """
     db_path = config.get_db_path()
-    if db_path:
-        database.set_db_path(db_path)
-        display.console.print(
-            "[bold green]✔  PRODUCTION MODE[/bold green]  —  "
-            f"using persistent database at [cyan]{db_path}[/cyan]"
-        )
-        return "production"
-    else:
+    if not db_path:
         return "first_run"
+
+    # Check if the actual database or vault files exist on disk
+    from .vault import is_vault_present
+    db_exists = os.path.isfile(db_path)
+    vault_exists = is_vault_present(db_path)
+    if not db_exists and not vault_exists:
+        return "first_run"
+
+    database.set_db_path(db_path)
+    display.console.print(
+        "[bold green]✔  PRODUCTION MODE[/bold green]  —  "
+        f"using persistent database at [cyan]{db_path}[/cyan]"
+    )
+    return "production"
 
 
 # ---------------------------------------------------------------------------

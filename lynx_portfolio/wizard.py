@@ -40,14 +40,14 @@ def run_wizard(console) -> Dict[str, Any]:
     database.set_db_path(db_path)
     database.init_db()
 
-    # ── Step 2: Encryption ───────────────────────────────────────────────
-    cfg = _step_encryption(console, cfg, db_path)
-
-    # ── Step 3: Default mode ─────────────────────────────────────────────
+    # ── Step 2: Default mode ─────────────────────────────────────────────
     cfg = _step_default_mode(console, cfg)
 
-    # ── Step 4: First instrument ─────────────────────────────────────────
+    # ── Step 3: First instrument ─────────────────────────────────────────
     _step_first_instrument(console)
+
+    # ── Step 4: Encryption (after instrument so DB is ready) ─────────────
+    cfg = _step_encryption(console, cfg, db_path)
 
     # ── Done ─────────────────────────────────────────────────────────────
     console.print(
@@ -122,8 +122,8 @@ def _step_db_location(console, cfg: Dict[str, Any]) -> Dict[str, Any]:
 def _step_encryption(
     console, cfg: Dict[str, Any], db_path: str,
 ) -> Dict[str, Any]:
-    """Step 2 — optionally encrypt the database."""
-    console.print("[bold]Step 2 · Encryption[/bold]\n")
+    """Step 4 — optionally encrypt the database."""
+    console.print("[bold]Step 4 · Encryption[/bold]\n")
     console.print(
         "  You can encrypt your portfolio database with a password.\n"
         "  [dim]This protects your investment data if the device is lost or shared.[/dim]\n"
@@ -155,8 +155,8 @@ def _step_encryption(
 def _step_default_mode(
     console, cfg: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Step 3 — choose the default interface mode."""
-    console.print("[bold]Step 3 · Default Interface Mode[/bold]\n")
+    """Step 2 — choose the default interface mode."""
+    console.print("[bold]Step 2 · Default Interface Mode[/bold]\n")
     console.print(
         "  Choose which interface launches by default when no mode flag is given.\n"
     )
@@ -189,8 +189,8 @@ def _step_default_mode(
 
 
 def _step_first_instrument(console) -> None:
-    """Step 4 — optionally add the first instrument."""
-    console.print("[bold]Step 4 · Add Your First Instrument[/bold]\n")
+    """Step 3 — optionally add the first instrument."""
+    console.print("[bold]Step 3 · Add Your First Instrument[/bold]\n")
 
     add_now = Confirm.ask(
         "  Would you like to add a stock or ETF now?", default=True,

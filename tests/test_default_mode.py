@@ -56,11 +56,15 @@ class TestSetupDefaultMode:
         assert result == "first_run"
 
     def test_returns_production_when_configured(self, db_path, tmpdir, monkeypatch):
-        """When config has a db_path, _setup_default_mode returns 'production'."""
+        """When config has a db_path and the DB file exists, returns 'production'."""
         # Create a config file with db_path set
         fake_config = os.path.join(tmpdir, "config.json")
         monkeypatch.setattr(config, "CONFIG_FILE", fake_config)
         monkeypatch.setattr(config, "CONFIG_DIR", tmpdir)
+
+        # The DB file must actually exist for production mode
+        database.set_db_path(db_path)
+        database.init_db()
 
         cfg = {"db_path": db_path}
         config.save_config(cfg)
@@ -69,6 +73,19 @@ class TestSetupDefaultMode:
         result = _setup_default_mode()
         assert result == "production"
         assert database.get_db_path() == db_path
+
+    def test_returns_first_run_when_db_missing(self, tmpdir, monkeypatch):
+        """When config has db_path but the file doesn't exist, returns 'first_run'."""
+        fake_config = os.path.join(tmpdir, "config.json")
+        monkeypatch.setattr(config, "CONFIG_FILE", fake_config)
+        monkeypatch.setattr(config, "CONFIG_DIR", tmpdir)
+
+        cfg = {"db_path": os.path.join(tmpdir, "nonexistent.db")}
+        config.save_config(cfg)
+
+        from lynx_portfolio.cli import _setup_default_mode
+        result = _setup_default_mode()
+        assert result == "first_run"
 
 
 # ---------------------------------------------------------------------------

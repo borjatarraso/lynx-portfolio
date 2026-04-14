@@ -1051,6 +1051,10 @@ class AddScreen(Screen):
                 yield Input(placeholder="Company or fund name", id="inp-search-name")
                 yield Button("Search", variant="primary", id="btn-search")
             yield Static("", id="search-results")
+            sel_input = Input(placeholder="Type result number (1-10) to select",
+                              id="inp-select", type="integer")
+            sel_input.display = False
+            yield sel_input
             yield Label("Ticker  [dim](e.g. AAPL, NESN.SW, VWCE.DE)[/dim]")
             yield Input(placeholder="Ticker (Enter to skip if using ISIN)", id="inp-ticker")
             yield Label("ISIN  [dim](optional)[/dim]")
@@ -1079,12 +1083,7 @@ class AddScreen(Screen):
         elif event.button.id and event.button.id.startswith("btn-pick-"):
             idx = int(event.button.id.split("-")[-1])
             if 0 <= idx < len(self._search_results):
-                chosen = self._search_results[idx]
-                self.query_one("#inp-ticker", Input).value = chosen["symbol"]
-                self.query_one("#search-results", Static).update(
-                    f"[green]Selected: {chosen['symbol']} — "
-                    f"{chosen.get('longname') or chosen.get('shortname', '')}[/green]"
-                )
+                self._fill_from_result(self._search_results[idx])
 
     @work(thread=True)
     def _do_search(self) -> None:
@@ -1112,7 +1111,7 @@ class AddScreen(Screen):
             )
             return
         lines = [f"[bold]Results for '{query}':[/bold]\n"]
-        for i, r in enumerate(results):
+        for i, r in enumerate(results[:10]):
             name = r.get("longname") or r.get("shortname", "")
             lines.append(
                 f"  [cyan]{i + 1:>2}[/cyan]  "
@@ -1120,17 +1119,57 @@ class AddScreen(Screen):
                 f"{name:<30}  "
                 f"[dim]{r['exchange_display']}  {r['quote_type']}[/dim]"
             )
-        lines.append("\n[dim]Click a result number or type the ticker below.[/dim]")
-        self.app.call_from_thread(
-            self.query_one("#search-results", Static).update,
-            "\n".join(lines),
-        )
-        # Auto-fill ticker with the top result
+        lines.append("\n[dim]Type a number (1-"
+                     + str(min(len(results), 10))
+                     + ") in the 'Select' field to pick a result.[/dim]")
+
+        def _show():
+            self.query_one("#search-results", Static).update("\n".join(lines))
+            # Show the selection input
+            try:
+                sel = self.query_one("#inp-select")
+                sel.display = True
+                sel.value = ""
+                sel.focus()
+            except Exception:
+                pass
+        self.app.call_from_thread(_show)
+
+        # Auto-fill top result
         if results:
-            self.app.call_from_thread(
-                setattr, self.query_one("#inp-ticker", Input), "value",
-                results[0]["symbol"],
-            )
+            top = results[0]
+            def _autofill():
+                self._fill_from_result(top)
+            self.app.call_from_thread(_autofill)
+
+    def _fill_from_result(self, chosen: dict) -> None:
+        """Auto-fill ticker, ISIN, and exchange from a search result."""
+        self.query_one("#inp-ticker", Input).value = chosen["symbol"]
+        isin = chosen.get("isin") or ""
+        if isin:
+            self.query_one("#inp-isin", Input).value = isin
+        sym = chosen["symbol"]
+        if "." in sym:
+            self.query_one("#inp-exchange", Input).value = sym.rsplit(".", 1)[1]
+        name = chosen.get("longname") or chosen.get("shortname", "")
+        self.query_one("#search-results", Static).update(
+            f"[green]Selected: {chosen['symbol']} — {name}[/green]"
+        )
+        # Hide the selection input
+        try:
+            self.query_one("#inp-select").display = False
+        except Exception:
+            pass
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "inp-select":
+            val = event.value.strip()
+            try:
+                idx = int(val) - 1
+            except (ValueError, TypeError):
+                return
+            if 0 <= idx < len(self._search_results):
+                self._fill_from_result(self._search_results[idx])
 
     def _do_add(self) -> None:
         ticker   = self.query_one("#inp-ticker", Input).value.strip()
