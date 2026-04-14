@@ -11,6 +11,25 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ---
 
+## [v1.0] — 2026-04-15
+
+First production-stable major release.
+
+### Added
+- **Logo display** across all interfaces: PNG logos in GUI (splash screen,
+  toolbar, About dialog) and green block-character ASCII art in terminal
+  modes (interactive, console, TUI About screen).
+- **Logo assets**: `img/` directory with 5 PNG variants (large, medium,
+  small, half, quarter) of the Lynx Portfolio shield logo.
+- `lynx_portfolio/logo.py` module with path helpers and pre-rendered
+  ASCII art constant.
+
+### Changed
+- First major release: all features, interfaces, encryption, validation,
+  and error handling are considered production-stable.
+
+---
+
 ## [v0.6] — 2026-04-14
 
 ### Added
