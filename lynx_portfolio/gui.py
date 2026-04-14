@@ -209,8 +209,9 @@ class _SplashScreen:
         self._root = root
         self._splash = tk.Toplevel(root)
         self._splash.overrideredirect(True)
+        self._images = []  # prevent GC
 
-        w, h = 440, 310
+        w, h = 440, 420
         sw = root.winfo_screenwidth()
         sh = root.winfo_screenheight()
         x = (sw - w) // 2
@@ -221,10 +222,24 @@ class _SplashScreen:
         frame = ttk.Frame(self._splash, style="Splash.TFrame", padding=30)
         frame.pack(fill="both", expand=True)
 
-        # Logo / brand
+        # Logo image
+        from .logo import logo_medium
+        logo_path = logo_medium()
+        if logo_path:
+            try:
+                logo_img = tk.PhotoImage(file=logo_path)
+                # Scale down to ~120px height
+                scale = max(1, logo_img.height() // 120)
+                logo_img = logo_img.subsample(scale, scale)
+                self._images.append(logo_img)
+                tk.Label(frame, image=logo_img, bg=_C["surface"]).pack(pady=(0, 8))
+            except Exception:
+                pass
+
+        # Brand text
         ttk.Label(frame, text="LYNX", style="Splash.TLabel",
                   font=("Segoe UI", 36, "bold"),
-                  foreground=_C["accent"]).pack(pady=(10, 0))
+                  foreground=_C["accent"]).pack(pady=(0, 0))
         ttk.Label(frame, text="PORTFOLIO", style="Splash.TLabel",
                   font=("Segoe UI", 14),
                   foreground=_C["fg_dim"]).pack()
@@ -418,10 +433,21 @@ class LynxGUI:
         toolbar = ttk.Frame(root, style="Toolbar.TFrame", padding=(8, 6))
         toolbar.pack(side="top", fill="x")
 
+        # Toolbar logo
+        from .logo import logo_quarter
+        logo_path = logo_quarter()
+        if logo_path:
+            try:
+                self._toolbar_logo = tk.PhotoImage(file=logo_path)
+                tk.Label(toolbar, image=self._toolbar_logo,
+                         bg=_C["surface2"]).pack(side="left", padx=(4, 6))
+            except Exception:
+                pass
+
         ttk.Label(toolbar, text="LYNX",
                   font=("Segoe UI", 15, "bold"),
                   foreground=_C["accent"],
-                  background=_C["surface2"]).pack(side="left", padx=(4, 2))
+                  background=_C["surface2"]).pack(side="left", padx=(0, 2))
         ttk.Label(toolbar, text="PORTFOLIO",
                   font=("Segoe UI", 10),
                   foreground=_C["fg_dim"],
@@ -1481,24 +1507,45 @@ class _AboutDialog(_BaseDialog):
     """Application About dialog with license text."""
 
     def __init__(self, parent: tk.Tk) -> None:
-        self._dlg = self._init_dialog(parent, f"About {APP_NAME}", 560, 520,
+        self._images = []  # prevent GC
+        self._dlg = self._init_dialog(parent, f"About {APP_NAME}", 560, 580,
                                       resizable=True, grab=True)
 
         outer = ttk.Frame(self._dlg, style="Card.TFrame", padding=24)
         outer.pack(fill="both", expand=True)
 
-        # ── Title ────────────────────────────────────────────────────────
-        ttk.Label(outer, text=APP_NAME,
+        # ── Logo + Title header ──────────────────────────────────────────
+        header = ttk.Frame(outer, style="Card.TFrame")
+        header.pack(fill="x", pady=(0, 8))
+
+        from .logo import logo_small
+        logo_path = logo_small()
+        if logo_path:
+            try:
+                logo_img = tk.PhotoImage(file=logo_path)
+                # Scale to ~64px height
+                scale = max(1, logo_img.height() // 64)
+                logo_img = logo_img.subsample(scale, scale)
+                self._images.append(logo_img)
+                tk.Label(header, image=logo_img,
+                         bg=_C["surface"]).pack(side="left", padx=(0, 16))
+            except Exception:
+                pass
+
+        title_frame = ttk.Frame(header, style="Card.TFrame")
+        title_frame.pack(side="left", fill="y")
+
+        ttk.Label(title_frame, text=APP_NAME,
                   font=("Segoe UI", 18, "bold"),
                   foreground=_C["accent"],
                   background=_C["surface"]).pack(anchor="w")
 
-        ttk.Label(outer, text=VERSION,
+        ttk.Label(title_frame, text=VERSION,
                   font=("Consolas", 11),
                   foreground=_C["fg_dim"],
                   background=_C["surface"]).pack(anchor="w", pady=(0, 4))
 
-        ttk.Label(outer, text="Part of the Lince Investor suite (LINCE)",
+        ttk.Label(title_frame, text="Part of the Lince Investor suite (LINCE)",
                   font=("Segoe UI", 10),
                   foreground=_C["fg"],
                   background=_C["surface"]).pack(anchor="w")

@@ -303,6 +303,26 @@ class ClearCacheScreen(ModalScreen[bool]):
 # About screen
 # ---------------------------------------------------------------------------
 
+_TUI_LOGO = """\
+[green]
+             ▒▒▒
+         ▒▒▒▒▓▓▒▒▒▒▒
+  ▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒
+▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓█▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒
+▒▒▓▓▓▓▓▒▒▒▓▓▒▓█▓██▒▒▓▓▓▓▓▓▓▓▓▓▒
+▒▓▓▒▒▒▓▓▓▒▒▓▓▒██▓█▒░░▒▓▓▓▓▓▓▒▓▒
+▒▒▓▒▓▓▒▒▓▓▒▒▓██▓▒▒░▒░░░▒▓▓▓▓▒▓▒
+▒▒▓▓▓▓▓▓▓▒▓▓▒░░░▒▓▒░░▓█▓░░▒▓▓▒▒
+ ▒▒▓▓▓▓▓▓▓███▓██░▒████▒▓█▒░░▒▓▒
+  ▒▓▓▒▓▓▓▓▓█████▓█▓░▒██░█░░▒▓▒
+   ▒▒▒▓▓▓▓▓▓▓▓▒▓██▓▒▓▓▓▒▒▒▓▒▒
+     ▒▒▓▓▓▒▒▓█▓▒▓██▓▒██▓▒▓▓▒
+       ▒▒▒▓▓▓▒▒▒▒▒░░░▒▒▒▓▓▓▒
+         ▒▒▒▓▓▓▓▓▓▓▓▓▓▓▒▒▒
+            ▒▒▒▒▓▒▒▒▒
+[/green]"""
+
+
 class AboutScreen(ModalScreen):
     """Display application information."""
 
@@ -313,6 +333,7 @@ class AboutScreen(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="confirm-dialog"):
+            yield Static(_TUI_LOGO)
             yield Label("\n".join(ABOUT_LINES))
             with Horizontal(classes="btn-row"):
                 yield Button("Close", variant="primary", id="btn-close")

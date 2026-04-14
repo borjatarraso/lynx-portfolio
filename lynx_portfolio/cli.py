@@ -946,6 +946,9 @@ def _dispatch_subcommand(args, parser, _needs_refresh, verbose) -> None:
             refresh_all()
 
     elif args.command == "about":
+        from .logo import LOGO_ASCII
+        sys.stdout.write(LOGO_ASCII)
+        sys.stdout.flush()
         for line in ABOUT_LINES:
             display.console.print(line)
 
