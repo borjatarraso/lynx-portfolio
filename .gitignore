@@ -39,3 +39,6 @@ Thumbs.db
 *.db.enc
 *.db.salt
 data/
+
+# Mobile app (separate project)
+mobile/
