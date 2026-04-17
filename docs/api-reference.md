@@ -3,11 +3,14 @@
 Lynx Portfolio exposes a REST API via Flask. Start the server with:
 
 ```bash
-lynx --api
+lynx-portfolio --api
 # Listening on http://localhost:5000
 ```
 
 All endpoints return JSON. Timestamps follow ISO 8601.
+
+All `<ticker>` path parameters are validated — invalid tickers (spaces,
+special characters, overlong strings) return `400 Bad Request`.
 
 ---
 
@@ -22,7 +25,7 @@ Returns server health status.
 ```json
 {
   "status": "ok",
-  "timestamp": "2026-04-12T10:30:00Z"
+  "timestamp": "2026-04-15T10:30:00+00:00"
 }
 ```
 
@@ -45,7 +48,7 @@ Returns application name and version.
 ```json
 {
   "name": "Lynx Portfolio",
-  "version": "v0.2"
+  "version": "v1.0"
 }
 ```
 
@@ -62,7 +65,8 @@ curl http://localhost:5000/api/version
 ### `GET /api/portfolio`
 
 Returns all positions enriched with live market data. Each instrument includes
-computed fields: `market_value`, `pnl`, `pnl_pct`, and their EUR equivalents.
+computed fields: `market_value`, `total_invested`, `pnl`, `pnl_pct`, and their
+EUR equivalents (`market_value_eur`, `pnl_eur`).
 
 **Response** `200 OK`
 
@@ -74,20 +78,21 @@ computed fields: `market_value`, `pnl`, `pnl_pct`, and their EUR equivalents.
     "avg_purchase_price": 185.50,
     "current_price": 195.20,
     "currency": "USD",
+    "name": "Apple Inc.",
+    "isin": "US0378331005",
+    "exchange_display": "NASDAQ",
     "market_value": 1952.00,
     "market_value_eur": 1790.10,
+    "total_invested": 1855.00,
     "pnl": 97.00,
     "pnl_pct": 5.23,
-    "pnl_eur": 88.95,
-    "isin": "US0378331005",
-    "exchange": "NMS",
-    "name": "Apple Inc."
+    "pnl_eur": 88.95
   }
 ]
 ```
 
-Positions without `avg_purchase_price` return `null` for `pnl`, `pnl_pct`, and
-`pnl_eur`.
+Positions without `avg_purchase_price` return `null` for `total_invested`,
+`pnl`, `pnl_pct`, and `pnl_eur`.
 
 **curl**
 
@@ -101,17 +106,19 @@ curl http://localhost:5000/api/portfolio
 
 ### `GET /api/portfolio/<ticker>`
 
-Returns detail for a single position.
+Returns detail for a single position with computed fields.
 
 **Path parameters**
 
 | Parameter | Type   | Description          |
 |-----------|--------|----------------------|
-| `ticker`  | string | Yahoo Finance ticker |
+| `ticker`  | string | Yahoo Finance ticker (alphanumeric, dots, hyphens) |
 
-**Response** `200 OK` -- same shape as a single element from the list endpoint.
+**Response** `200 OK` — same shape as a single element from the list endpoint.
 
-**Response** `404 Not Found` -- if the ticker is not in the portfolio.
+**Response** `400 Bad Request` — invalid ticker format.
+
+**Response** `404 Not Found` — ticker not in the portfolio.
 
 **curl**
 
@@ -125,29 +132,37 @@ curl http://localhost:5000/api/portfolio/AAPL
 
 ### `POST /api/portfolio`
 
-Add a new instrument to the portfolio.
+Add a new instrument to the portfolio. Lynx resolves the ticker via Yahoo
+Finance, fetches market data, and persists the position.
 
 **Request body** (`application/json`)
 
-| Field      | Type   | Required | Description                 |
-|------------|--------|----------|-----------------------------|
-| `ticker`   | string | Yes      | Yahoo Finance ticker symbol |
-| `shares`   | number | Yes      | Number of shares            |
-| `avg_price`| number | No       | Average purchase price      |
-| `isin`     | string | No       | ISIN code                   |
-| `exchange` | string | No       | Exchange identifier         |
+| Field      | Type   | Required | Description                          |
+|------------|--------|----------|--------------------------------------|
+| `ticker`   | string | Yes*     | Yahoo Finance ticker symbol          |
+| `isin`     | string | Yes*     | ISIN code (alternative to ticker)    |
+| `shares`   | number | Yes      | Number of shares (must be positive)  |
+| `avg_price`| number | No       | Average purchase price (non-negative)|
+| `exchange` | string | No       | Preferred exchange suffix            |
+
+*At least one of `ticker` or `isin` must be provided.
 
 **Response** `201 Created`
 
 ```json
 {
-  "message": "Position added",
-  "ticker": "AAPL",
-  "shares": 10
+  "status": "created",
+  "instrument": { ... },
+  "messages": [
+    {"level": "info", "message": "Using AAPL  (NASDAQ)"},
+    {"level": "ok", "message": "Added AAPL to portfolio."}
+  ]
 }
 ```
 
-**Response** `400 Bad Request` -- missing required fields or invalid data.
+**Response** `400 Bad Request` — missing required fields, invalid ticker, negative shares, etc.
+
+**Response** `409 Conflict` — instrument already exists.
 
 **curl**
 
@@ -157,7 +172,7 @@ curl -X POST http://localhost:5000/api/portfolio \
   -H "Content-Type: application/json" \
   -d '{"ticker": "AAPL", "shares": 10, "avg_price": 185.50}'
 
-# Without cost tracking (P&L will show "Not tracked")
+# Without cost tracking
 curl -X POST http://localhost:5000/api/portfolio \
   -H "Content-Type: application/json" \
   -d '{"ticker": "MSFT", "shares": 5}'
@@ -179,10 +194,10 @@ Update an existing position's share count or average purchase price.
 
 **Request body** (`application/json`)
 
-| Field                | Type   | Required | Description           |
-|----------------------|--------|----------|-----------------------|
-| `shares`             | number | No       | New share count       |
-| `avg_purchase_price` | number | No       | New average price     |
+| Field                | Type   | Required | Description                    |
+|----------------------|--------|----------|--------------------------------|
+| `shares`             | number | No       | New share count (positive)     |
+| `avg_purchase_price` | number | No       | New average price (non-negative, or null to clear) |
 
 At least one field must be provided.
 
@@ -190,12 +205,14 @@ At least one field must be provided.
 
 ```json
 {
-  "message": "Position updated",
-  "ticker": "AAPL"
+  "status": "updated",
+  "instrument": { ... }
 }
 ```
 
-**Response** `404 Not Found` -- ticker not in portfolio.
+**Response** `400 Bad Request` — invalid values (negative shares, etc.).
+
+**Response** `404 Not Found` — ticker not in portfolio.
 
 **curl**
 
@@ -223,12 +240,14 @@ Remove a position from the portfolio.
 
 ```json
 {
-  "message": "Position deleted",
+  "status": "deleted",
   "ticker": "AAPL"
 }
 ```
 
-**Response** `404 Not Found` -- ticker not in portfolio.
+**Response** `400 Bad Request` — invalid ticker format.
+
+**Response** `404 Not Found` — ticker not in portfolio.
 
 **curl**
 
@@ -242,7 +261,8 @@ curl -X DELETE http://localhost:5000/api/portfolio/AAPL
 
 ### `POST /api/portfolio/<ticker>/refresh`
 
-Re-fetch market data for a single instrument from Yahoo Finance.
+Re-fetch market data for a single instrument from Yahoo Finance. Updates both
+the cache and the portfolio record.
 
 **Path parameters**
 
@@ -254,10 +274,14 @@ Re-fetch market data for a single instrument from Yahoo Finance.
 
 ```json
 {
-  "message": "Instrument refreshed",
-  "ticker": "AAPL"
+  "status": "refreshed",
+  "instrument": { ... }
 }
 ```
+
+**Response** `404 Not Found` — ticker not in portfolio.
+
+**Response** `502 Bad Gateway` — Yahoo Finance fetch failed.
 
 **curl**
 
@@ -277,7 +301,9 @@ Re-fetch market data for every instrument in the portfolio.
 
 ```json
 {
-  "message": "All instruments refreshed"
+  "status": "refreshed",
+  "refreshed": 5,
+  "total": 5
 }
 ```
 
@@ -306,17 +332,12 @@ a safety measure.
 
 ```json
 {
-  "message": "Cache cleared"
+  "status": "cleared",
+  "entries_removed": 5
 }
 ```
 
-**Response** `400 Bad Request` -- if `force=true` is not provided.
-
-```json
-{
-  "error": "Pass ?force=true to confirm cache deletion"
-}
-```
+**Response** `400 Bad Request` — if `force=true` is not provided.
 
 **curl**
 
@@ -346,8 +367,9 @@ Remove a single ticker from the instrument cache.
 
 ```json
 {
-  "message": "Cache entry deleted",
-  "ticker": "AAPL"
+  "status": "cleared",
+  "ticker": "AAPL",
+  "entries_removed": 1
 }
 ```
 
@@ -389,6 +411,29 @@ curl http://localhost:5000/api/forex/rates
 
 ---
 
+## Input validation
+
+All endpoints validate input and return `400 Bad Request` with a descriptive
+error message for invalid data:
+
+| Input                | Validation rule                          |
+|----------------------|------------------------------------------|
+| `ticker`             | Alphanumeric + dots/hyphens, max 20 chars|
+| `isin`               | Exactly 12 chars: 2 letters + 10 alnum   |
+| `shares`             | Positive number, max 1 billion           |
+| `avg_price`          | Non-negative number, max 1 billion       |
+| `avg_purchase_price` | Non-negative number, or `null` to clear  |
+
+**Example error response**
+
+```json
+{
+  "error": "Invalid ticker format. Use letters, digits, dots, and hyphens (e.g. AAPL, NESN.SW, BRK-B). Got: 'A; DROP TABLE'"
+}
+```
+
+---
+
 ## Error responses
 
 All error responses follow a consistent shape:
@@ -401,10 +446,12 @@ All error responses follow a consistent shape:
 
 Common status codes:
 
-| Code | Meaning                                    |
-|------|--------------------------------------------|
-| 200  | Success                                    |
-| 201  | Resource created                           |
-| 400  | Bad request (missing fields, invalid data) |
-| 404  | Resource not found                         |
-| 500  | Internal server error                      |
+| Code | Meaning                                         |
+|------|-------------------------------------------------|
+| 200  | Success                                         |
+| 201  | Resource created                                |
+| 400  | Bad request (missing fields, invalid data)      |
+| 404  | Resource not found                              |
+| 409  | Conflict (e.g. instrument already exists)       |
+| 502  | Bad gateway (Yahoo Finance fetch failed)        |
+| 500  | Internal server error                           |

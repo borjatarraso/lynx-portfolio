@@ -22,6 +22,8 @@ schema, and key design decisions.
 | `vault.py`        | Database encryption (Fernet + PBKDF2), vault sessions     |
 | `backup.py`       | Automatic backup/restore for plain and encrypted DBs      |
 | `wizard.py`       | First-time setup wizard (DB location, encryption, first instrument) |
+| `validation.py`   | Input validation for tickers, ISINs, shares, prices, search queries |
+| `logo.py`         | Logo path helpers and ASCII-art logo for terminal modes             |
 
 ## Data flow
 

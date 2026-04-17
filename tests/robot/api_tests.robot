@@ -23,11 +23,11 @@ a running API server
 
 the API has an instrument "${ticker}" with ${shares} shares at avg price ${price}
     ${body}=    Create Dictionary    ticker=${ticker}    shares=${shares}    avg_price=${price}
-    POST On Session    lynx    /api/portfolio    json=${body}
+    POST On Session    lynx    /api/portfolio    json=${body}    expected_status=any
 
 the API has an instrument "${ticker}" with ${shares} shares without avg price
     ${body}=    Create Dictionary    ticker=${ticker}    shares=${shares}
-    POST On Session    lynx    /api/portfolio    json=${body}
+    POST On Session    lynx    /api/portfolio    json=${body}    expected_status=any
 
 the client sends a GET request to "${path}"
     ${resp}=    GET On Session    lynx    ${path}
@@ -146,3 +146,41 @@ Clear Cache With Force Succeeds
     When the client sends a DELETE request to "/api/cache?force=true"
     Then the response status should be 200
     And the response body key "status" should be "cleared"
+
+Add Instrument With Invalid Ticker Returns 400
+    [Documentation]    POSTing with special chars in ticker should return 400.
+    Given a running API server
+    When the client sends a POST request to "/api/portfolio" with body "{'ticker': 'A; DROP TABLE', 'shares': 10}"
+    Then the response status should be 400
+    And the response body should contain key "error"
+
+Add Instrument With Negative Shares Returns 400
+    [Documentation]    POSTing with negative shares should return 400.
+    Given a running API server
+    When the client sends a POST request to "/api/portfolio" with body "{'ticker': 'TEST', 'shares': -5}"
+    Then the response status should be 400
+    And the response body should contain key "error"
+
+Add Instrument With Zero Shares Returns 400
+    [Documentation]    POSTing with zero shares should return 400.
+    Given a running API server
+    When the client sends a POST request to "/api/portfolio" with body "{'ticker': 'TEST', 'shares': 0}"
+    Then the response status should be 400
+
+Add Instrument With Negative Price Returns 400
+    [Documentation]    POSTing with negative avg_price should return 400.
+    Given a running API server
+    When the client sends a POST request to "/api/portfolio" with body "{'ticker': 'TEST', 'shares': 10, 'avg_price': -100}"
+    Then the response status should be 400
+
+Update With Negative Shares Returns 400
+    [Documentation]    PUTting negative shares should return 400.
+    Given the API has an instrument "AAPL" with 10 shares at avg price 150
+    When the client sends a PUT request to "/api/portfolio/AAPL" with body "{'shares': -5}"
+    Then the response status should be 400
+
+Add Without Ticker Or ISIN Returns 400
+    [Documentation]    POSTing without ticker or ISIN should return 400.
+    Given a running API server
+    When the client sends a POST request to "/api/portfolio" with body "{'shares': 10}"
+    Then the response status should be 400

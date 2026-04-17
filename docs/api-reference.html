@@ -296,6 +296,7 @@ hr {
     <a href="#delete-apicacheticker" class="toc-h3">DELETE /api/cache/&lt;ticker&gt;</a>
     <a href="#forex-rates" class="">Forex rates</a>
     <a href="#get-apiforexrates" class="toc-h3">GET /api/forex/rates</a>
+    <a href="#input-validation" class="">Input validation</a>
     <a href="#error-responses" class="">Error responses</a>
   </div>
 </nav>
@@ -303,10 +304,12 @@ hr {
 <main class="content">
 <h1 id="api-reference">API Reference</h1>
 <p>Lynx Portfolio exposes a REST API via Flask. Start the server with:</p>
-<pre><code class="language-bash">lynx --api
+<pre><code class="language-bash">lynx-portfolio --api
 # Listening on http://localhost:5000
 </code></pre>
 <p>All endpoints return JSON. Timestamps follow ISO 8601.</p>
+<p>All <code>&lt;ticker&gt;</code> path parameters are validated — invalid tickers (spaces,
+special characters, overlong strings) return <code>400 Bad Request</code>.</p>
 <hr />
 <h2 id="health-check">Health check</h2>
 <h3 id="get-apihealth"><code>GET /api/health</code></h3>
@@ -314,7 +317,7 @@ hr {
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
   &quot;status&quot;: &quot;ok&quot;,
-  &quot;timestamp&quot;: &quot;2026-04-12T10:30:00Z&quot;
+  &quot;timestamp&quot;: &quot;2026-04-15T10:30:00+00:00&quot;
 }
 </code></pre>
 <p><strong>curl</strong></p>
@@ -327,7 +330,7 @@ hr {
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
   &quot;name&quot;: &quot;Lynx Portfolio&quot;,
-  &quot;version&quot;: &quot;v0.2&quot;
+  &quot;version&quot;: &quot;v1.0&quot;
 }
 </code></pre>
 <p><strong>curl</strong></p>
@@ -337,7 +340,8 @@ hr {
 <h2 id="list-portfolio">List portfolio</h2>
 <h3 id="get-apiportfolio"><code>GET /api/portfolio</code></h3>
 <p>Returns all positions enriched with live market data. Each instrument includes
-computed fields: <code>market_value</code>, <code>pnl</code>, <code>pnl_pct</code>, and their EUR equivalents.</p>
+computed fields: <code>market_value</code>, <code>total_invested</code>, <code>pnl</code>, <code>pnl_pct</code>, and their
+EUR equivalents (<code>market_value_eur</code>, <code>pnl_eur</code>).</p>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">[
   {
@@ -346,26 +350,27 @@ computed fields: <code>market_value</code>, <code>pnl</code>, <code>pnl_pct</cod
     &quot;avg_purchase_price&quot;: 185.50,
     &quot;current_price&quot;: 195.20,
     &quot;currency&quot;: &quot;USD&quot;,
+    &quot;name&quot;: &quot;Apple Inc.&quot;,
+    &quot;isin&quot;: &quot;US0378331005&quot;,
+    &quot;exchange_display&quot;: &quot;NASDAQ&quot;,
     &quot;market_value&quot;: 1952.00,
     &quot;market_value_eur&quot;: 1790.10,
+    &quot;total_invested&quot;: 1855.00,
     &quot;pnl&quot;: 97.00,
     &quot;pnl_pct&quot;: 5.23,
-    &quot;pnl_eur&quot;: 88.95,
-    &quot;isin&quot;: &quot;US0378331005&quot;,
-    &quot;exchange&quot;: &quot;NMS&quot;,
-    &quot;name&quot;: &quot;Apple Inc.&quot;
+    &quot;pnl_eur&quot;: 88.95
   }
 ]
 </code></pre>
-<p>Positions without <code>avg_purchase_price</code> return <code>null</code> for <code>pnl</code>, <code>pnl_pct</code>, and
-<code>pnl_eur</code>.</p>
+<p>Positions without <code>avg_purchase_price</code> return <code>null</code> for <code>total_invested</code>,
+<code>pnl</code>, <code>pnl_pct</code>, and <code>pnl_eur</code>.</p>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash">curl http://localhost:5000/api/portfolio
 </code></pre>
 <hr />
 <h2 id="show-single-instrument">Show single instrument</h2>
 <h3 id="get-apiportfolioticker"><code>GET /api/portfolio/&lt;ticker&gt;</code></h3>
-<p>Returns detail for a single position.</p>
+<p>Returns detail for a single position with computed fields.</p>
 <p><strong>Path parameters</strong></p>
 <table>
 <thead>
@@ -379,19 +384,21 @@ computed fields: <code>market_value</code>, <code>pnl</code>, <code>pnl_pct</cod
 <tr>
 <td><code>ticker</code></td>
 <td>string</td>
-<td>Yahoo Finance ticker</td>
+<td>Yahoo Finance ticker (alphanumeric, dots, hyphens)</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Response</strong> <code>200 OK</code> -- same shape as a single element from the list endpoint.</p>
-<p><strong>Response</strong> <code>404 Not Found</code> -- if the ticker is not in the portfolio.</p>
+<p><strong>Response</strong> <code>200 OK</code> — same shape as a single element from the list endpoint.</p>
+<p><strong>Response</strong> <code>400 Bad Request</code> — invalid ticker format.</p>
+<p><strong>Response</strong> <code>404 Not Found</code> — ticker not in the portfolio.</p>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash">curl http://localhost:5000/api/portfolio/AAPL
 </code></pre>
 <hr />
 <h2 id="add-position">Add position</h2>
 <h3 id="post-apiportfolio"><code>POST /api/portfolio</code></h3>
-<p>Add a new instrument to the portfolio.</p>
+<p>Add a new instrument to the portfolio. Lynx resolves the ticker via Yahoo
+Finance, fetches market data, and persists the position.</p>
 <p><strong>Request body</strong> (<code>application/json</code>)</p>
 <table>
 <thead>
@@ -406,50 +413,55 @@ computed fields: <code>market_value</code>, <code>pnl</code>, <code>pnl_pct</cod
 <tr>
 <td><code>ticker</code></td>
 <td>string</td>
-<td>Yes</td>
+<td>Yes*</td>
 <td>Yahoo Finance ticker symbol</td>
+</tr>
+<tr>
+<td><code>isin</code></td>
+<td>string</td>
+<td>Yes*</td>
+<td>ISIN code (alternative to ticker)</td>
 </tr>
 <tr>
 <td><code>shares</code></td>
 <td>number</td>
 <td>Yes</td>
-<td>Number of shares</td>
+<td>Number of shares (must be positive)</td>
 </tr>
 <tr>
 <td><code>avg_price</code></td>
 <td>number</td>
 <td>No</td>
-<td>Average purchase price</td>
-</tr>
-<tr>
-<td><code>isin</code></td>
-<td>string</td>
-<td>No</td>
-<td>ISIN code</td>
+<td>Average purchase price (non-negative)</td>
 </tr>
 <tr>
 <td><code>exchange</code></td>
 <td>string</td>
 <td>No</td>
-<td>Exchange identifier</td>
+<td>Preferred exchange suffix</td>
 </tr>
 </tbody>
 </table>
+<p>*At least one of <code>ticker</code> or <code>isin</code> must be provided.</p>
 <p><strong>Response</strong> <code>201 Created</code></p>
 <pre><code class="language-json">{
-  &quot;message&quot;: &quot;Position added&quot;,
-  &quot;ticker&quot;: &quot;AAPL&quot;,
-  &quot;shares&quot;: 10
+  &quot;status&quot;: &quot;created&quot;,
+  &quot;instrument&quot;: { ... },
+  &quot;messages&quot;: [
+    {&quot;level&quot;: &quot;info&quot;, &quot;message&quot;: &quot;Using AAPL  (NASDAQ)&quot;},
+    {&quot;level&quot;: &quot;ok&quot;, &quot;message&quot;: &quot;Added AAPL to portfolio.&quot;}
+  ]
 }
 </code></pre>
-<p><strong>Response</strong> <code>400 Bad Request</code> -- missing required fields or invalid data.</p>
+<p><strong>Response</strong> <code>400 Bad Request</code> — missing required fields, invalid ticker, negative shares, etc.</p>
+<p><strong>Response</strong> <code>409 Conflict</code> — instrument already exists.</p>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash"># With cost tracking
 curl -X POST http://localhost:5000/api/portfolio \
   -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;ticker&quot;: &quot;AAPL&quot;, &quot;shares&quot;: 10, &quot;avg_price&quot;: 185.50}'
 
-# Without cost tracking (P&amp;L will show &quot;Not tracked&quot;)
+# Without cost tracking
 curl -X POST http://localhost:5000/api/portfolio \
   -H &quot;Content-Type: application/json&quot; \
   -d '{&quot;ticker&quot;: &quot;MSFT&quot;, &quot;shares&quot;: 5}'
@@ -490,24 +502,25 @@ curl -X POST http://localhost:5000/api/portfolio \
 <td><code>shares</code></td>
 <td>number</td>
 <td>No</td>
-<td>New share count</td>
+<td>New share count (positive)</td>
 </tr>
 <tr>
 <td><code>avg_purchase_price</code></td>
 <td>number</td>
 <td>No</td>
-<td>New average price</td>
+<td>New average price (non-negative, or null to clear)</td>
 </tr>
 </tbody>
 </table>
 <p>At least one field must be provided.</p>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;message&quot;: &quot;Position updated&quot;,
-  &quot;ticker&quot;: &quot;AAPL&quot;
+  &quot;status&quot;: &quot;updated&quot;,
+  &quot;instrument&quot;: { ... }
 }
 </code></pre>
-<p><strong>Response</strong> <code>404 Not Found</code> -- ticker not in portfolio.</p>
+<p><strong>Response</strong> <code>400 Bad Request</code> — invalid values (negative shares, etc.).</p>
+<p><strong>Response</strong> <code>404 Not Found</code> — ticker not in portfolio.</p>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash">curl -X PUT http://localhost:5000/api/portfolio/AAPL \
   -H &quot;Content-Type: application/json&quot; \
@@ -536,18 +549,20 @@ curl -X POST http://localhost:5000/api/portfolio \
 </table>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;message&quot;: &quot;Position deleted&quot;,
+  &quot;status&quot;: &quot;deleted&quot;,
   &quot;ticker&quot;: &quot;AAPL&quot;
 }
 </code></pre>
-<p><strong>Response</strong> <code>404 Not Found</code> -- ticker not in portfolio.</p>
+<p><strong>Response</strong> <code>400 Bad Request</code> — invalid ticker format.</p>
+<p><strong>Response</strong> <code>404 Not Found</code> — ticker not in portfolio.</p>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash">curl -X DELETE http://localhost:5000/api/portfolio/AAPL
 </code></pre>
 <hr />
 <h2 id="refresh-single-instrument">Refresh single instrument</h2>
 <h3 id="post-apiportfoliotickerrefresh"><code>POST /api/portfolio/&lt;ticker&gt;/refresh</code></h3>
-<p>Re-fetch market data for a single instrument from Yahoo Finance.</p>
+<p>Re-fetch market data for a single instrument from Yahoo Finance. Updates both
+the cache and the portfolio record.</p>
 <p><strong>Path parameters</strong></p>
 <table>
 <thead>
@@ -567,10 +582,12 @@ curl -X POST http://localhost:5000/api/portfolio \
 </table>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;message&quot;: &quot;Instrument refreshed&quot;,
-  &quot;ticker&quot;: &quot;AAPL&quot;
+  &quot;status&quot;: &quot;refreshed&quot;,
+  &quot;instrument&quot;: { ... }
 }
 </code></pre>
+<p><strong>Response</strong> <code>404 Not Found</code> — ticker not in portfolio.</p>
+<p><strong>Response</strong> <code>502 Bad Gateway</code> — Yahoo Finance fetch failed.</p>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash">curl -X POST http://localhost:5000/api/portfolio/AAPL/refresh
 </code></pre>
@@ -580,7 +597,9 @@ curl -X POST http://localhost:5000/api/portfolio \
 <p>Re-fetch market data for every instrument in the portfolio.</p>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;message&quot;: &quot;All instruments refreshed&quot;
+  &quot;status&quot;: &quot;refreshed&quot;,
+  &quot;refreshed&quot;: 5,
+  &quot;total&quot;: 5
 }
 </code></pre>
 <p><strong>curl</strong></p>
@@ -612,14 +631,11 @@ a safety measure.</p>
 </table>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;message&quot;: &quot;Cache cleared&quot;
+  &quot;status&quot;: &quot;cleared&quot;,
+  &quot;entries_removed&quot;: 5
 }
 </code></pre>
-<p><strong>Response</strong> <code>400 Bad Request</code> -- if <code>force=true</code> is not provided.</p>
-<pre><code class="language-json">{
-  &quot;error&quot;: &quot;Pass ?force=true to confirm cache deletion&quot;
-}
-</code></pre>
+<p><strong>Response</strong> <code>400 Bad Request</code> — if <code>force=true</code> is not provided.</p>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash"># This will fail (safety check)
 curl -X DELETE http://localhost:5000/api/cache
@@ -650,8 +666,9 @@ curl -X DELETE &quot;http://localhost:5000/api/cache?force=true&quot;
 </table>
 <p><strong>Response</strong> <code>200 OK</code></p>
 <pre><code class="language-json">{
-  &quot;message&quot;: &quot;Cache entry deleted&quot;,
-  &quot;ticker&quot;: &quot;AAPL&quot;
+  &quot;status&quot;: &quot;cleared&quot;,
+  &quot;ticker&quot;: &quot;AAPL&quot;,
+  &quot;entries_removed&quot;: 1
 }
 </code></pre>
 <p><strong>curl</strong></p>
@@ -676,6 +693,45 @@ requests.</p>
 </code></pre>
 <p><strong>curl</strong></p>
 <pre><code class="language-bash">curl http://localhost:5000/api/forex/rates
+</code></pre>
+<hr />
+<h2 id="input-validation">Input validation</h2>
+<p>All endpoints validate input and return <code>400 Bad Request</code> with a descriptive
+error message for invalid data:</p>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Validation rule</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ticker</code></td>
+<td>Alphanumeric + dots/hyphens, max 20 chars</td>
+</tr>
+<tr>
+<td><code>isin</code></td>
+<td>Exactly 12 chars: 2 letters + 10 alnum</td>
+</tr>
+<tr>
+<td><code>shares</code></td>
+<td>Positive number, max 1 billion</td>
+</tr>
+<tr>
+<td><code>avg_price</code></td>
+<td>Non-negative number, max 1 billion</td>
+</tr>
+<tr>
+<td><code>avg_purchase_price</code></td>
+<td>Non-negative number, or <code>null</code> to clear</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example error response</strong></p>
+<pre><code class="language-json">{
+  &quot;error&quot;: &quot;Invalid ticker format. Use letters, digits, dots, and hyphens (e.g. AAPL, NESN.SW, BRK-B). Got: 'A; DROP TABLE'&quot;
+}
 </code></pre>
 <hr />
 <h2 id="error-responses">Error responses</h2>
@@ -708,6 +764,14 @@ requests.</p>
 <tr>
 <td>404</td>
 <td>Resource not found</td>
+</tr>
+<tr>
+<td>409</td>
+<td>Conflict (e.g. instrument already exists)</td>
+</tr>
+<tr>
+<td>502</td>
+<td>Bad gateway (Yahoo Finance fetch failed)</td>
 </tr>
 <tr>
 <td>500</td>
