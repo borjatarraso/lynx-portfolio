@@ -269,6 +269,7 @@ lynx-portfolio/
 - [User Guide](docs/user-guide.md) -- configuration, all interfaces, import, cache, encryption
 - [API Reference](docs/api-reference.md) -- REST endpoints with curl examples
 - [Architecture](docs/architecture.md) -- modules, data flow, schema, design decisions
+- [Testing](docs/testing.md) -- running pytest and Robot Framework, writing new tests
 
 ## Author
 

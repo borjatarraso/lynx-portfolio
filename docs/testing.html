@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Testing — Lynx Portfolio</title>
+<style>
+/* ── Reset & base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0d1117;
+  --bg-sidebar:  #0a0e14;
+  --bg-card:     #131920;
+  --bg-code:     #1a2230;
+  --border:      #1e2a38;
+  --fg:          #c9d1d9;
+  --fg-dim:      #7a8595;
+  --fg-heading:  #e6edf3;
+  --accent:      #58a6ff;
+  --accent-dim:  #2d6cb4;
+  --green:       #3fb950;
+  --yellow:      #d29922;
+  --red:         #f85149;
+  --purple:      #bc8cff;
+  --sidebar-w:   260px;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.65;
+  font-size: 15px;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--bg-sidebar);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  z-index: 100;
+}
+.topbar .logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+.topbar .logo span {
+  color: var(--fg-dim);
+  font-weight: 400;
+  font-size: 13px;
+  margin-left: 10px;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  top: 52px;
+  left: 0;
+  bottom: 0;
+  width: var(--sidebar-w);
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 0;
+  z-index: 90;
+}
+.sidebar::-webkit-scrollbar { width: 4px; }
+.sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.sidebar .nav-section {
+  padding: 0 16px;
+  margin-bottom: 18px;
+}
+.sidebar .nav-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--fg-dim);
+  margin-bottom: 8px;
+  padding-left: 8px;
+}
+.sidebar a {
+  display: block;
+  padding: 5px 8px 5px 12px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 13px;
+  border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar a:hover {
+  background: rgba(88, 166, 255, 0.08);
+  color: var(--accent);
+}
+.sidebar a.active {
+  background: rgba(88, 166, 255, 0.12);
+  color: var(--accent);
+  font-weight: 600;
+}
+.sidebar a.toc-h3 {
+  padding-left: 28px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.sidebar a.toc-h3:hover {
+  color: var(--accent);
+}
+
+/* ── Main content ──────────────────────────────────────────────── */
+.content {
+  margin-left: var(--sidebar-w);
+  margin-top: 52px;
+  padding: 36px 48px 80px;
+  max-width: 900px;
+}
+
+/* ── Typography ────────────────────────────────────────────────── */
+h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--fg-heading);
+  margin-bottom: 8px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent-dim);
+}
+h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 48px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--purple);
+  margin-top: 32px;
+  margin-bottom: 10px;
+}
+h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--yellow);
+  margin-top: 24px;
+  margin-bottom: 8px;
+}
+
+p { margin-bottom: 14px; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+strong { color: var(--fg-heading); }
+
+/* ── Lists ─────────────────────────────────────────────────────── */
+ul, ol {
+  margin: 0 0 16px 24px;
+}
+li {
+  margin-bottom: 4px;
+}
+li > ul, li > ol {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
+/* ── Code ──────────────────────────────────────────────────────── */
+code {
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, monospace;
+  font-size: 13px;
+  background: var(--bg-code);
+  color: var(--green);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+  line-height: 1.5;
+}
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+/* ── Tables ────────────────────────────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+thead {
+  background: var(--bg-card);
+}
+th {
+  text-align: left;
+  padding: 10px 14px;
+  font-weight: 600;
+  color: var(--accent);
+  border-bottom: 2px solid var(--border);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+tr:hover {
+  background: rgba(88, 166, 255, 0.04);
+}
+
+/* ── Blockquote ────────────────────────────────────────────────── */
+blockquote {
+  border-left: 3px solid var(--accent-dim);
+  margin: 16px 0;
+  padding: 12px 20px;
+  background: var(--bg-card);
+  border-radius: 0 8px 8px 0;
+  color: var(--fg-dim);
+}
+
+/* ── Horizontal rule ───────────────────────────────────────────── */
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 32px 0;
+}
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .sidebar { display: none; }
+  .content { margin-left: 0; padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">LYNX <span>Portfolio Documentation</span></div>
+</div>
+
+<nav class="sidebar">
+  <div class="nav-section">
+    <div class="nav-section-title">Documentation</div>
+        <a href="README.html">Overview</a>
+    <a href="user-guide.html">User Guide</a>
+    <a href="api-reference.html">API Reference</a>
+    <a href="architecture.html">Architecture</a>
+    <a href="testing.html" class="active">Testing</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">On this page</div>
+        <a href="#prerequisites" class="">Prerequisites</a>
+    <a href="#quick-run-all-tests" class="">Quick run (all tests)</a>
+    <a href="#unit-tests-pytest" class="">Unit tests (pytest)</a>
+    <a href="#test-files" class="toc-h3">Test files</a>
+    <a href="#running-specific-tests" class="toc-h3">Running specific tests</a>
+    <a href="#robot-framework-tests" class="">Robot Framework tests</a>
+    <a href="#test-suites" class="toc-h3">Test suites</a>
+    <a href="#shared-resources" class="toc-h3">Shared resources</a>
+    <a href="#running-robot-tests" class="toc-h3">Running Robot tests</a>
+    <a href="#api-tests" class="toc-h3">API tests</a>
+    <a href="#test-output" class="toc-h3">Test output</a>
+    <a href="#how-the-test-isolation-works" class="toc-h3">How the test isolation works</a>
+    <a href="#test-coverage-summary" class="">Test coverage summary</a>
+    <a href="#writing-new-tests" class="">Writing new tests</a>
+    <a href="#adding-a-pytest-test" class="toc-h3">Adding a pytest test</a>
+    <a href="#adding-a-robot-test" class="toc-h3">Adding a Robot test</a>
+  </div>
+</nav>
+
+<main class="content">
+<h1 id="testing-guide">Testing Guide</h1>
+<p>Lynx Portfolio has two test suites: <strong>pytest</strong> for unit tests and
+<strong>Robot Framework</strong> for BDD-style functional/integration tests.</p>
+<hr />
+<h2 id="prerequisites">Prerequisites</h2>
+<pre><code class="language-bash"># Install the project in editable mode
+pip install -e .
+
+# Install test dependencies
+pip install pytest robotframework robotframework-requests
+</code></pre>
+<p>The Robot Framework API tests require the <code>robotframework-requests</code> library
+for HTTP session handling.</p>
+<hr />
+<h2 id="quick-run-all-tests">Quick run (all tests)</h2>
+<pre><code class="language-bash"># Unit tests
+python -m pytest tests/ -v
+
+# Robot Framework tests (all suites)
+python -m robot --outputdir results tests/robot/
+
+# Both in sequence
+python -m pytest tests/ -v &amp;&amp; python -m robot --outputdir results tests/robot/
+</code></pre>
+<hr />
+<h2 id="unit-tests-pytest">Unit tests (pytest)</h2>
+<p>Unit tests live in <code>tests/</code> and cover the internal Python modules directly.</p>
+<h3 id="test-files">Test files</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Module tested</th>
+<th>Tests</th>
+<th>What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_vault.py</code></td>
+<td><code>vault.py</code>, <code>backup.py</code></td>
+<td>29</td>
+<td>Key derivation, file encryption roundtrip, wrong password, vault session lifecycle, backup create/restore, edge cases</td>
+</tr>
+<tr>
+<td><code>test_default_mode.py</code></td>
+<td><code>cli.py</code>, <code>config.py</code></td>
+<td>10</td>
+<td>Default mode selection (production vs first-run), database creation, empty portfolio detection, config state</td>
+</tr>
+<tr>
+<td><code>test_validation.py</code></td>
+<td><code>validation.py</code></td>
+<td>50</td>
+<td>Ticker/ISIN/exchange/shares/price validation, edge cases (SQL injection, unicode, negative values, overlong strings)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="running-specific-tests">Running specific tests</h3>
+<pre><code class="language-bash"># All unit tests
+python -m pytest tests/ -v
+
+# Single test file
+python -m pytest tests/test_vault.py -v
+
+# Single test class
+python -m pytest tests/test_validation.py::TestValidateTicker -v
+
+# Single test method
+python -m pytest tests/test_validation.py::TestValidateTicker::test_sql_injection -v
+
+# With short output
+python -m pytest tests/ -q
+
+# Stop on first failure
+python -m pytest tests/ -x
+</code></pre>
+<hr />
+<h2 id="robot-framework-tests">Robot Framework tests</h2>
+<p>Robot Framework tests live in <code>tests/robot/</code> and use BDD-style
+Given/When/Then keywords. They test the application end-to-end by running
+the actual <code>lynx-portfolio.py</code> script as a subprocess.</p>
+<h3 id="test-suites">Test suites</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Tests</th>
+<th>What it covers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cli_tests.robot</code></td>
+<td>9</td>
+<td>Console mode: version, add, list, show, update, delete, import</td>
+</tr>
+<tr>
+<td><code>vault_tests.robot</code></td>
+<td>9</td>
+<td>Encryption: encrypt, decrypt, wrong password, disable, restore, edge cases</td>
+</tr>
+<tr>
+<td><code>default_mode_tests.robot</code></td>
+<td>6</td>
+<td>Production default, devel mode, console subcommands, version flag, vault ops</td>
+</tr>
+<tr>
+<td><code>api_tests.robot</code></td>
+<td>18</td>
+<td>REST API: health, version, CRUD, refresh, cache, forex, input validation (400 errors)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="shared-resources">Shared resources</h3>
+<p>All suites use <code>tests/robot/resources/common.robot</code> which provides:</p>
+<ul>
+<li><strong>Setup/teardown</strong>: creates a temporary database via <code>LYNX_DB_PATH</code> env var</li>
+<li><strong><code>Run Lynx</code> keyword</strong>: executes <code>lynx-portfolio.py -c</code> with arguments</li>
+<li><strong>BDD step keywords</strong>: <code>an instrument "AAPL" with 10 shares at avg price 150</code>,
+  <code>the user lists the portfolio</code>, <code>the output should contain "text"</code>, etc.</li>
+</ul>
+<h3 id="running-robot-tests">Running Robot tests</h3>
+<pre><code class="language-bash"># All Robot suites
+python -m robot --outputdir results tests/robot/
+
+# Single suite
+python -m robot --outputdir results tests/robot/cli_tests.robot
+
+# Multiple specific suites
+python -m robot --outputdir results \
+  tests/robot/cli_tests.robot \
+  tests/robot/vault_tests.robot
+
+# Single test case by name
+python -m robot --outputdir results \
+  --test &quot;Add Instrument With Cost Basis&quot; \
+  tests/robot/cli_tests.robot
+
+# Tests matching a pattern
+python -m robot --outputdir results \
+  --test &quot;*Encrypt*&quot; \
+  tests/robot/vault_tests.robot
+
+# With verbose console output
+python -m robot --outputdir results --loglevel DEBUG tests/robot/cli_tests.robot
+</code></pre>
+<h3 id="api-tests">API tests</h3>
+<p>The API test suite starts a Flask server on port 15123 as a background
+process, runs HTTP requests against it, and stops the server on teardown.</p>
+<pre><code class="language-bash"># Run API tests only
+python -m robot --outputdir results tests/robot/api_tests.robot
+</code></pre>
+<p>The API tests require the <code>RequestsLibrary</code> Robot Framework library:</p>
+<pre><code class="language-bash">pip install robotframework-requests
+</code></pre>
+<p>If port 15123 is in use, the API tests will fail. Make sure no other instance
+is running on that port.</p>
+<h3 id="test-output">Test output</h3>
+<p>Robot Framework generates three output files in the <code>--outputdir</code> directory:</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output.xml</code></td>
+<td>Machine-readable test results</td>
+</tr>
+<tr>
+<td><code>log.html</code></td>
+<td>Detailed execution log (click to expand)</td>
+</tr>
+<tr>
+<td><code>report.html</code></td>
+<td>Summary report with pass/fail statistics</td>
+</tr>
+</tbody>
+</table>
+<p>Open <code>report.html</code> in a browser for a visual overview, or <code>log.html</code> for
+step-by-step execution details.</p>
+<h3 id="how-the-test-isolation-works">How the test isolation works</h3>
+<p>All tests use the <code>LYNX_DB_PATH</code> environment variable to point the
+application at a temporary database file. This ensures:</p>
+<ul>
+<li>Tests never touch the production database</li>
+<li>Each suite gets a fresh, empty database</li>
+<li>Tests can run in parallel without interference (different temp files)</li>
+</ul>
+<p>The <code>Setup Temp Database</code> keyword in <code>common.robot</code> creates the temp file,
+and <code>Teardown Temp Database</code> removes it after the suite completes.</p>
+<p>For tests that need to verify <code>--devel</code> mode behavior, the <code>LYNX_DB_PATH</code>
+environment variable is temporarily removed so the CLI falls through to
+its normal mode-selection logic.</p>
+<hr />
+<h2 id="test-coverage-summary">Test coverage summary</h2>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Tests</th>
+<th>Framework</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vault &amp; backup</td>
+<td>29</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Default mode</td>
+<td>10</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Input validation</td>
+<td>50</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>CLI commands</td>
+<td>9</td>
+<td>Robot</td>
+</tr>
+<tr>
+<td>Vault operations</td>
+<td>9</td>
+<td>Robot</td>
+</tr>
+<tr>
+<td>Default mode (E2E)</td>
+<td>6</td>
+<td>Robot</td>
+</tr>
+<tr>
+<td>REST API</td>
+<td>18</td>
+<td>Robot</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>131</strong></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="writing-new-tests">Writing new tests</h2>
+<h3 id="adding-a-pytest-test">Adding a pytest test</h3>
+<p>Create a new file <code>tests/test_&lt;module&gt;.py</code>:</p>
+<pre><code class="language-python">import pytest
+from lynx_portfolio.&lt;module&gt; import &lt;function&gt;
+
+class TestMyFeature:
+    def test_basic_case(self):
+        result = &lt;function&gt;(valid_input)
+        assert result == expected
+
+    def test_edge_case(self):
+        with pytest.raises(ValueError):
+            &lt;function&gt;(bad_input)
+</code></pre>
+<h3 id="adding-a-robot-test">Adding a Robot test</h3>
+<p>Add test cases to an existing <code>.robot</code> file or create a new one that
+imports <code>resources/common.robot</code>:</p>
+<pre><code class="language-robot">*** Settings ***
+Resource    resources/common.robot
+Suite Setup       Setup Temp Database
+Suite Teardown    Teardown Temp Database
+
+*** Test Cases ***
+My New Test
+    [Documentation]    Describe what this test verifies.
+    Given an instrument &quot;AAPL&quot; with 10 shares at avg price 150
+    When the user lists the portfolio
+    Then the output should contain &quot;Apple&quot; ignoring case
+</code></pre>
+<p>Use <code>Run Lynx</code> for direct command execution, or the BDD step keywords
+defined in <code>common.robot</code> for readable Given/When/Then style.</p>
+</main>
+
+<script>
+// Highlight active sidebar link on scroll
+(function() {
+  const headings = document.querySelectorAll('h2[id], h3[id]');
+  const tocLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+  if (!headings.length || !tocLinks.length) return;
+
+  function update() {
+    let current = '';
+    for (const h of headings) {
+      if (h.getBoundingClientRect().top <= 100) current = h.id;
+    }
+    tocLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

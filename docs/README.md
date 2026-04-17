@@ -94,6 +94,8 @@ Use `--devel` for a temporary database during testing.
 - [API Reference](api-reference.md) -- every REST endpoint with curl examples
 - [Architecture](architecture.md) -- modules, data flow, schema, design
   decisions
+- [Testing](testing.md) -- running pytest and Robot Framework tests, writing
+  new tests
 
 ## Entry points
 

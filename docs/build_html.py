@@ -19,6 +19,7 @@ PAGES = [
     ("user-guide.md",    "User Guide"),
     ("api-reference.md", "API Reference"),
     ("architecture.md",  "Architecture"),
+    ("testing.md",       "Testing"),
 ]
 
 # ---------------------------------------------------------------------------
