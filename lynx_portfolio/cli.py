@@ -11,7 +11,7 @@ import threading
 import time
 from typing import List
 
-from . import APP_NAME, VERSION, ABOUT_LINES
+from . import APP_NAME, VERSION, ABOUT_LINES, SUITE_LABEL
 from . import database, cache, config, display
 from .operations import (
     add_instrument, refresh_instrument, refresh_all,
@@ -324,7 +324,8 @@ examples:
 """,
     )
 
-    parser.add_argument("-v", "--version", action="version", version=f"{APP_NAME} {VERSION}")
+    parser.add_argument("-v", "--version", action="version",
+                        version=f"{APP_NAME} {VERSION}  |  {SUITE_LABEL}")
     parser.add_argument("--verbose", action="store_true",
                         help="Show detailed refresh progress at startup")
     parser.add_argument("--enforce-refresh", action="store_true",

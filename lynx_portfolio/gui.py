@@ -16,7 +16,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict
 
-from . import APP_NAME, VERSION, LICENSE, LICENSE_URL, LICENSE_TEXT, ABOUT_LINES
+from . import APP_NAME, VERSION, LICENSE, LICENSE_URL, LICENSE_TEXT, ABOUT_LINES, SUITE_LABEL
 from . import database, cache, forex
 from .display import _shares_str
 from .operations import (
@@ -1545,7 +1545,7 @@ class _AboutDialog(_BaseDialog):
                   foreground=_C["fg_dim"],
                   background=_C["surface"]).pack(anchor="w", pady=(0, 4))
 
-        ttk.Label(title_frame, text="Part of the Lince Investor suite (LINCE)",
+        ttk.Label(title_frame, text=f"Part of {SUITE_LABEL}",
                   font=("Segoe UI", 10),
                   foreground=_C["fg"],
                   background=_C["surface"]).pack(anchor="w")
