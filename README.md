@@ -144,7 +144,7 @@ lynx-portfolio -tui
 ```
 
 Keybindings: `a` Add, `d` Delete, `e` Edit, `r` Refresh, `R` Refresh All,
-`i` Import, `c` Clear Cache, `t` Theme, `?` About, `q` Quit.
+`i` Import, `c` Clear Cache, `t` Theme, `F1` About, `q` Quit.
 
 ### Graphical Interface (`-x`)
 
