@@ -11,6 +11,24 @@ Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate featu
 
 ---
 
+## [v2.0] — 2026-04-19
+
+Major release — **Lince Investor Suite v2.0** unified release.
+
+### Changed
+- **Unified suite**: All Lince Investor projects (portfolio, fundamental,
+  compare, investor-basic-materials, investor-energy) now share consistent
+  version numbering, logos, keybindings, CLI patterns, export styling,
+  installation instructions, and documentation structure.
+- **TUI keybinding**: About is now `F1` (previously `?`) to match the
+  standard across the suite.
+- **Entry point**: `lynx-portfolio` console script now routes through
+  `lynx_portfolio.__main__:main` for consistency with other suite projects.
+- **Documentation**: Standardized installation section with clone + pip
+  install steps and dependency table matching other suite projects.
+
+---
+
 ## [v1.0] — 2026-04-15
 
 First production-stable major release.

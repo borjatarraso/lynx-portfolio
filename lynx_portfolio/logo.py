@@ -33,28 +33,31 @@ def logo_quarter() -> str:
 
 
 # ---------------------------------------------------------------------------
-# ASCII-art logo for terminal modes (pre-rendered for consistency)
+# ASCII-art logo for terminal modes — loaded from img/logo_ascii.txt
 # ---------------------------------------------------------------------------
 
-LOGO_ASCII = """\
-\033[32m
-               ▒▒▒
-           ▒▒▒▒▓▓▒▒▒▒▒
-    ▒▒▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒
- ▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓█▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒
- ▒▒▓▓▓▓▓▒▒▒▓▓▒▓█▓██▒▒▓▓▓▓▓▓▓▓▓▓▒
- ▒▓▓▒▒▒▓▓▓▒▒▓▓▒██▓█▒░░▒▓▓▓▓▓▓▒▓▒
- ▒▒▓▒▓▓▒▒▓▓▒▒▓██▓▒▒░▒░░░▒▓▓▓▓▒▓▒
- ▒▒▓▒▓▓▓▒▒▓▓▓██░▓▓░░░░▒░░░▒▓▓▒▓▒
- ▒▒▓▓▓▓▓▓▓▒▓▓▒░░░▒▓▒░░▓█▓░░▒▓▓▒▒
- ▒▒▓▓▒▓▓▓▓▓▓█▓░▓▓▓▓▓▓▓░███░░░▒▓▒
-  ▒▒▓▓▓▓▓▓▓███▓██░▒████▒▓█▒░░▒▓▒
-   ▒▓▓▒▓▓▓▓▓█████▓█▓░▒██░█░░▒▓▒
-   ▒▒▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒░░▓░░░░▒▓▓▒
-    ▒▒▒▓▓▓▓▓▓▓▓▒▓██▓▒▓▓▓▒▒▒▓▒▒
-      ▒▒▓▓▓▒▒▓█▓▒▓██▓▒██▓▒▓▓▒
-       ▒▒▒▓▓▓▒▒▒▒▒░░░▒▒▒▓▓▓▒
-         ▒▒▒▓▓▓▒▒░░░▒▒▓▓▓▒▒
-           ▒▒▒▓▓▓▓▓▓▓▓▓▒▒▒
-              ▒▒▒▒▓▒▒▒▒
-\033[0m"""
+_ASCII_FILE = os.path.join(_IMG_DIR, "logo_ascii.txt")
+
+
+def load_logo_ascii() -> str:
+    """Load the ASCII logo from img/logo_ascii.txt with green ANSI colouring."""
+    try:
+        with open(_ASCII_FILE) as f:
+            text = f.read()
+        return f"\033[32m{text}\033[0m"
+    except OSError:
+        return ""
+
+
+# Keep a module-level constant for backward compatibility
+LOGO_ASCII = load_logo_ascii()
+
+
+def load_logo_ascii_rich() -> str:
+    """Load the ASCII logo wrapped in Rich [green] markup (for TUI/Rich)."""
+    try:
+        with open(_ASCII_FILE) as f:
+            text = f.read()
+        return f"[green]{text}[/green]"
+    except OSError:
+        return ""

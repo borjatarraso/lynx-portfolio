@@ -48,7 +48,7 @@ Returns application name and version.
 ```json
 {
   "name": "Lynx Portfolio",
-  "version": "v1.0"
+  "version": "v2.0"
 }
 ```
 
