@@ -8,6 +8,8 @@ from typing import Optional, List, Dict
 from rich.table import Table
 from rich import box
 
+from lynx_investor_core.pager import console_pager, paged_print
+
 from . import ABOUT_LINES
 from . import database, cache, display
 from .operations import add_instrument, refresh_instrument, refresh_all
@@ -145,7 +147,8 @@ def run() -> None:
             display.console.print(_HELP)
 
         elif cmd in ("list", "ls"):
-            display.display_portfolio(database.get_all_instruments())
+            with console_pager(display.console):
+                display.display_portfolio(database.get_all_instruments())
 
         elif cmd == "add":
             _cmd_add()

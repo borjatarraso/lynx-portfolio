@@ -1248,6 +1248,9 @@ class DetailDialog(_BaseDialog):
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
         canvas.bind_all("<Button-4>", _on_mousewheel)
         canvas.bind_all("<Button-5>", _on_mousewheel)
+        # PageUp / PageDown (Ctrl+Home/End) — shared across every suite app.
+        from lynx_investor_core.pager import bind_tk_paging
+        bind_tk_paging(self._dlg, canvas)
 
         # Unbind on destroy to avoid affecting other windows
         def _on_destroy(event):

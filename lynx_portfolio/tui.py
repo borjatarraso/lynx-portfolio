@@ -21,6 +21,8 @@ from textual.widgets import (
 
 from textual.theme import BUILTIN_THEMES, Theme
 
+from lynx_investor_core.pager import PagingAppMixin, tui_paging_bindings
+
 from . import ABOUT_LINES
 from . import database, cache, config, forex
 from .display import _split_shares, _shares_str
@@ -1713,7 +1715,7 @@ _THEME_NAMES = [
 ]
 
 
-class LynxApp(App):
+class LynxApp(PagingAppMixin, App):
     """Lynx Portfolio Manager — Full-screen TUI."""
 
     TITLE = "Lynx Portfolio"
@@ -1723,6 +1725,7 @@ class LynxApp(App):
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("t", "cycle_theme", "Theme"),
+        *tui_paging_bindings(),
     ]
 
     def on_mount(self) -> None:
