@@ -15,6 +15,8 @@ from rich.panel import Panel
 from rich.text import Text
 from rich import box
 
+from lynx_investor_core.i18n import _
+
 from . import forex
 
 console = Console()
@@ -623,13 +625,13 @@ def render_stats(console_: Console, stats: Dict) -> None:
     positions = stats.get("positions", 0)
 
     lines = [
-        f"[bold]Positions[/bold]      {positions}",
-        f"[bold]Market value[/bold]   {value:,.2f} €" if value is not None else "[bold]Market value[/bold]   —",
-        f"[bold]Invested[/bold]       {invested:,.2f} €" if invested is not None else "[bold]Invested[/bold]       —",
-        f"[bold]Total PnL[/bold]      {_signed_eur(pnl)}  ({_signed_pct(pnl_pct)})",
-        f"[bold]Today[/bold]          {_signed_eur(day_change)}  ({_signed_pct(day_change_pct)})",
+        f"[bold]{_('Positions')}[/bold]      {positions}",
+        f"[bold]{_('Market value')}[/bold]   {value:,.2f} €" if value is not None else f"[bold]{_('Market value')}[/bold]   —",
+        f"[bold]{_('Invested')}[/bold]       {invested:,.2f} €" if invested is not None else f"[bold]{_('Invested')}[/bold]       —",
+        f"[bold]{_('Total PnL')}[/bold]      {_signed_eur(pnl)}  ({_signed_pct(pnl_pct)})",
+        f"[bold]{_('Today')}[/bold]          {_signed_eur(day_change)}  ({_signed_pct(day_change_pct)})",
     ]
-    console_.print(Panel("\n".join(lines), title="[bold cyan]Portfolio Stats[/bold cyan]",
+    console_.print(Panel("\n".join(lines), title=f"[bold cyan]{_('Portfolio Stats')}[/bold cyan]",
                          border_style="cyan", box=box.ROUNDED))
     _flush_console()
 

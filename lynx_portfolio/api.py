@@ -63,11 +63,33 @@ def _root_redirect():
     return redirect("/web/index.html", code=302)
 
 
+# Mount the OpenAPI spec + Swagger UI (v5.3). Public — no auth required.
+try:
+    from lynx_investor_core.openapi import mount_openapi as _mount_openapi
+    _mount_openapi(
+        app,
+        title="Lynx Portfolio API",
+        version=VERSION,
+        description=(
+            "Portfolio tracker + dashboard REST endpoints. "
+            "All non-public routes require a bearer token "
+            "(see /api/version and data/api_token)."
+        ),
+    )
+    _PUBLIC_PATHS_OPENAPI = {"/api/openapi.json", "/api/docs"}
+except ImportError:
+    _PUBLIC_PATHS_OPENAPI = set()
+
+
 # ---------------------------------------------------------------------------
 # Authentication — bearer-token on every non-public route
 # ---------------------------------------------------------------------------
 
-_PUBLIC_PATHS = {"/api/health", "/api/version"}
+_PUBLIC_PATHS = {
+    "/api/health", "/api/version",
+    "/api/openapi.json", "/api/docs",
+    "/", "/web/index.html", "/web/app.css", "/web/app.js",
+}
 
 
 def _token_path() -> Path:
