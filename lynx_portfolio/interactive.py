@@ -135,6 +135,12 @@ _HELP = """
 
   [bold]import-csv[/bold] <path> [broker]   Bulk-import trades from IBKR / Trading212 / Degiro / Fidelity / generic CSV
 
+[bold cyan]Backtesting (v5.1)[/bold cyan]
+
+  [bold]backtest[/bold] <tickers> [period] [weights]  Buy-and-hold / rebalanced backtest
+      example: backtest AAPL,MSFT,GOOGL 5y 40,40,20
+  [bold]bench-hist[/bold] [index] [period]  Portfolio vs historical benchmark (CAGR, alpha, beta, correlation)
+
 [bold cyan]Utilities[/bold cyan]
 
   [bold]config[/bold]                     Show or update configuration
@@ -529,6 +535,88 @@ def run() -> None:
                 display.ok(f"Deleted alert #{aid}.")
             else:
                 display.warn(f"No alert with id {aid}.")
+
+        elif cmd == "backtest":
+            parts = arg.split() if arg else []
+            if not parts:
+                display.err("Usage: backtest <tickers> [period] [weights]")
+                continue
+            try:
+                from lynx_investor_core import backtest as _bt
+            except ImportError:
+                display.err("backtest requires lynx-investor-core>=5.0")
+                continue
+            tickers = [t.strip().upper() for t in parts[0].split(",") if t.strip()]
+            period = parts[1] if len(parts) > 1 else "5y"
+            weights = None
+            if len(parts) > 2:
+                try:
+                    weights = [float(w) for w in parts[2].split(",")]
+                except ValueError:
+                    display.err("weights must be a comma-separated list of numbers")
+                    continue
+            display.info(f"Backtesting {tickers} over {period}…")
+            try:
+                result = _bt.run_backtest(tickers, weights=weights, period=period)
+            except Exception as exc:
+                display.err(f"backtest failed: {exc}")
+                continue
+            from rich.panel import Panel as _P
+            color = "green" if result.total_return_pct > 0 else "red"
+            body = (
+                f"[bold]Tickers[/bold]          {', '.join(result.tickers)}\n"
+                f"[bold]Weights[/bold]          {[round(w, 3) for w in result.weights]}\n"
+                f"[bold]Initial[/bold]          {result.initial_capital:,.2f}\n"
+                f"[bold]Final value[/bold]      {result.final_value:,.2f}\n"
+                f"[bold]Total return[/bold]     [{color}]{result.total_return_pct:+.2f}%[/{color}]\n"
+                f"[bold]CAGR[/bold]             {result.cagr_pct:+.2f}%\n"
+                f"[bold]Volatility[/bold]       {result.volatility_pct:.2f}%\n"
+                f"[bold]Max drawdown[/bold]     [red]{result.max_drawdown_pct:.2f}%[/red]\n"
+                f"[bold]Sharpe ratio[/bold]     {result.sharpe_ratio:.2f}"
+            )
+            if result.skipped_tickers:
+                body += f"\n[yellow]Skipped (no data):[/yellow] {', '.join(result.skipped_tickers)}"
+            display.console.print(_P(body, title="[bold cyan]Backtest[/bold cyan]",
+                                     border_style="cyan", box=box.ROUNDED))
+
+        elif cmd == "bench-hist":
+            parts = arg.split() if arg else []
+            bench = parts[0] if parts else "^GSPC"
+            period = parts[1] if len(parts) > 1 else "5y"
+            try:
+                from lynx_investor_core import backtest as _bt
+            except ImportError:
+                display.err("bench-hist requires lynx-investor-core>=5.0")
+                continue
+            # Build positions from the current portfolio with current market value.
+            positions = []
+            for inst in database.get_all_instruments():
+                curr = inst.get("current_price")
+                shares = inst.get("shares") or 0
+                if curr and shares > 0:
+                    positions.append((inst["ticker"], shares * curr))
+            if not positions:
+                display.warn("Portfolio is empty — nothing to benchmark.")
+                continue
+            display.info(f"Computing historical comparison vs {bench} over {period}…")
+            result = _bt.historical_benchmark(positions, bench, period=period)
+            from rich.panel import Panel as _P
+            alpha_color = "green" if result.alpha_pct >= 0 else "red"
+            beta_str = f"{result.beta:.2f}" if result.beta is not None else "—"
+            corr_str = f"{result.correlation:.2f}" if result.correlation is not None else "—"
+            display.console.print(_P(
+                f"[bold]Period[/bold]             {result.period}\n"
+                f"[bold]Portfolio return[/bold]   {result.portfolio_return_pct:+.2f}%\n"
+                f"[bold]Portfolio CAGR[/bold]     {result.portfolio_cagr_pct:+.2f}%\n"
+                f"[bold]{bench} return[/bold]    {result.benchmark_return_pct:+.2f}%\n"
+                f"[bold]{bench} CAGR[/bold]      {result.benchmark_cagr_pct:+.2f}%\n"
+                f"[bold]Alpha[/bold]              [{alpha_color}]{result.alpha_pct:+.2f}%[/{alpha_color}]\n"
+                f"[bold]Beta[/bold]               {beta_str}\n"
+                f"[bold]Correlation[/bold]        {corr_str}\n"
+                f"[bold]Max drawdown[/bold]       [red]{result.max_drawdown_pct:.2f}%[/red]",
+                title=f"[bold cyan]Portfolio vs {bench}[/bold cyan]",
+                border_style="cyan", box=box.ROUNDED,
+            ))
 
         elif cmd == "import-csv":
             parts = arg.split(maxsplit=1) if arg else []

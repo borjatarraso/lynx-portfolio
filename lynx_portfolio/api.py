@@ -799,6 +799,150 @@ def do_import():
 
 
 # ---------------------------------------------------------------------------
+# Backtest (v5.1)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/backtest", methods=["POST"])
+@requires_token
+def backtest_endpoint():
+    """Run a portfolio backtest.
+
+    POST  /api/backtest  {
+        "tickers": ["AAPL", "MSFT"],
+        "weights": [0.6, 0.4],          // optional; defaults to equal-weight
+        "period": "5y",
+        "initial_capital": 10000,
+        "rebalance": "none",              // "none" | "monthly" | "quarterly" | "annual"
+        "risk_free_rate": 0.04            // optional; fraction, annual
+    }
+    """
+    body = request.get_json(silent=True) or {}
+    raw = body.get("tickers") or []
+    if isinstance(raw, str):
+        raw = [t.strip() for t in raw.split(",") if t.strip()]
+    if not raw or len(raw) > 20:
+        return jsonify({"error": "tickers list required (max 20)"}), 400
+
+    tickers: list = []
+    for t in raw:
+        n, err = validate_ticker(str(t))
+        if err:
+            return jsonify({"error": f"ticker '{t}': {err}"}), 400
+        tickers.append(n)
+
+    weights = body.get("weights")
+    if weights is not None:
+        try:
+            weights = [float(w) for w in weights]
+        except (TypeError, ValueError):
+            return jsonify({"error": "weights must be a list of numbers"}), 400
+
+    period = body.get("period", "5y")
+    rebalance = str(body.get("rebalance", "none"))
+    try:
+        initial = float(body.get("initial_capital", 10_000))
+        rf = float(body.get("risk_free_rate", 0.0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "numeric fields must be valid"}), 400
+    if initial <= 0:
+        return jsonify({"error": "initial_capital must be > 0"}), 400
+
+    try:
+        from lynx_investor_core import backtest as _bt
+    except ImportError:
+        return jsonify({"error": "backtest module unavailable"}), 503
+
+    result = _bt.run_backtest(
+        tickers, weights=weights, period=period,
+        initial_capital=initial, rebalance=rebalance,
+        risk_free_rate=rf,
+    )
+    return jsonify(result.as_dict())
+
+
+@app.route("/api/benchmark-historical", methods=["GET"])
+@requires_token
+def benchmark_historical_endpoint():
+    """Historical portfolio vs benchmark comparison.
+
+    GET  /api/benchmark-historical?ticker=^GSPC&period=5y
+    """
+    raw = request.args.get("ticker", "^GSPC")
+    ticker, err = validate_ticker(raw)
+    if err:
+        return jsonify({"error": err}), 400
+    period = request.args.get("period", "5y")
+    try:
+        from lynx_investor_core import backtest as _bt
+    except ImportError:
+        return jsonify({"error": "backtest module unavailable"}), 503
+
+    positions = []
+    for inst in database.get_all_instruments():
+        curr = inst.get("current_price")
+        shares = inst.get("shares") or 0
+        if curr and shares > 0:
+            positions.append((inst["ticker"], shares * curr))
+    if not positions:
+        return jsonify({"error": "portfolio is empty"}), 400
+
+    result = _bt.historical_benchmark(positions, ticker, period=period)
+    return jsonify(result.as_dict())
+
+
+# ---------------------------------------------------------------------------
+# Screener (v5.1)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/screener", methods=["POST"])
+@requires_token
+def screener_endpoint():
+    """Cross-sector screener.
+
+    POST /api/screener {
+        "universe": ["AAPL", "MSFT", "JNJ", ...],
+        "filters": [["market_cap", ">", 1e12], ["sector", "==", "Technology"]],
+        "fields": ["name", "market_cap", "pe_trailing"]   // optional
+    }
+    """
+    body = request.get_json(silent=True) or {}
+    universe = body.get("universe", [])
+    filters = body.get("filters", [])
+    fields = body.get("fields")
+
+    if not isinstance(universe, list) or not universe:
+        return jsonify({"error": "universe must be a non-empty list of tickers"}), 400
+    if len(universe) > 100:
+        return jsonify({"error": "universe too large (max 100 tickers)"}), 400
+    if not isinstance(filters, list):
+        return jsonify({"error": "filters must be a list"}), 400
+
+    # Each filter is a list [field, op, value] in JSON — convert to tuples.
+    try:
+        tuple_filters = [tuple(f) for f in filters]
+    except TypeError:
+        return jsonify({"error": "each filter must be [field, op, value]"}), 400
+
+    # Validate tickers
+    universe_clean: list = []
+    for t in universe:
+        n, err = validate_ticker(str(t))
+        if err:
+            return jsonify({"error": f"ticker '{t}': {err}"}), 400
+        universe_clean.append(n)
+
+    try:
+        from lynx_investor_core import screener as _sc
+        result = _sc.run_screener(universe_clean, tuple_filters, fields=fields)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        return jsonify({"error": "screener failed"}), 500
+
+    return jsonify(result.as_dict())
+
+
+# ---------------------------------------------------------------------------
 # Error handlers — never leak exception text
 # ---------------------------------------------------------------------------
 

@@ -16,6 +16,8 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict
 
+from lynx_investor_core.gui_themes import ThemeCycler, apply_theme
+
 from . import APP_NAME, VERSION, LICENSE, LICENSE_URL, LICENSE_TEXT, ABOUT_LINES, SUITE_LABEL
 from . import database, cache, forex
 from .display import _shares_str
@@ -423,6 +425,12 @@ class LynxGUI:
         self._root.bind("<F5>", lambda _: self._on_refresh_all())
         self._root.bind("<Delete>", lambda _: self._on_delete())
         self._root.bind("<F12>", lambda _: self._xyzzy())
+
+        # Suite-wide theme cycling (Ctrl+T / Ctrl+Shift+T)
+        self._theme_cycler = ThemeCycler(self._root)
+        self._theme_cycler.apply_current()
+        self._root.bind_all("<Control-t>", lambda _: self._theme_cycler.next())
+        self._root.bind_all("<Control-T>", lambda _: self._theme_cycler.previous())
 
     # ----- UI construction ---------------------------------------------------
 
