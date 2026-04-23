@@ -109,6 +109,31 @@ _HELP = """
   [bold]income[/bold]                     Annual dividend income projection
   [bold]alerts[/bold]                     Drawdown / concentration / stale alerts
   [bold]benchmark[/bold] [<ticker>]       Portfolio vs market index (default ^GSPC)
+  [bold]chart[/bold] <ticker> [period]    Price history chart (1y / 5y / 6mo / ytd …)
+
+[bold cyan]Transactions & tax lots[/bold cyan]
+
+  [bold]buy[/bold] <ticker> <shares> <price>    Record a BUY transaction
+  [bold]sell[/bold] <ticker> <shares> <price>   Record a SELL transaction (FIFO)
+  [bold]trades[/bold] [ticker]             Show the trade log
+  [bold]lots[/bold] <ticker>                Show open tax lots (FIFO)
+  [bold]realized[/bold] <ticker>            Realized PnL on closed shares
+
+[bold cyan]Watchlists[/bold cyan]
+
+  [bold]watch[/bold] <ticker> [list]       Add ticker to a watchlist
+  [bold]unwatch[/bold] <ticker> [list]     Remove ticker from a watchlist
+  [bold]watchlist[/bold] [list]            Show a watchlist
+
+[bold cyan]Price alerts[/bold cyan]
+
+  [bold]alert[/bold] <ticker> <op> <price>  Create a threshold alert (>= <= > < ==)
+  [bold]alerts-list[/bold]                 Show all alert rules
+  [bold]alert-del[/bold] <id>               Delete alert by id
+
+[bold cyan]Import[/bold cyan]
+
+  [bold]import-csv[/bold] <path> [broker]   Bulk-import trades from IBKR / Trading212 / Degiro / Fidelity / generic CSV
 
 [bold cyan]Utilities[/bold cyan]
 
@@ -288,6 +313,241 @@ def run() -> None:
             from .display import render_benchmark
             bench = arg.strip() if arg else "^GSPC"
             render_benchmark(display.console, _dash.compute_benchmark(bench))
+
+        elif cmd == "chart":
+            parts = arg.split() if arg else []
+            if not parts:
+                display.err("Usage: chart <ticker> [period]")
+                continue
+            ticker = parts[0].upper()
+            period = parts[1] if len(parts) > 1 else "1y"
+            try:
+                from lynx_investor_core.charts import (
+                    fetch_price_history, render_price_chart,
+                )
+            except ImportError:
+                display.err("Charting requires lynx-investor-core>=4.0 and plotext.")
+                continue
+            display.info(f"Fetching price history for {ticker} ({period})…")
+            dates, closes = fetch_price_history(ticker, period=period)
+            if not closes:
+                display.err(f"No price data for {ticker}.")
+                continue
+            chart = render_price_chart(
+                dates, closes,
+                title=f"{ticker} — {period}",
+                width=min(100, display.console.width - 4),
+                height=20,
+            )
+            display.console.print(chart)
+
+        elif cmd == "buy":
+            parts = arg.split() if arg else []
+            if len(parts) < 3:
+                display.err("Usage: buy <ticker> <shares> <price> [fees] [trade_date]")
+                continue
+            try:
+                from . import transactions as _tx
+                from .validation import validate_ticker, validate_shares, validate_price
+                ticker, terr = validate_ticker(parts[0])
+                if terr:
+                    display.err(terr); continue
+                sh, serr = validate_shares(parts[1])
+                if serr: display.err(serr); continue
+                pr, perr = validate_price(parts[2])
+                if perr: display.err(perr); continue
+                fees = float(parts[3]) if len(parts) > 3 else 0.0
+                date_s = parts[4] if len(parts) > 4 else None
+                tid = _tx.record_buy(ticker, shares=sh, price=pr, fees=fees, trade_date=date_s)
+                _tx.rebuild_portfolio_summary(ticker)
+                display.ok(f"Recorded BUY #{tid}: {sh} {ticker} @ {pr}.")
+            except (ValueError, TypeError) as exc:
+                display.err(f"Bad input: {exc}")
+
+        elif cmd == "sell":
+            parts = arg.split() if arg else []
+            if len(parts) < 3:
+                display.err("Usage: sell <ticker> <shares> <price> [fees] [trade_date]")
+                continue
+            try:
+                from . import transactions as _tx
+                from .validation import validate_ticker, validate_shares, validate_price
+                ticker, terr = validate_ticker(parts[0])
+                if terr:
+                    display.err(terr); continue
+                sh, serr = validate_shares(parts[1])
+                if serr: display.err(serr); continue
+                pr, perr = validate_price(parts[2])
+                if perr: display.err(perr); continue
+                fees = float(parts[3]) if len(parts) > 3 else 0.0
+                date_s = parts[4] if len(parts) > 4 else None
+                tid = _tx.record_sell(ticker, shares=sh, price=pr, fees=fees, trade_date=date_s)
+                _tx.rebuild_portfolio_summary(ticker)
+                display.ok(f"Recorded SELL #{tid}: {sh} {ticker} @ {pr}.")
+            except (ValueError, TypeError) as exc:
+                display.err(f"Bad input: {exc}")
+
+        elif cmd == "trades":
+            from . import transactions as _tx
+            from rich.table import Table as _T
+            ticker = (arg.strip() or None)
+            if ticker:
+                ticker = ticker.upper()
+            txs = _tx.list_transactions(ticker)
+            if not txs:
+                display.info("No transactions recorded."); continue
+            t = _T(title=f"Trades{' — ' + ticker if ticker else ''}", box=box.ROUNDED, header_style="bold cyan")
+            for col in ("ID", "Date", "Type", "Ticker", "Shares", "Price", "Fees", "Note"):
+                t.add_column(col, justify="right" if col in ("Shares", "Price", "Fees") else "left")
+            for tx in txs:
+                color = "green" if tx.trade_type == "BUY" else "red"
+                t.add_row(
+                    str(tx.id), tx.trade_date, f"[{color}]{tx.trade_type}[/{color}]",
+                    tx.ticker, f"{tx.shares:g}", f"{tx.price:,.2f}",
+                    f"{tx.fees:.2f}", (tx.note or "")[:40],
+                )
+            display.console.print(t)
+
+        elif cmd == "lots":
+            if not arg:
+                display.err("Usage: lots <ticker>"); continue
+            from . import transactions as _tx
+            from rich.table import Table as _T
+            lots = _tx.compute_open_lots_fifo(arg.strip().upper())
+            if not lots:
+                display.info(f"No open lots for {arg.strip().upper()}."); continue
+            t = _T(title=f"Open lots — {arg.strip().upper()} (FIFO)",
+                   box=box.ROUNDED, header_style="bold cyan")
+            t.add_column("Trade ID"); t.add_column("Date")
+            t.add_column("Shares", justify="right")
+            t.add_column("Unit cost", justify="right")
+            for lot in lots:
+                t.add_row(str(lot.trade_id), lot.trade_date,
+                          f"{lot.shares_remaining:g}", f"{lot.unit_cost:,.4f}")
+            display.console.print(t)
+
+        elif cmd == "realized":
+            if not arg:
+                display.err("Usage: realized <ticker>"); continue
+            from . import transactions as _tx
+            from rich.panel import Panel as _P
+            result = _tx.realized_pnl(arg.strip().upper())
+            color = "green" if result["realized"] >= 0 else "red"
+            display.console.print(_P(
+                f"[bold]Sold shares[/bold]   {result['sold_shares']}\n"
+                f"[bold]Proceeds[/bold]      {result['proceeds']:,.2f}\n"
+                f"[bold]Cost basis[/bold]    {result['basis']:,.2f}\n"
+                f"[bold]Realized[/bold]      [{color}]{result['realized']:,.2f}[/{color}]",
+                title=f"[bold cyan]Realized PnL — {arg.strip().upper()}[/bold cyan]",
+                border_style="cyan", box=box.ROUNDED,
+            ))
+
+        elif cmd == "watch":
+            parts = arg.split(maxsplit=1) if arg else []
+            if not parts:
+                display.err("Usage: watch <ticker> [list_name]"); continue
+            from . import watchlists as _wl
+            ticker = parts[0].upper()
+            name = parts[1] if len(parts) > 1 else "default"
+            wid = _wl.add(ticker, name=name)
+            if wid is None:
+                display.warn(f"{ticker} already on watchlist '{name}'.")
+            else:
+                display.ok(f"Added {ticker} to watchlist '{name}'.")
+
+        elif cmd == "unwatch":
+            parts = arg.split(maxsplit=1) if arg else []
+            if not parts:
+                display.err("Usage: unwatch <ticker> [list_name]"); continue
+            from . import watchlists as _wl
+            ticker = parts[0].upper()
+            name = parts[1] if len(parts) > 1 else "default"
+            if _wl.remove(ticker, name=name):
+                display.ok(f"Removed {ticker} from '{name}'.")
+            else:
+                display.warn(f"{ticker} not on watchlist '{name}'.")
+
+        elif cmd == "watchlist":
+            from . import watchlists as _wl
+            from rich.table import Table as _T
+            name = (arg.strip() or None)
+            items = _wl.list_all(name)
+            if not items:
+                display.info(f"Watchlist '{name or 'default'}' is empty."); continue
+            t = _T(title=f"Watchlist{' — ' + name if name else ''}",
+                   box=box.ROUNDED, header_style="bold cyan")
+            t.add_column("List"); t.add_column("Ticker"); t.add_column("Note")
+            for item in items:
+                t.add_row(item.name, item.ticker, item.note or "")
+            display.console.print(t)
+
+        elif cmd == "alert":
+            parts = arg.split() if arg else []
+            if len(parts) < 3:
+                display.err("Usage: alert <ticker> <op> <price> (op: >= <= > < ==)")
+                continue
+            from . import price_alerts as _pa
+            try:
+                aid = _pa.create(
+                    parts[0].upper(),
+                    condition=parts[1],
+                    threshold=float(parts[2]),
+                    note=" ".join(parts[3:]) if len(parts) > 3 else None,
+                )
+                display.ok(f"Created alert #{aid}: {parts[0].upper()} {parts[1]} {parts[2]}")
+            except ValueError as exc:
+                display.err(str(exc))
+
+        elif cmd in ("alerts-list", "alert-list"):
+            from . import price_alerts as _pa
+            from rich.table import Table as _T
+            alerts = _pa.list_all()
+            if not alerts:
+                display.info("No price alerts defined."); continue
+            t = _T(title="Price alerts", box=box.ROUNDED, header_style="bold cyan")
+            for c in ("ID", "Ticker", "Rule", "Triggered", "Enabled", "Note"):
+                t.add_column(c)
+            for a in alerts:
+                t.add_row(
+                    str(a.id), a.ticker,
+                    f"{a.condition} {a.threshold:,.2f}",
+                    (a.triggered_at or "—")[:19],
+                    "✓" if a.enabled else "—",
+                    (a.note or "")[:40],
+                )
+            display.console.print(t)
+
+        elif cmd == "alert-del":
+            if not arg:
+                display.err("Usage: alert-del <id>"); continue
+            from . import price_alerts as _pa
+            try:
+                aid = int(arg.strip())
+            except ValueError:
+                display.err("id must be an integer"); continue
+            if _pa.delete(aid):
+                display.ok(f"Deleted alert #{aid}.")
+            else:
+                display.warn(f"No alert with id {aid}.")
+
+        elif cmd == "import-csv":
+            parts = arg.split(maxsplit=1) if arg else []
+            if not parts:
+                display.err("Usage: import-csv <path> [broker]"); continue
+            from . import broker_import as _bi
+            from pathlib import Path as _Path
+            path = _Path(parts[0]).expanduser()
+            broker = parts[1] if len(parts) > 1 else None
+            result = _bi.import_csv(path, broker=broker)
+            display.ok(
+                f"Imported {result.imported}/{result.rows_read} trades "
+                f"(broker={result.broker}, new tickers={len(result.new_tickers)})."
+            )
+            if result.errors:
+                for err in result.errors[:5]:
+                    display.warn(err)
+                if len(result.errors) > 5:
+                    display.warn(f"... and {len(result.errors) - 5} more errors.")
 
         else:
             display.warn(f"Unknown command '{cmd}'. Type 'help' for available commands.")

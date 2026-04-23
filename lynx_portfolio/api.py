@@ -43,7 +43,10 @@ _NOTIFIER_LOCK = threading.Lock()
 from flask import Flask, jsonify, request
 
 from . import APP_NAME, VERSION
-from . import cache, dashboard, database, fetcher, forex, operations
+from . import (
+    broker_import, cache, dashboard, database, fetcher, forex, operations,
+    price_alerts, transactions, watchlists,
+)
 from .validation import validate_ticker, validate_shares, validate_price
 
 
@@ -517,6 +520,282 @@ def dashboard_benchmark():
     if err or not normalized:
         return jsonify({"error": err or "invalid benchmark"}), 400
     return jsonify(dashboard.compute_benchmark(normalized))
+
+
+# ---------------------------------------------------------------------------
+# Charts (v5.0)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/charts/<ticker>", methods=["GET"])
+@requires_token
+def chart_series(ticker: str):
+    """Return JSON { dates: [...], closes: [...], return_pct }."""
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    period = request.args.get("period", "1y")
+    try:
+        from lynx_investor_core.charts import fetch_price_history, compute_return
+    except ImportError:
+        return jsonify({"error": "charts module unavailable"}), 503
+    dates, closes = fetch_price_history(ticker, period=period)
+    return jsonify({
+        "ticker": ticker,
+        "period": period,
+        "dates": dates,
+        "closes": closes,
+        "return_pct": compute_return(closes),
+    })
+
+
+# ---------------------------------------------------------------------------
+# Transactions (v5.0)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/transactions", methods=["GET"])
+@requires_token
+def list_transactions_all():
+    ticker = request.args.get("ticker")
+    if ticker:
+        ticker, err = validate_ticker(ticker)
+        if err:
+            return jsonify({"error": err}), 400
+    txs = transactions.list_transactions(ticker)
+    return jsonify([{
+        "id": t.id,
+        "ticker": t.ticker,
+        "trade_type": t.trade_type,
+        "shares": t.shares,
+        "price": t.price,
+        "fees": t.fees,
+        "currency": t.currency,
+        "trade_date": t.trade_date,
+        "note": t.note,
+    } for t in txs])
+
+
+@app.route("/api/transactions", methods=["POST"])
+@requires_token
+def record_transaction():
+    body = request.get_json(silent=True) or {}
+    ticker = body.get("ticker")
+    trade_type = (body.get("trade_type") or "").upper()
+    shares = body.get("shares")
+    price = body.get("price")
+
+    if trade_type not in ("BUY", "SELL"):
+        return jsonify({"error": "trade_type must be BUY or SELL"}), 400
+    if not ticker:
+        return jsonify({"error": "ticker is required"}), 400
+    ticker, err = validate_ticker(str(ticker))
+    if err:
+        return jsonify({"error": err}), 400
+
+    shares, err = validate_shares(shares)
+    if err:
+        return jsonify({"error": err}), 400
+    price, err = validate_price(price)
+    if err:
+        return jsonify({"error": err}), 400
+
+    fn = transactions.record_buy if trade_type == "BUY" else transactions.record_sell
+    try:
+        tid = fn(
+            ticker,
+            shares=shares,
+            price=price,
+            fees=float(body.get("fees") or 0.0),
+            currency=body.get("currency"),
+            trade_date=body.get("trade_date"),
+            note=body.get("note"),
+        )
+        transactions.rebuild_portfolio_summary(ticker)
+    except Exception:
+        return jsonify({"error": "failed to record transaction"}), 500
+    return jsonify({"status": "recorded", "id": tid}), 201
+
+
+@app.route("/api/transactions/<int:tx_id>", methods=["DELETE"])
+@requires_token
+def remove_transaction(tx_id: int):
+    if transactions.delete_transaction(tx_id):
+        return jsonify({"status": "deleted", "id": tx_id})
+    return jsonify({"error": f"transaction #{tx_id} not found"}), 404
+
+
+@app.route("/api/transactions/<ticker>/lots", methods=["GET"])
+@requires_token
+def tax_lots(ticker: str):
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    lots = transactions.compute_open_lots_fifo(ticker)
+    return jsonify([{
+        "trade_id": lot.trade_id,
+        "ticker": lot.ticker,
+        "shares_remaining": lot.shares_remaining,
+        "unit_cost": lot.unit_cost,
+        "currency": lot.currency,
+        "trade_date": lot.trade_date,
+    } for lot in lots])
+
+
+@app.route("/api/transactions/<ticker>/realized", methods=["GET"])
+@requires_token
+def realized_pnl_endpoint(ticker: str):
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    return jsonify(transactions.realized_pnl(ticker))
+
+
+# ---------------------------------------------------------------------------
+# Watchlists (v5.0)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/watchlists", methods=["GET"])
+@requires_token
+def list_watchlists():
+    name = request.args.get("name")
+    items = watchlists.list_all(name)
+    return jsonify([{
+        "id": i.id, "name": i.name, "ticker": i.ticker, "note": i.note,
+        "created_at": i.created_at,
+    } for i in items])
+
+
+@app.route("/api/watchlists", methods=["POST"])
+@requires_token
+def add_to_watchlist():
+    body = request.get_json(silent=True) or {}
+    ticker = body.get("ticker")
+    name = body.get("name") or "default"
+    if not ticker:
+        return jsonify({"error": "ticker is required"}), 400
+    ticker, err = validate_ticker(str(ticker))
+    if err:
+        return jsonify({"error": err}), 400
+    wid = watchlists.add(ticker, name=str(name), note=body.get("note"))
+    if wid is None:
+        return jsonify({"status": "already on list", "ticker": ticker, "name": name}), 200
+    return jsonify({"status": "added", "id": wid, "ticker": ticker, "name": name}), 201
+
+
+@app.route("/api/watchlists/<ticker>", methods=["DELETE"])
+@requires_token
+def remove_from_watchlist(ticker: str):
+    ticker, err = validate_ticker(ticker)
+    if err:
+        return jsonify({"error": err}), 400
+    name = request.args.get("name") or "default"
+    if watchlists.remove(ticker, name=str(name)):
+        return jsonify({"status": "removed", "ticker": ticker, "name": name})
+    return jsonify({"error": "not on watchlist"}), 404
+
+
+# ---------------------------------------------------------------------------
+# Price alerts (v5.0)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/price-alerts", methods=["GET"])
+@requires_token
+def list_price_alerts():
+    ticker = request.args.get("ticker")
+    if ticker:
+        ticker, err = validate_ticker(ticker)
+        if err:
+            return jsonify({"error": err}), 400
+    alerts = price_alerts.list_all(ticker=ticker)
+    return jsonify([{
+        "id": a.id, "ticker": a.ticker, "condition": a.condition,
+        "threshold": a.threshold, "note": a.note,
+        "triggered_at": a.triggered_at, "enabled": bool(a.enabled),
+        "created_at": a.created_at,
+    } for a in alerts])
+
+
+@app.route("/api/price-alerts", methods=["POST"])
+@requires_token
+def create_price_alert():
+    body = request.get_json(silent=True) or {}
+    ticker = body.get("ticker")
+    condition = body.get("condition")
+    threshold = body.get("threshold")
+    if not ticker:
+        return jsonify({"error": "ticker is required"}), 400
+    ticker, err = validate_ticker(str(ticker))
+    if err:
+        return jsonify({"error": err}), 400
+    try:
+        aid = price_alerts.create(
+            ticker, condition=condition, threshold=float(threshold),
+            note=body.get("note"),
+        )
+    except (ValueError, TypeError) as exc:
+        return jsonify({"error": str(exc)}), 400
+    return jsonify({"status": "created", "id": aid}), 201
+
+
+@app.route("/api/price-alerts/<int:alert_id>", methods=["DELETE"])
+@requires_token
+def delete_price_alert(alert_id: int):
+    if price_alerts.delete(alert_id):
+        return jsonify({"status": "deleted", "id": alert_id})
+    return jsonify({"error": f"alert #{alert_id} not found"}), 404
+
+
+@app.route("/api/price-alerts/<int:alert_id>/reset", methods=["POST"])
+@requires_token
+def reset_price_alert(alert_id: int):
+    if price_alerts.reset(alert_id):
+        return jsonify({"status": "reset", "id": alert_id})
+    return jsonify({"error": f"alert #{alert_id} not found"}), 404
+
+
+# ---------------------------------------------------------------------------
+# Broker-CSV import (v5.0)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/import/preview", methods=["POST"])
+@requires_token
+def import_preview():
+    """Dry-run a CSV upload; returns how many rows would be imported."""
+    body = request.get_json(silent=True) or {}
+    path = body.get("path")
+    broker = body.get("broker")
+    if not path:
+        return jsonify({"error": "'path' is required"}), 400
+    from pathlib import Path as _P
+    result = broker_import.import_csv(_P(path), broker=broker, dry_run=True)
+    return jsonify({
+        "broker": result.broker,
+        "rows_read": result.rows_read,
+        "imported": result.imported,
+        "skipped": result.skipped,
+        "errors": result.errors,
+        "new_tickers": result.new_tickers,
+    })
+
+
+@app.route("/api/import", methods=["POST"])
+@requires_token
+def do_import():
+    body = request.get_json(silent=True) or {}
+    path = body.get("path")
+    broker = body.get("broker")
+    if not path:
+        return jsonify({"error": "'path' is required"}), 400
+    from pathlib import Path as _P
+    result = broker_import.import_csv(_P(path), broker=broker, dry_run=False)
+    status_code = 200 if not result.errors else 207  # Multi-status
+    return jsonify({
+        "broker": result.broker,
+        "rows_read": result.rows_read,
+        "imported": result.imported,
+        "skipped": result.skipped,
+        "errors": result.errors,
+        "new_tickers": result.new_tickers,
+    }), status_code
 
 
 # ---------------------------------------------------------------------------

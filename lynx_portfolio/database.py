@@ -94,6 +94,48 @@ def init_db() -> None:
             exchange_display      TEXT,
             cached_at             TEXT DEFAULT (datetime('now'))
         );
+
+        -- v5.0: tax-lot tracking. One row per buy/sell trade. The
+        -- portfolio.shares / avg_purchase_price columns remain as a
+        -- cached summary derived from these rows.
+        CREATE TABLE IF NOT EXISTS transactions (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker                TEXT NOT NULL,
+            trade_type            TEXT NOT NULL CHECK (trade_type IN ('BUY', 'SELL')),
+            shares                REAL NOT NULL CHECK (shares > 0),
+            price                 REAL NOT NULL CHECK (price >= 0),
+            fees                  REAL DEFAULT 0 CHECK (fees >= 0),
+            currency              TEXT,
+            trade_date            TEXT NOT NULL,   -- YYYY-MM-DD
+            note                  TEXT,
+            created_at            TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_tx_ticker_date
+            ON transactions(ticker, trade_date);
+
+        -- v5.0: watchlists — tickers tracked without owning shares.
+        CREATE TABLE IF NOT EXISTS watchlists (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            name                  TEXT NOT NULL DEFAULT 'default',
+            ticker                TEXT NOT NULL,
+            note                  TEXT,
+            created_at            TEXT DEFAULT (datetime('now')),
+            UNIQUE(name, ticker)
+        );
+
+        -- v5.0: price alerts — persistent threshold rules checked on refresh.
+        CREATE TABLE IF NOT EXISTS price_alerts (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            ticker                TEXT NOT NULL,
+            condition             TEXT NOT NULL CHECK (condition IN ('>=', '<=', '>', '<', '==')),
+            threshold             REAL NOT NULL,
+            note                  TEXT,
+            triggered_at          TEXT,
+            enabled               INTEGER DEFAULT 1,
+            created_at            TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_alerts_ticker
+            ON price_alerts(ticker);
     """)
     # Migrations: add columns to existing tables if they are absent
     existing = {
