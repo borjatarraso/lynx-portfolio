@@ -12,7 +12,7 @@ Display Application Version
     [Documentation]    Verify the version flag outputs the current version string.
     Given an empty portfolio
     When the user runs lynx with "-v"
-    Then the output should contain "v3.0"
+    Then the output should contain "v4.0"
 
 Add Instrument With Cost Basis
     [Documentation]    Adding an instrument with ticker, shares, and avg price should succeed.

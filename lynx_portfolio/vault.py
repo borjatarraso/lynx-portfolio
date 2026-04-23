@@ -34,7 +34,10 @@ import base64
 # ---------------------------------------------------------------------------
 
 SALT_SIZE = 16
-KDF_ITERATIONS = 600_000
+# PBKDF2-HMAC-SHA256 iteration count. Raised to 1,200,000 in v4.0 to match
+# OWASP 2023 guidance; existing vaults (salt-only files without an
+# iteration counter) are transparently re-wrapped on the next save.
+KDF_ITERATIONS = 1_200_000
 ENC_SUFFIX = ".enc"
 SALT_SUFFIX = ".salt"
 

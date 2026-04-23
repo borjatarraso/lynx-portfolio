@@ -38,7 +38,7 @@ Console Mode Required For Subcommands
 Version Flag Works Without Mode
     [Documentation]    The -v flag should print version regardless of mode.
     When the user runs lynx with "-v"
-    Then the output should contain "v3.0"
+    Then the output should contain "v4.0"
 
 Encrypt Works Without Explicit Production Flag
     [Documentation]    Vault operations should work without --production when

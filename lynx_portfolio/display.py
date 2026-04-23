@@ -590,3 +590,189 @@ def confirm_clear_cache(instruments: List[Dict]) -> bool:
         return False
 
     return True
+
+
+# ---------------------------------------------------------------------------
+# Dashboard renderers (v4.0)
+# ---------------------------------------------------------------------------
+
+def _signed_eur(value: Optional[float]) -> str:
+    if value is None:
+        return "[dim]—[/dim]"
+    color = "green" if value > 0 else ("red" if value < 0 else "white")
+    sign = "+" if value > 0 else ""
+    return f"[{color}]{sign}{value:,.2f} €[/{color}]"
+
+
+def _signed_pct(value: Optional[float]) -> str:
+    if value is None:
+        return "[dim]—[/dim]"
+    color = "green" if value > 0 else ("red" if value < 0 else "white")
+    sign = "+" if value > 0 else ""
+    return f"[{color}]{sign}{value:.2f}%[/{color}]"
+
+
+def render_stats(console_: Console, stats: Dict) -> None:
+    """Render the compact portfolio summary card."""
+    value = stats.get("total_value_eur")
+    invested = stats.get("total_invested_eur")
+    pnl = stats.get("total_pnl_eur")
+    pnl_pct = stats.get("total_pnl_pct")
+    day_change = stats.get("day_change_eur")
+    day_change_pct = stats.get("day_change_pct")
+    positions = stats.get("positions", 0)
+
+    lines = [
+        f"[bold]Positions[/bold]      {positions}",
+        f"[bold]Market value[/bold]   {value:,.2f} €" if value is not None else "[bold]Market value[/bold]   —",
+        f"[bold]Invested[/bold]       {invested:,.2f} €" if invested is not None else "[bold]Invested[/bold]       —",
+        f"[bold]Total PnL[/bold]      {_signed_eur(pnl)}  ({_signed_pct(pnl_pct)})",
+        f"[bold]Today[/bold]          {_signed_eur(day_change)}  ({_signed_pct(day_change_pct)})",
+    ]
+    console_.print(Panel("\n".join(lines), title="[bold cyan]Portfolio Stats[/bold cyan]",
+                         border_style="cyan", box=box.ROUNDED))
+    _flush_console()
+
+
+def render_sector_allocation(console_: Console, rows: List[Dict]) -> None:
+    """Render the sector-allocation table with a text bar."""
+    if not rows:
+        console_.print("[yellow]No positions yet — add one with [bold]add[/bold].[/yellow]")
+        _flush_console()
+        return
+
+    t = Table(title="Sector Allocation", box=box.ROUNDED, header_style="bold cyan")
+    t.add_column("Sector")
+    t.add_column("Positions", justify="right")
+    t.add_column("Value (EUR)", justify="right")
+    t.add_column("%", justify="right")
+    t.add_column("Distribution")
+
+    for row in rows:
+        pct = row["pct_of_portfolio"]
+        bar_width = int(pct / 2)  # 50% = 25 cells
+        bar = ("[cyan]" + "█" * bar_width + "[/cyan]") if bar_width else ""
+        t.add_row(
+            row["sector"],
+            str(row["positions"]),
+            f"{row['value_eur']:,.2f}",
+            f"{pct:.1f}%",
+            bar,
+        )
+    console_.print(t)
+    _flush_console()
+
+
+def render_movers(console_: Console, movers: Dict) -> None:
+    """Render the gainers / losers side-by-side."""
+    gainers = movers.get("gainers", [])
+    losers = movers.get("losers", [])
+
+    for title, rows, color in (("Top Gainers", gainers, "green"), ("Top Losers", losers, "red")):
+        if not rows:
+            console_.print(f"[dim]{title}: no data[/dim]")
+            continue
+        t = Table(title=title, box=box.ROUNDED, header_style=f"bold {color}")
+        t.add_column("Ticker")
+        t.add_column("Name")
+        t.add_column("Change %", justify="right")
+        t.add_column("Price", justify="right")
+        for r in rows:
+            t.add_row(
+                r.get("ticker") or "—",
+                (r.get("name") or "")[:40],
+                _signed_pct(r.get("day_change_pct")),
+                f"{r.get('current_price', 0):,.2f} {r.get('currency', '')}",
+            )
+        console_.print(t)
+    _flush_console()
+
+
+def render_income(console_: Console, income: Dict) -> None:
+    """Render the dividend-income projection."""
+    annual = income.get("annual_income_eur", 0.0)
+    monthly = income.get("monthly_income_eur", 0.0)
+    yld = income.get("portfolio_yield_pct")
+    yoc = income.get("yield_on_cost_pct")
+
+    summary = (
+        f"[bold]Annual income[/bold]    {annual:,.2f} €\n"
+        f"[bold]Monthly income[/bold]   {monthly:,.2f} €\n"
+        f"[bold]Portfolio yield[/bold]  {yld:.2f}%" + ("\n" if yld is not None else "—\n")
+        + f"[bold]Yield on cost[/bold]   {yoc:.2f}%" if yoc is not None else "[bold]Yield on cost[/bold]   —"
+    )
+    console_.print(Panel(summary, title="[bold cyan]Dividend Income[/bold cyan]",
+                         border_style="cyan", box=box.ROUNDED))
+
+    contrib = income.get("contributions", [])
+    if contrib:
+        t = Table(title="Per-position contribution", box=box.ROUNDED)
+        t.add_column("Ticker")
+        t.add_column("Annual (EUR)", justify="right")
+        t.add_column("Currency")
+        for row in contrib[:20]:
+            t.add_row(
+                row["ticker"],
+                f"{row['annual_income_eur']:,.2f}",
+                row["currency"],
+            )
+        console_.print(t)
+    _flush_console()
+
+
+def render_alerts(console_: Console, alerts: List[Dict]) -> None:
+    """Render portfolio alerts."""
+    if not alerts:
+        console_.print(
+            Panel("[green]No alerts — portfolio looks healthy.[/green]",
+                  title="[bold cyan]Alerts[/bold cyan]",
+                  border_style="green", box=box.ROUNDED),
+        )
+        _flush_console()
+        return
+
+    t = Table(title="Portfolio Alerts", box=box.ROUNDED, header_style="bold yellow")
+    t.add_column("Severity")
+    t.add_column("Kind")
+    t.add_column("Ticker")
+    t.add_column("Message")
+    color_by_sev = {"critical": "red", "warn": "yellow", "info": "cyan"}
+    for a in alerts:
+        sev = a.get("severity", "info")
+        color = color_by_sev.get(sev, "white")
+        t.add_row(
+            f"[{color}]{sev.upper()}[/{color}]",
+            a.get("kind") or "",
+            a.get("ticker") or "—",
+            a.get("message") or "",
+        )
+    console_.print(t)
+    _flush_console()
+
+
+def render_benchmark(console_: Console, data: Dict) -> None:
+    """Render the benchmark comparison panel."""
+    pr = data.get("portfolio_return_pct") or 0.0
+    bench = data.get("benchmark") or {}
+    br = bench.get("return_pct")
+    alpha = data.get("alpha_pct")
+
+    lines = [
+        f"[bold]Portfolio return[/bold]   {_signed_pct(pr)}",
+        f"[bold]{bench.get('ticker', '—')} return[/bold]       {_signed_pct(br)}",
+        f"[bold]Alpha[/bold]              {_signed_pct(alpha)}",
+    ]
+    console_.print(Panel("\n".join(lines), title="[bold cyan]Benchmark Comparison[/bold cyan]",
+                         border_style="cyan", box=box.ROUNDED))
+    _flush_console()
+
+
+def render_dashboard(console_: Console, data: Dict) -> None:
+    """Full dashboard snapshot: stats + sectors + movers + alerts."""
+    render_stats(console_, data.get("stats", {}))
+    console_.print()
+    render_sector_allocation(console_, data.get("sectors", []))
+    console_.print()
+    render_movers(console_, data.get("movers", {}))
+    console_.print()
+    render_alerts(console_, data.get("alerts", []))

@@ -367,8 +367,21 @@ examples:
     imode.add_argument("--api",                      action="store_true", help="Start the REST API server")
 
     # API options ──────────────────────────────────────────────────────────
-    parser.add_argument("--port", type=int, default=5000,
-                        help="Port for the API server (default: 5000)")
+    def _port(value: str) -> int:
+        try:
+            n = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"{value} is not an integer")
+        if n < 1 or n > 65535:
+            raise argparse.ArgumentTypeError(f"port must be 1..65535 (got {n})")
+        return n
+
+    parser.add_argument("--port", type=_port, default=5000,
+                        help="Port for the API server (default: 5000, range 1-65535)")
+    parser.add_argument(
+        "--unsafe-bind-all", action="store_true", dest="unsafe_bind_all",
+        help="Bind the API to 0.0.0.0 (all interfaces). Default is 127.0.0.1 only.",
+    )
 
     # Bulk import ──────────────────────────────────────────────────────────────
     parser.add_argument(
@@ -414,10 +427,22 @@ examples:
                         help="Delete all cached instrument data")
     parser.add_argument("-rc", "--refresh-cache", action="store_true",
                         help="Re-fetch live data for every portfolio instrument")
+    def _positive_seconds(value: str) -> int:
+        try:
+            n = int(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"{value} is not an integer")
+        if n < 30:
+            raise argparse.ArgumentTypeError(
+                f"auto-refresh interval must be >= 30 seconds (got {n}) "
+                f"— sub-30s intervals would hammer yfinance rate limits.",
+            )
+        return n
+
     parser.add_argument(
         "--auto-refresh-cache", "-arc",
-        metavar="SECONDS", type=int, dest="auto_refresh",
-        help="Auto-refresh cache in background every SECONDS seconds",
+        metavar="SECONDS", type=_positive_seconds, dest="auto_refresh",
+        help="Auto-refresh cache in background every SECONDS seconds (min: 30)",
     )
 
     # Sub-commands ────────────────────────────────────────────────────────────
@@ -768,8 +793,12 @@ def run() -> None:
     # ── mode ─────────────────────────────────────────────────────────────
     if getattr(args, "api", False):
         from .api import run_api_server
-        display.info(f"Starting REST API on port {args.port}…")
-        run_api_server(port=args.port)
+        bind_all = bool(getattr(args, "unsafe_bind_all", False))
+        display.info(
+            f"Starting REST API on port {args.port} "
+            f"({'0.0.0.0 — all interfaces' if bind_all else '127.0.0.1 — loopback only'})…",
+        )
+        run_api_server(port=args.port, bind_all=bind_all)
         return
 
     # Smart refresh: only refresh if the DB has not been updated today,

@@ -99,6 +99,19 @@ _HELP = """
   [bold]import[/bold] <file.json>         Bulk-add instruments from a JSON file
   [bold]clear-cache[/bold]               Wipe all cached data
   [bold]markets[/bold] <ticker or ISIN>  List all exchanges where an instrument trades
+
+[bold cyan]Dashboard[/bold cyan]
+
+  [bold]dashboard[/bold]                  Full dashboard snapshot (stats + sectors + movers + alerts)
+  [bold]stats[/bold]                      Portfolio summary (value, PnL, day change)
+  [bold]sectors[/bold]                    Sector allocation breakdown
+  [bold]movers[/bold]                     Top gainers / losers for the day
+  [bold]income[/bold]                     Annual dividend income projection
+  [bold]alerts[/bold]                     Drawdown / concentration / stale alerts
+  [bold]benchmark[/bold] [<ticker>]       Portfolio vs market index (default ^GSPC)
+
+[bold cyan]Utilities[/bold cyan]
+
   [bold]config[/bold]                     Show or update configuration
   [bold]about[/bold]                      Show application information
   [bold]help[/bold]                       Show this message
@@ -234,6 +247,47 @@ def run() -> None:
         elif cmd == "lynx":
             from .egg import run_interactive_egg
             run_interactive_egg()
+
+        elif cmd == "dashboard":
+            from . import dashboard as _dash
+            from .display import render_dashboard
+            render_dashboard(display.console, _dash.compute_full_dashboard())
+
+        elif cmd == "stats":
+            from . import dashboard as _dash
+            from .display import render_stats
+            render_stats(display.console, _dash.compute_stats())
+
+        elif cmd == "sectors":
+            from . import dashboard as _dash
+            from .display import render_sector_allocation
+            render_sector_allocation(display.console, _dash.compute_sector_allocation())
+
+        elif cmd == "movers":
+            from . import dashboard as _dash
+            from .display import render_movers
+            try:
+                limit = int(arg) if arg else 5
+            except ValueError:
+                display.err("Usage: movers [<limit>]")
+                continue
+            render_movers(display.console, _dash.compute_movers(limit=limit))
+
+        elif cmd == "income":
+            from . import dashboard as _dash
+            from .display import render_income
+            render_income(display.console, _dash.compute_income())
+
+        elif cmd == "alerts":
+            from . import dashboard as _dash
+            from .display import render_alerts
+            render_alerts(display.console, _dash.compute_alerts())
+
+        elif cmd == "benchmark":
+            from . import dashboard as _dash
+            from .display import render_benchmark
+            bench = arg.strip() if arg else "^GSPC"
+            render_benchmark(display.console, _dash.compute_benchmark(bench))
 
         else:
             display.warn(f"Unknown command '{cmd}'. Type 'help' for available commands.")

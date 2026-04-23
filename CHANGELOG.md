@@ -1,5 +1,45 @@
 # Changelog
 
+## [4.0] - 2026-04-23
+
+Part of **Lince Investor Suite v4.0** coordinated release.
+
+### Added — Dashboard
+- New `dashboard` module with six pure analytics functions
+  (`compute_stats`, `compute_sector_allocation`, `compute_movers`,
+  `compute_income`, `compute_alerts`, `compute_benchmark`).
+- Interactive REPL gains seven new commands: `dashboard`, `stats`,
+  `sectors`, `movers`, `income`, `alerts`, `benchmark`.
+- New REST API endpoints:
+  - `GET /api/dashboard` — full snapshot
+  - `GET /api/dashboard/stats` — portfolio summary card
+  - `GET /api/dashboard/sectors` — sector allocation breakdown
+  - `GET /api/dashboard/movers?limit=N` — top gainers & losers
+  - `GET /api/dashboard/income` — annual dividend income projection
+  - `GET /api/dashboard/alerts?drawdown_pct=…&concentration_pct=…`
+  - `GET /api/dashboard/benchmark?ticker=^GSPC`
+
+### Added — Security
+- Bearer-token auth on every non-public API route. Token auto-generated
+  on first start (`data/api_token`, mode 0600) and printed once in the
+  server banner. Clients pass `Authorization: Bearer <token>` or
+  `?token=<token>`.
+- API defaults to binding `127.0.0.1`. `--unsafe-bind-all` is
+  required to bind `0.0.0.0`.
+- Generic 500 / 502 error responses — upstream exception text never
+  leaks to clients.
+- Vault KDF bumped from 600,000 to 1,200,000 PBKDF2-HMAC-SHA256
+  iterations (OWASP 2023 guidance).
+
+### Changed — Input validation
+- `--port` must be 1..65535.
+- `--auto-refresh-cache` must be >= 30 seconds.
+- Benchmark ticker validated before being passed to the fetcher.
+
+### Changed
+- Depends on `lynx-investor-core>=4.0`.
+- Added 27 new unit tests for dashboard + API security.
+
 All notable changes to **Lynx Portfolio** are documented in this file.  
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).  
 Versioning follows Semantic Versioning — minor releases (`v0.x`) iterate features;
