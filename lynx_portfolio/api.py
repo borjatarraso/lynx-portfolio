@@ -32,10 +32,13 @@ import os
 import secrets
 import stat
 import sys
+import threading
 from datetime import datetime, timezone
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional
+
+_NOTIFIER_LOCK = threading.Lock()
 
 from flask import Flask, jsonify, request
 
@@ -76,13 +79,16 @@ def _load_or_generate_token() -> str:
         pass
 
     token = secrets.token_urlsafe(36)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(token + "\n")
-    try:
-        os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
-    except OSError:
-        pass
-    return token
+
+    for candidate in (path, Path.home() / ".lynx-portfolio" / "api_token"):
+        try:
+            candidate.parent.mkdir(parents=True, exist_ok=True)
+            candidate.write_text(token + "\n")
+            os.chmod(candidate, stat.S_IRUSR | stat.S_IWUSR)
+            return token
+        except OSError:
+            continue
+    return token  # returned without persistence — server still works for this run
 
 
 def _request_token() -> Optional[str]:
@@ -154,7 +160,8 @@ def _restore_notifier() -> None:
 
 def _enrich_instrument(inst: Dict[str, Any]) -> Dict[str, Any]:
     """Add computed fields (market_value, pnl, pnl_pct, eur_*) to *inst*."""
-    shares = inst.get("shares") or 0.0
+    shares_raw = inst.get("shares")
+    shares = 0.0 if shares_raw is None else float(shares_raw)
     avg = inst.get("avg_purchase_price")
     curr = inst.get("current_price")
     ccy = (inst.get("currency") or "EUR").upper()
@@ -261,17 +268,18 @@ def add_instrument_endpoint():
         if err:
             return jsonify({"error": err}), 400
 
-    notifier = _use_api_notifier()
-    try:
-        ok = operations.add_instrument(
-            ticker=ticker,
-            isin=isin,
-            shares=shares,
-            avg_purchase_price=avg_price,
-            preferred_exchange=exchange,
-        )
-    finally:
-        _restore_notifier()
+    with _NOTIFIER_LOCK:
+        notifier = _use_api_notifier()
+        try:
+            ok = operations.add_instrument(
+                ticker=ticker,
+                isin=isin,
+                shares=shares,
+                avg_purchase_price=avg_price,
+                preferred_exchange=exchange,
+            )
+        finally:
+            _restore_notifier()
 
     if ok:
         added = None

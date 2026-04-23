@@ -695,13 +695,15 @@ def render_income(console_: Console, income: Dict) -> None:
     yld = income.get("portfolio_yield_pct")
     yoc = income.get("yield_on_cost_pct")
 
-    summary = (
-        f"[bold]Annual income[/bold]    {annual:,.2f} €\n"
-        f"[bold]Monthly income[/bold]   {monthly:,.2f} €\n"
-        f"[bold]Portfolio yield[/bold]  {yld:.2f}%" + ("\n" if yld is not None else "—\n")
-        + f"[bold]Yield on cost[/bold]   {yoc:.2f}%" if yoc is not None else "[bold]Yield on cost[/bold]   —"
-    )
-    console_.print(Panel(summary, title="[bold cyan]Dividend Income[/bold cyan]",
+    lines = [
+        f"[bold]Annual income[/bold]    {annual:,.2f} €",
+        f"[bold]Monthly income[/bold]   {monthly:,.2f} €",
+        f"[bold]Portfolio yield[/bold]  {yld:.2f}%" if yld is not None
+        else "[bold]Portfolio yield[/bold]  —",
+        f"[bold]Yield on cost[/bold]   {yoc:.2f}%" if yoc is not None
+        else "[bold]Yield on cost[/bold]   —",
+    ]
+    console_.print(Panel("\n".join(lines), title="[bold cyan]Dividend Income[/bold cyan]",
                          border_style="cyan", box=box.ROUNDED))
 
     contrib = income.get("contributions", [])

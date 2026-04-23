@@ -44,7 +44,8 @@ def _eur(amount: Optional[float], currency: str) -> Optional[float]:
 def _enrich(inst: Dict[str, Any]) -> Dict[str, Any]:
     """Attach market value, invested, pnl, pnl_pct to *inst* (non-mutating)."""
     out = dict(inst)
-    shares = out.get("shares") or 0.0
+    shares_raw = out.get("shares")
+    shares = 0.0 if shares_raw is None else float(shares_raw)
     avg = out.get("avg_purchase_price")
     curr = out.get("current_price")
     ccy = (out.get("currency") or "EUR").upper()
@@ -83,7 +84,8 @@ def _enrich(inst: Dict[str, Any]) -> Dict[str, Any]:
 def _day_change_eur(inst: Dict[str, Any]) -> Optional[float]:
     """Portfolio day change in EUR for one position, or None if unknown."""
     change = inst.get("regular_market_change")
-    shares = inst.get("shares") or 0.0
+    shares_raw = inst.get("shares")
+    shares = 0.0 if shares_raw is None else float(shares_raw)
     ccy = (inst.get("currency") or "EUR").upper()
     if change is None:
         return None
@@ -229,7 +231,8 @@ def compute_income() -> Dict[str, Any]:
     contributions: List[Dict[str, Any]] = []
     total_eur = 0.0
     for inst in database.get_all_instruments():
-        shares = inst.get("shares") or 0.0
+        shares_raw = inst.get("shares")
+        shares = 0.0 if shares_raw is None else float(shares_raw)
         ccy = (inst.get("currency") or "EUR").upper()
         rate = inst.get("dividend_rate")  # annual cash per share
         yld = inst.get("dividend_yield")  # percent or fraction
@@ -324,7 +327,9 @@ def compute_alerts(
                 "message": f"{ticker} is {pct:.1f}% of portfolio — concentrated",
             })
 
-        if avg is None and (inst.get("shares") or 0.0) > 0:
+        shares_raw = inst.get("shares")
+        shares_val = 0.0 if shares_raw is None else float(shares_raw)
+        if avg is None and shares_val > 0:
             alerts.append({
                 "severity": "info",
                 "kind": "missing_avg_price",
@@ -335,8 +340,10 @@ def compute_alerts(
         updated_at = inst.get("updated_at")
         if updated_at:
             try:
-                last = datetime.fromisoformat(updated_at[:19])
-                age_days = (datetime.now() - last).days
+                last = datetime.fromisoformat(updated_at)
+                if last.tzinfo is None:
+                    last = last.replace(tzinfo=timezone.utc)
+                age_days = (datetime.now(timezone.utc) - last.astimezone(timezone.utc)).days
                 if age_days >= stale_days:
                     alerts.append({
                         "severity": "info",

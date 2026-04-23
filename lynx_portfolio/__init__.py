@@ -4,7 +4,7 @@ Investment instrument tracker with Yahoo Finance integration.
 """
 
 APP_NAME = "Lynx Portfolio"
-__version__ = "4.0"
+__version__ = "4.0.1"
 VERSION = f"v{__version__}"
 SUITE_NAME = "Lince Investor Suite"
 SUITE_VERSION = "4.0"
