@@ -545,13 +545,43 @@ class LynxGUI:
         self._tree.bind("<Double-1>", self._on_double_click)
 
         # ── Summary bar ──────────────────────────────────────────────────
+        # Split into four side-by-side Labels so the P&L segment and the
+        # "EUR Market Today" value render in green/red independently of
+        # the neutral Invested / Market Value text.
         summary_frame = tk.Frame(root, bg=_C["surface2"], height=34)
         summary_frame.pack(side="bottom", fill="x")
         summary_frame.pack_propagate(False)
-        self._summary_var = tk.StringVar(value="")
-        tk.Label(summary_frame, textvariable=self._summary_var,
+        self._summary_var = tk.StringVar(value="")   # kept for tests
+        self._summary_vars = {
+            "neutral":     tk.StringVar(value=""),
+            "pnl":         tk.StringVar(value=""),
+            "today_label": tk.StringVar(value=""),
+            "today_value": tk.StringVar(value=""),
+            "tail":        tk.StringVar(value=""),
+        }
+        _row = tk.Frame(summary_frame, bg=_C["surface2"])
+        _row.pack(fill="both", expand=True, padx=12)
+        tk.Label(_row, textvariable=self._summary_vars["neutral"],
                  bg=_C["surface2"], fg=_C["fg"], font=("Segoe UI", 10),
-                 anchor="w", padx=12).pack(fill="both", expand=True)
+                 anchor="w").pack(side="left")
+        self._summary_pnl_label = tk.Label(
+            _row, textvariable=self._summary_vars["pnl"],
+            bg=_C["surface2"], fg=_C["fg"], font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        )
+        self._summary_pnl_label.pack(side="left")
+        tk.Label(_row, textvariable=self._summary_vars["today_label"],
+                 bg=_C["surface2"], fg=_C["fg"], font=("Segoe UI", 10),
+                 anchor="w").pack(side="left")
+        self._summary_today_label = tk.Label(
+            _row, textvariable=self._summary_vars["today_value"],
+            bg=_C["surface2"], fg=_C["fg"], font=("Segoe UI", 10, "bold"),
+            anchor="w",
+        )
+        self._summary_today_label.pack(side="left")
+        tk.Label(_row, textvariable=self._summary_vars["tail"],
+                 bg=_C["surface2"], fg=_C["fg"], font=("Segoe UI", 10),
+                 anchor="w").pack(side="left")
 
         # ── Status bar ───────────────────────────────────────────────────
         status_frame = tk.Frame(root, bg=_C["bg"], height=26)
@@ -570,9 +600,13 @@ class LynxGUI:
 
         instruments = database.get_all_instruments()
         if not instruments:
-            self._summary_var.set(
-                "Portfolio is empty  \u2014  click Add to get started"
-            )
+            empty_msg = "Portfolio is empty  \u2014  click Add to get started"
+            self._summary_var.set(empty_msg)
+            self._summary_vars["neutral"].set(empty_msg)
+            self._summary_vars["pnl"].set("")
+            self._summary_vars["today_label"].set("")
+            self._summary_vars["today_value"].set("")
+            self._summary_vars["tail"].set("")
             return
 
         show_eur = any(
@@ -671,7 +705,17 @@ class LynxGUI:
             else:
                 values.append(pnl_s)
 
-            tags = ("even",) if idx % 2 == 0 else ("odd",)
+            # Row colouring: zebra background + foreground by sign of the
+            # EUR PnL (for the EUR column view) or the native PnL (when
+            # show_eur is off). Treeview tags colour the whole row; pairing
+            # the zebra tag with a profit/loss tag makes the EUR P&L cell
+            # clearly green (gains) or red (losses) while still alternating
+            # the row background.
+            zebra = "even" if idx % 2 == 0 else "odd"
+            if row_pnl is not None:
+                tags = (zebra, "profit" if row_pnl >= 0 else "loss")
+            else:
+                tags = (zebra,)
             tree.insert("", "end", iid=inst.get("ticker"),
                         values=values, tags=tags)
 
@@ -690,24 +734,45 @@ class LynxGUI:
             ep = total_market_eur - total_invested_eur
             epc = (ep / total_invested_eur * 100) if total_invested_eur else 0.0
             es = "+" if ep >= 0 else ""
-            summary = (
-                f"EUR Invested: {total_invested_eur:,.2f}     "
-                f"EUR Market Value: {total_market_eur:,.2f}     "
-                f"EUR P&L: {es}{ep:,.2f} ({es}{epc:.2f}%)     "
-                f"EUR Market Today: {today_str}"
-            )
+            neutral   = (f"EUR Invested: {total_invested_eur:,.2f}     "
+                         f"EUR Market Value: {total_market_eur:,.2f}     "
+                         f"EUR P&L: ")
+            pnl_seg   = f"{es}{ep:,.2f} ({es}{epc:.2f}%)"
+            today_lab = "     EUR Market Today: "
+            today_val = today_str
+            pnl_ref   = ep
+            summary   = neutral + pnl_seg + today_lab + today_val
         else:
-            summary = (
-                f"Invested: {total_invested:,.2f}     "
-                f"Market Value: {total_market:,.2f}     "
-                f"P&L: {sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)     "
-                f"EUR Market Today: {today_str}"
-            )
+            neutral   = (f"Invested: {total_invested:,.2f}     "
+                         f"Market Value: {total_market:,.2f}     "
+                         f"P&L: ")
+            pnl_seg   = f"{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)"
+            today_lab = "     EUR Market Today: "
+            today_val = today_str
+            pnl_ref   = total_pnl
+            summary   = neutral + pnl_seg + today_lab + today_val
 
-        if untracked:
-            summary += f"     [{untracked} without cost basis]"
+        tail = f"     [{untracked} without cost basis]" if untracked else ""
+        summary += tail
 
+        # Single-string var kept for any callers / tests that read it.
         self._summary_var.set(summary)
+
+        # Colour-split vars driving the 4 side-by-side labels.
+        self._summary_vars["neutral"].set(neutral)
+        self._summary_vars["pnl"].set(pnl_seg)
+        self._summary_vars["today_label"].set(today_lab)
+        self._summary_vars["today_value"].set(today_val)
+        self._summary_vars["tail"].set(tail)
+
+        pnl_color = _C["green"] if pnl_ref >= 0 else _C["red"]
+        self._summary_pnl_label.configure(fg=pnl_color)
+
+        if has_today_data:
+            today_color = _C["green"] if total_today_eur >= 0 else _C["red"]
+        else:
+            today_color = _C["fg"]
+        self._summary_today_label.configure(fg=today_color)
 
     def _rebuild_columns(self) -> None:
         cols = self._COLUMNS + (self._EUR_COLUMNS if self._show_eur else self._PNL_COLUMN)

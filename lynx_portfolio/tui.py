@@ -200,12 +200,29 @@ ModalScreen {
 
 
 # ---------------------------------------------------------------------------
-# Helper: format PnL string for display (plain text, no Rich markup)
+# Helper: format PnL as a Rich Text object coloured by sign
 # ---------------------------------------------------------------------------
 
-def _pnl_text(pnl: float, pct: float) -> str:
+def _pnl_text(pnl: float, pct: float):
+    """Return a colour-coded Rich Text — green for gain, red for loss.
+
+    DataTable cells accept either plain strings or rich.text.Text; using
+    ``Text`` here is the only way to make the gain/loss colour survive
+    into the rendered cell (markup inside a plain string is treated as
+    literal text by Textual's DataTable).
+    """
+    from rich.text import Text
     sign = "+" if pnl >= 0 else ""
-    return f"{sign}{pnl:,.2f} ({sign}{pct:.2f}%)"
+    color = "green" if pnl >= 0 else "red"
+    return Text(f"{sign}{pnl:,.2f} ({sign}{pct:.2f}%)", style=color)
+
+
+def _today_text(value: float):
+    """Return today's change as a colour-coded Rich Text."""
+    from rich.text import Text
+    sign = "+" if value >= 0 else ""
+    color = "green" if value >= 0 else "red"
+    return Text(f"{sign}{value:,.2f}", style=color)
 
 
 # ---------------------------------------------------------------------------
