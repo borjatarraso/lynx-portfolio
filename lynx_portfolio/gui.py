@@ -494,7 +494,7 @@ class LynxGUI:
                    command=self._on_clear_cache,
                    style="Danger.TButton").pack(side="left", padx=2)
 
-        # ── Right side: About, version, Quit ────────────────────────────
+        # ── Right side: Themes, About, version, Quit ────────────────────
         ttk.Button(toolbar, text="Quit", command=self._root.destroy,
                    style="Danger.TButton").pack(side="right", padx=2)
         ttk.Label(toolbar, text=VERSION,
@@ -503,6 +503,11 @@ class LynxGUI:
                   background=_C["surface2"]).pack(side="right", padx=8)
         ttk.Button(toolbar, text="\u2139 About",
                    command=self._on_about).pack(side="right", padx=2)
+        self._themes_btn = ttk.Button(
+            toolbar, text="Themes \u25bc",
+            command=self._show_themes_menu,
+        )
+        self._themes_btn.pack(side="right", padx=2)
 
         # ── Thin accent line under toolbar ───────────────────────────────
         tk.Frame(root, height=2, bg=_C["accent_dark"]).pack(side="top", fill="x")
@@ -828,6 +833,32 @@ class LynxGUI:
 
     def _on_about(self) -> None:
         _AboutDialog(self._root)
+
+    # ----- Themes menu -------------------------------------------------------
+
+    def _show_themes_menu(self) -> None:
+        """Pop up a themes menu grouped by family."""
+        from lynx_investor_core.gui_themes import list_themes_by_family
+        menu = tk.Menu(self._root, tearoff=0)
+        current = getattr(self._theme_cycler, "current_name", "")
+        for family, names in list_themes_by_family().items():
+            sub = tk.Menu(menu, tearoff=0)
+            for theme_name in names:
+                label = ("\u25cf " if theme_name == current else "   ") + theme_name
+                sub.add_command(
+                    label=label,
+                    command=lambda n=theme_name: self._select_theme(n),
+                )
+            menu.add_cascade(label=family, menu=sub)
+        x = self._themes_btn.winfo_rootx()
+        y = self._themes_btn.winfo_rooty() + self._themes_btn.winfo_height()
+        menu.tk_popup(x, y)
+
+    def _select_theme(self, theme_name: str) -> None:
+        """Apply *theme_name* via the existing ThemeCycler."""
+        from lynx_investor_core.gui_themes import apply_theme
+        self._theme_cycler.set(theme_name)
+        apply_theme(self._root, theme=theme_name)
 
     # ----- Auto-update -------------------------------------------------------
 

@@ -1729,24 +1729,52 @@ class LynxApp(PagingAppMixin, App):
     ]
 
     def on_mount(self) -> None:
-        # Register custom themes first, then all built-in ones.
+        # Register this app's legacy custom themes first.
         for t in _CUSTOM_THEMES:
             self.register_theme(t)
+        # Register the Suite-wide theme gallery (lynx-theme, editor
+        # classics, Catppuccin, Dracula, Tokyo Night, etc.).
+        try:
+            from lynx_investor_core.themes import register_suite_themes
+            register_suite_themes(self)
+        except ImportError:
+            pass
+        # Register Textual's own built-ins last.
         for name, theme_obj in BUILTIN_THEMES.items():
             self.register_theme(theme_obj)
         # Default to lynx-theme — tuned so PnL gains/losses are
         # unmistakably green/red on a neutral dark chrome. Users can
         # cycle with `t` to reach Matrix, Dracula, Catppuccin, and the
-        # rest of the 22-theme Suite gallery.
-        self.theme = "lynx-theme"
+        # rest of the gallery. If the Suite theme isn't available (old
+        # core), fall back to matrix.
+        if "lynx-theme" in self.available_themes:
+            self.theme = "lynx-theme"
+        else:
+            self.theme = "matrix"
         self.push_screen(PortfolioScreen())
 
     def action_cycle_theme(self) -> None:
         """Cycle to the next theme in the curated list."""
+        # Build the full rotation from the Suite gallery + the app's
+        # legacy names, de-duplicated while preserving order.
         try:
-            idx = _THEME_NAMES.index(self.theme)
+            from lynx_investor_core.themes import SUITE_THEME_NAMES
+            suite = list(SUITE_THEME_NAMES)
+        except ImportError:
+            suite = []
+        rotation = []
+        seen = set()
+        for name in suite + _THEME_NAMES:
+            if name in seen or name not in self.available_themes:
+                continue
+            seen.add(name)
+            rotation.append(name)
+        if not rotation:
+            return
+        try:
+            idx = rotation.index(self.theme)
         except ValueError:
             idx = -1
-        next_idx = (idx + 1) % len(_THEME_NAMES)
-        self.theme = _THEME_NAMES[next_idx]
+        next_idx = (idx + 1) % len(rotation)
+        self.theme = rotation[next_idx]
         self.notify(f"Theme: {self.theme}", severity="information")
