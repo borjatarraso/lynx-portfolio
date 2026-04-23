@@ -1734,8 +1734,11 @@ class LynxApp(PagingAppMixin, App):
             self.register_theme(t)
         for name, theme_obj in BUILTIN_THEMES.items():
             self.register_theme(theme_obj)
-        # Default to the Matrix theme — green-on-black hacker terminal style.
-        self.theme = "matrix"
+        # Default to lynx-theme — tuned so PnL gains/losses are
+        # unmistakably green/red on a neutral dark chrome. Users can
+        # cycle with `t` to reach Matrix, Dracula, Catppuccin, and the
+        # rest of the 22-theme Suite gallery.
+        self.theme = "lynx-theme"
         self.push_screen(PortfolioScreen())
 
     def action_cycle_theme(self) -> None:

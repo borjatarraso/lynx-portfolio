@@ -119,7 +119,17 @@ $('#refresh-btn').addEventListener('click', refreshAll);
 
 // Theme cycling — rotate through a built-in set of CSS variables.
 const WEB_THEMES = [
-  { // Catppuccin Mocha (default)
+  { // Lynx Theme (default — financial-first: vivid green/red, neutral chrome)
+    '--bg':'#0f1419','--bg-alt':'#171c23','--surface':'#171c23','--panel':'#252b33',
+    '--text':'#e6eaf0','--subtle':'#9aa5b5','--primary':'#3daee9','--accent':'#facc15',
+    '--success':'#22c55e','--warning':'#f59e0b','--error':'#ef4444',
+  },
+  { // Lynx Theme Light (daytime — cream bg, vivid gain/loss)
+    '--bg':'#fafaf9','--bg-alt':'#f5f5f4','--surface':'#f5f5f4','--panel':'#e7e5e4',
+    '--text':'#1c1917','--subtle':'#78716c','--primary':'#0369a1','--accent':'#ca8a04',
+    '--success':'#16a34a','--warning':'#d97706','--error':'#b91c1c',
+  },
+  { // Catppuccin Mocha
     '--bg':'#1e1e2e','--bg-alt':'#181825','--surface':'#313244','--panel':'#45475a',
     '--text':'#cdd6f4','--subtle':'#a6adc8','--primary':'#89b4fa','--accent':'#f5c2e7',
     '--success':'#a6e3a1','--warning':'#f9e2af','--error':'#f38ba8',
