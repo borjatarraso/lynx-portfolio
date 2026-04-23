@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lynx Portfolio Dashboard</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <!-- ─────────────────────────────── Login overlay ─ -->
+  <div id="login-overlay" class="overlay hidden">
+    <div class="login-card">
+      <h1>Lynx Portfolio</h1>
+      <p class="subtle">Enter your API token to connect.</p>
+      <label for="token-input">API token</label>
+      <input type="password" id="token-input" autocomplete="off"
+             placeholder="paste the token printed by --api at startup">
+      <button id="login-btn">Connect</button>
+      <p class="hint">The token is stored only in your browser session.</p>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────── Main app ─ -->
+  <header>
+    <h1>Lynx Portfolio</h1>
+    <nav>
+      <button data-tab="stats" class="tab active">Stats</button>
+      <button data-tab="positions" class="tab">Positions</button>
+      <button data-tab="sectors" class="tab">Sectors</button>
+      <button data-tab="movers" class="tab">Movers</button>
+      <button data-tab="alerts" class="tab">Alerts</button>
+      <button data-tab="watchlist" class="tab">Watchlist</button>
+    </nav>
+    <div class="actions">
+      <button id="refresh-btn" title="Refresh">⟳</button>
+      <button id="theme-btn" title="Cycle theme">◐</button>
+      <button id="logout-btn" title="Forget token">⏻</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ───── Summary stats -->
+    <section id="panel-stats" class="panel active">
+      <div class="grid-cards" id="stats-cards"></div>
+      <div class="spark-strip" id="spark-strip"></div>
+    </section>
+
+    <!-- ───── Positions -->
+    <section id="panel-positions" class="panel">
+      <div class="table-wrap">
+        <table id="positions-table">
+          <thead>
+            <tr>
+              <th>Ticker</th><th>Name</th><th class="num">Shares</th>
+              <th class="num">Price</th><th class="num">Value (€)</th>
+              <th class="num">PnL</th><th class="num">PnL %</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ───── Sectors -->
+    <section id="panel-sectors" class="panel">
+      <div class="table-wrap">
+        <table id="sectors-table">
+          <thead>
+            <tr><th>Sector</th><th class="num">Positions</th>
+                <th class="num">Value (€)</th><th class="num">%</th>
+                <th class="bar-col">Allocation</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ───── Movers -->
+    <section id="panel-movers" class="panel">
+      <div class="two-col">
+        <div>
+          <h3 class="positive">Top gainers</h3>
+          <table class="movers-table" id="gainers-table">
+            <thead><tr><th>Ticker</th><th>Name</th><th class="num">Change</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div>
+          <h3 class="negative">Top losers</h3>
+          <table class="movers-table" id="losers-table">
+            <thead><tr><th>Ticker</th><th>Name</th><th class="num">Change</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───── Alerts -->
+    <section id="panel-alerts" class="panel">
+      <div class="table-wrap">
+        <table id="alerts-table">
+          <thead>
+            <tr><th>Severity</th><th>Kind</th><th>Ticker</th><th>Message</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ───── Watchlist -->
+    <section id="panel-watchlist" class="panel">
+      <div class="add-watch">
+        <input type="text" id="watch-input" placeholder="TICKER">
+        <button id="watch-add-btn">Watch</button>
+      </div>
+      <div class="table-wrap">
+        <table id="watch-table">
+          <thead>
+            <tr><th>List</th><th>Ticker</th><th>Note</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="last-sync" class="subtle">Not connected</span>
+    <span class="subtle">Lince Investor Suite</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

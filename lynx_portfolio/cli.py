@@ -19,6 +19,27 @@ from .operations import (
 )
 
 
+def _portfolio_ticker_completer(prefix, **kw):
+    """Dynamic completer returning tickers from the portfolio database."""
+    try:
+        # Make sure database path is resolved from config when shell completion runs
+        # (no db will be open yet); this is best-effort and silent on failure.
+        db_path = config.get_db_path() if hasattr(config, "get_db_path") else None
+        if db_path:
+            try:
+                database.set_db_path(db_path)
+            except Exception:
+                pass
+        instruments = database.get_all_instruments() or []
+        pfx = prefix.upper()
+        return [
+            inst["ticker"] for inst in instruments
+            if inst.get("ticker", "").upper().startswith(pfx)
+        ]
+    except Exception:
+        return []
+
+
 # ---------------------------------------------------------------------------
 # Argv pre-processing
 # Argparse does not support multi-character short options like -ni, -dc, etc.
@@ -450,8 +471,9 @@ examples:
 
     # add
     p_add = sub.add_parser("add", help="Add an instrument to the portfolio")
-    p_add.add_argument("--ticker", "-t",
+    _add_ticker = p_add.add_argument("--ticker", "-t",
                        help="Ticker — include suffix for precision (e.g. NESN.SW, VWCE.DE, AAPL)")
+    _add_ticker.completer = _portfolio_ticker_completer
     p_add.add_argument("--name", "-n", dest="search_name",
                        help="Search by instrument name (e.g. 'Apple', 'Vanguard FTSE')")
     p_add.add_argument("--isin",   help="ISIN code (e.g. CH0038863350)")
@@ -486,26 +508,30 @@ examples:
 
     # show
     p_show = sub.add_parser("show", help="Show detailed info for one instrument")
-    p_show.add_argument("--ticker", "-t",
+    _show_ticker = p_show.add_argument("--ticker", "-t",
                         help="Ticker of the instrument to show")
+    _show_ticker.completer = _portfolio_ticker_completer
     p_show.add_argument("--name", "-n", dest="search_name",
                         help="Search by instrument name (e.g. 'Apple')")
 
     # delete
     p_del = sub.add_parser("delete", help="Remove an instrument from the portfolio")
-    p_del.add_argument("--ticker", "-t", required=True)
+    _del_ticker = p_del.add_argument("--ticker", "-t", required=True)
+    _del_ticker.completer = _portfolio_ticker_completer
     p_del.add_argument("--force",  "-f", action="store_true", help="Skip confirmation prompt")
 
     # update
     p_upd = sub.add_parser("update", help="Update shares or average price for an instrument")
-    p_upd.add_argument("--ticker",    "-t", required=True)
+    _upd_ticker = p_upd.add_argument("--ticker",    "-t", required=True)
+    _upd_ticker.completer = _portfolio_ticker_completer
     p_upd.add_argument("--shares",    "-s", type=float, help="New share count")
     p_upd.add_argument("--avg-price", "-p", type=float, dest="avg_price",
                        help="New average purchase price")
 
     # refresh
     p_ref = sub.add_parser("refresh", help="Refresh live data from Yahoo Finance")
-    p_ref.add_argument("--ticker", "-t", help="Single ticker to refresh (omit for all)")
+    _ref_ticker = p_ref.add_argument("--ticker", "-t", help="Single ticker to refresh (omit for all)")
+    _ref_ticker.completer = _portfolio_ticker_completer
 
     # about
     sub.add_parser("about", help="Show application information")
@@ -537,6 +563,13 @@ def _start_auto_refresh(interval: int) -> None:
 def run() -> None:
     argv   = _preprocess_argv(sys.argv[1:])
     parser = _build_parser()
+
+    try:
+        import argcomplete
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass  # argcomplete optional at runtime
+
     args   = parser.parse_args(argv)
 
     if getattr(args, "egg", False):

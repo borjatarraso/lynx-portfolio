@@ -1,0 +1,258 @@
+/* Lynx Portfolio — mobile-first responsive dashboard.
+   Palette intentionally mirrors the Suite's Catppuccin Mocha theme so
+   the web view feels like a continuation of the TUI / GUI. */
+
+:root {
+  --bg:           #1e1e2e;
+  --bg-alt:       #181825;
+  --surface:      #313244;
+  --panel:        #45475a;
+  --text:         #cdd6f4;
+  --subtle:       #a6adc8;
+  --primary:      #89b4fa;
+  --accent:       #f5c2e7;
+  --success:      #a6e3a1;
+  --warning:      #f9e2af;
+  --error:        #f38ba8;
+  --radius:       10px;
+  --shadow:       0 2px 12px rgba(0,0,0,.35);
+  --font-sans:    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; padding: 0;
+  background: var(--bg); color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.hidden { display: none !important; }
+
+/* ────────── Login overlay ────────── */
+
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100;
+}
+.login-card {
+  background: var(--surface);
+  padding: 2rem; border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: min(92vw, 400px);
+}
+.login-card h1 { margin: 0 0 .5rem 0; color: var(--primary); }
+.login-card label { display:block; margin-top: 1rem; color: var(--subtle); font-size: .85rem; }
+.login-card input {
+  width: 100%; margin-top: .3rem;
+  padding: .6rem .8rem;
+  background: var(--bg-alt); color: var(--text);
+  border: 1px solid var(--panel); border-radius: 6px;
+  font-family: var(--font-mono); font-size: .85rem;
+}
+.login-card button {
+  margin-top: 1rem; width: 100%;
+  padding: .7rem; background: var(--primary); color: var(--bg);
+  border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+}
+.login-card .hint { font-size: .75rem; color: var(--subtle); margin-top: .8rem; }
+
+/* ────────── Header ────────── */
+
+header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: .7rem 1rem;
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--panel);
+  position: sticky; top: 0; z-index: 10;
+  gap: 1rem;
+}
+header h1 {
+  margin: 0; font-size: 1rem; color: var(--primary);
+  font-family: var(--font-mono);
+}
+header nav {
+  display: flex; gap: .3rem; overflow-x: auto;
+  scrollbar-width: none;
+}
+header nav::-webkit-scrollbar { display: none; }
+header nav .tab {
+  background: transparent; color: var(--subtle);
+  border: 1px solid transparent;
+  padding: .35rem .7rem;
+  border-radius: 6px;
+  cursor: pointer; white-space: nowrap;
+  font-size: .85rem;
+}
+header nav .tab:hover { color: var(--text); }
+header nav .tab.active {
+  background: var(--surface); color: var(--primary);
+  border-color: var(--panel);
+}
+header .actions {
+  display: flex; gap: .25rem;
+}
+header .actions button {
+  background: transparent; color: var(--subtle);
+  border: 1px solid var(--panel);
+  width: 32px; height: 32px; border-radius: 6px;
+  cursor: pointer; font-size: 1rem;
+}
+header .actions button:hover { color: var(--accent); }
+
+/* ────────── Main / panels ────────── */
+
+main {
+  padding: 1rem;
+  max-width: 1200px; margin: 0 auto;
+}
+.panel { display: none; }
+.panel.active { display: block; animation: fadein .2s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ────────── Stats cards ────────── */
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: .7rem;
+}
+.card {
+  background: var(--surface);
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--panel);
+}
+.card .label { font-size: .7rem; color: var(--subtle); text-transform: uppercase; letter-spacing: .08em; }
+.card .value {
+  display: block; margin-top: .4rem;
+  font-family: var(--font-mono); font-weight: 600;
+  font-size: 1.3rem; color: var(--text);
+}
+.card .value.positive { color: var(--success); }
+.card .value.negative { color: var(--error); }
+.card .sub { font-size: .8rem; color: var(--subtle); margin-top: .2rem; }
+
+.spark-strip {
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--panel);
+  border-radius: var(--radius);
+  padding: 1rem;
+  font-family: var(--font-mono);
+  color: var(--primary);
+  font-size: 1.1rem;
+  overflow-x: auto; white-space: nowrap;
+}
+
+/* ────────── Tables ────────── */
+
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .9rem;
+}
+th, td {
+  padding: .6rem .7rem;
+  text-align: left;
+  border-bottom: 1px solid var(--panel);
+}
+th {
+  background: var(--bg-alt);
+  color: var(--subtle); font-weight: 500;
+  font-size: .75rem; text-transform: uppercase;
+  letter-spacing: .05em;
+  position: sticky; top: 56px; z-index: 1;
+}
+.num { text-align: right; font-family: var(--font-mono); }
+td.num.pos { color: var(--success); }
+td.num.neg { color: var(--error); }
+td.ticker { font-family: var(--font-mono); color: var(--primary); font-weight: 600; }
+
+.bar-col { width: 30%; }
+.bar {
+  height: 8px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+}
+
+.positive { color: var(--success); }
+.negative { color: var(--error); }
+
+/* ────────── Movers two-column layout ────────── */
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 640px) {
+  .two-col { grid-template-columns: 1fr; }
+}
+
+/* ────────── Watchlist add-row ────────── */
+
+.add-watch {
+  display: flex; gap: .5rem; margin-bottom: 1rem;
+}
+.add-watch input {
+  flex: 1; padding: .5rem;
+  background: var(--bg-alt); color: var(--text);
+  border: 1px solid var(--panel); border-radius: 6px;
+  font-family: var(--font-mono); text-transform: uppercase;
+}
+.add-watch button {
+  padding: .5rem 1rem;
+  background: var(--primary); color: var(--bg);
+  border: none; border-radius: 6px; cursor: pointer;
+  font-weight: 600;
+}
+.remove-btn {
+  background: transparent; border: 1px solid var(--panel);
+  color: var(--subtle); padding: .2rem .5rem; border-radius: 4px;
+  cursor: pointer;
+}
+.remove-btn:hover { color: var(--error); border-color: var(--error); }
+
+/* ────────── Alerts severity colors ────────── */
+
+.sev { display: inline-block; padding: .1rem .5rem; border-radius: 4px; font-size: .75rem;
+       font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+.sev-critical { background: var(--error); color: var(--bg); }
+.sev-warn     { background: var(--warning); color: var(--bg); }
+.sev-info     { background: var(--primary); color: var(--bg); }
+
+/* ────────── Footer ────────── */
+
+footer {
+  padding: 1rem; text-align: center;
+  color: var(--subtle);
+  font-size: .75rem;
+  display: flex; justify-content: space-between;
+  max-width: 1200px; margin: 2rem auto 0;
+  border-top: 1px solid var(--panel);
+}
+.subtle { color: var(--subtle); }
+
+/* ────────── Small screens ────────── */
+
+@media (max-width: 480px) {
+  header {
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+  }
+  header h1 { grid-column: 1; }
+  header .actions { grid-column: 2; justify-content: end; }
+  header nav { grid-column: 1 / -1; padding-bottom: .3rem; }
+  .card .value { font-size: 1.1rem; }
+  .add-watch { flex-direction: column; }
+  .add-watch button { width: 100%; }
+}

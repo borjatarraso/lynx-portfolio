@@ -1,3 +1,4 @@
+# PYTHON_ARGCOMPLETE_OK
 """Entry point for lynx-portfolio."""
 
 from lynx_portfolio.cli import run

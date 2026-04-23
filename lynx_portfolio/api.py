@@ -50,8 +50,17 @@ from . import (
 from .validation import validate_ticker, validate_shares, validate_price
 
 
-app = Flask(__name__)
+_WEB_DIR = Path(__file__).parent / "web"
+
+app = Flask(__name__, static_folder=str(_WEB_DIR), static_url_path="/web")
 app.config["API_TOKEN"] = None  # populated by run_api_server / init_api
+
+
+@app.route("/", methods=["GET"])
+def _root_redirect():
+    """Send / to the mobile web UI so `--api` is immediately useful."""
+    from flask import redirect
+    return redirect("/web/index.html", code=302)
 
 
 # ---------------------------------------------------------------------------
