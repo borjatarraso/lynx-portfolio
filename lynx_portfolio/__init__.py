@@ -4,10 +4,10 @@ Investment instrument tracker with Yahoo Finance integration.
 """
 
 APP_NAME = "Lynx Portfolio"
-__version__ = "5.5.2"
+__version__ = "6.0.0"
 VERSION = f"v{__version__}"
 SUITE_NAME = "Lince Investor Suite"
-SUITE_VERSION = "5.5.1"
+SUITE_VERSION = "6.0.0"
 SUITE_LABEL = f"{SUITE_NAME} v{SUITE_VERSION}"
 LICENSE = "BSD 3-Clause License"
 LICENSE_URL = "https://opensource.org/licenses/BSD-3-Clause"

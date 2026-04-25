@@ -278,3 +278,17 @@ lynx-portfolio/
 ## License
 
 [BSD 3-Clause License](LICENSE)
+
+---
+
+## Author and signature
+
+This project is part of the **Lince Investor Suite**, authored and signed by
+
+> **Borja Tarraso** &lt;[borja.tarraso@member.fsf.org](mailto:borja.tarraso@member.fsf.org)&gt;
+> Licensed under BSD-3-Clause.
+
+Every report and export emitted by Suite tools includes this same
+signature in its footer. The shipped logo PNGs additionally carry the
+author's signature via steganography for provenance — please do not
+replace or re-encode the logo files.

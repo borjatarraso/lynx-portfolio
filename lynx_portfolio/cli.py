@@ -347,6 +347,8 @@ examples:
 
     parser.add_argument("-v", "--version", action="version",
                         version=f"{APP_NAME} {VERSION}  |  {SUITE_LABEL}")
+    parser.add_argument("--about", action="store_true",
+                        help="Show developer / license information and exit")
     parser.add_argument("--verbose", action="store_true",
                         help="Show detailed refresh progress at startup")
     parser.add_argument("--enforce-refresh", action="store_true",
@@ -536,6 +538,13 @@ examples:
     # about
     sub.add_parser("about", help="Show application information")
 
+    # Shared --language flag (us / es / it / de / fr / fa).
+    try:
+        from lynx_investor_core.translations import add_language_argument
+        add_language_argument(parser)
+    except ImportError:
+        pass
+
     return parser
 
 
@@ -572,9 +581,36 @@ def run() -> None:
 
     args   = parser.parse_args(argv)
 
+    try:
+        from lynx_investor_core.translations import apply_args as _apply_lang
+        _apply_lang(args)
+    except ImportError:
+        pass
+
     if getattr(args, "egg", False):
         from .egg import run_console_egg
         run_console_egg()
+        return
+
+    # ── --about: print developer / license info and exit ───────────────
+    if getattr(args, "about", False):
+        from rich.console import Console
+        from rich.panel import Panel
+        c = Console()
+        c.print()
+        c.print(Panel(
+            f"[bold blue]{APP_NAME} {VERSION}[/]\n"
+            f"[dim]Part of {SUITE_LABEL}[/]\n\n"
+            f"[bold]Developed by:[/] Borja Tarraso\n"
+            f"[bold]Contact:[/]      borja.tarraso@member.fsf.org\n"
+            f"[bold]License:[/]      BSD-3-Clause\n\n"
+            f"[dim]Multi-currency portfolio tracker with encrypted vault, "
+            f"first-run wizard, CSV/JSON import & export, REST API, and a "
+            f"companion Kivy mobile client.[/]",
+            title="[bold]About[/]",
+            border_style="blue",
+        ))
+        c.print()
         return
 
     # ── --default-mode: save preference (skipped in devel mode) ─────────
