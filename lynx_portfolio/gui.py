@@ -427,6 +427,12 @@ class LynxGUI:
         self._root.bind("<F12>", lambda _: self._xyzzy())
 
         # Suite-wide theme cycling (Ctrl+T / Ctrl+Shift+T)
+        # Register user-saved lynx_theme JSON themes (~/.config/lynx-theme)
+        try:
+            from lynx_theme.storage import register_user_themes as _reg_user_themes
+            _reg_user_themes()
+        except Exception:
+            pass
         self._theme_cycler = ThemeCycler(self._root, start="lynx-theme")
         self._theme_cycler.apply_current()
         self._root.bind_all("<Control-t>", lambda _: self._theme_cycler.next())
