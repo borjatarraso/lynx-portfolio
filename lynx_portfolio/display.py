@@ -25,6 +25,27 @@ console = Console()
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
 
 
+def _value_palette() -> Dict[str, str]:
+    """Return positive/negative/neutral colours from the active Suite theme.
+
+    Resolves the user's default ``lynx-theme`` (set via "Set as Default" in
+    the Theme editor) and reads its ``value_positive``/``value_negative``/
+    ``value_neutral`` slots. Falls back to ``green``/``red``/``white`` when
+    no default theme is configured. Cached for the life of the process.
+    """
+    cached = getattr(_value_palette, "_cache", None)
+    if cached is not None:
+        return cached
+    pal = {"positive": "green", "negative": "red", "neutral": "white"}
+    try:
+        from lynx_theme.storage import value_palette as _vp
+        pal = _vp()
+    except Exception:
+        pass
+    _value_palette._cache = pal  # type: ignore[attr-defined]
+    return pal
+
+
 def _flush_console() -> None:
     """Flush stdout so Rich output is fully written before readline takes over."""
     sys.stdout.flush()
@@ -45,7 +66,8 @@ def _measure_renderable_width(renderable) -> int:
 # ---------------------------------------------------------------------------
 
 def _pnl_markup(pnl: float, pct: float) -> str:
-    color = "green" if pnl >= 0 else "red"
+    pal = _value_palette()
+    color = pal["positive"] if pnl >= 0 else pal["negative"]
     sign = "+" if pnl >= 0 else ""
     return f"[{color}]{sign}{pnl:,.2f} ({sign}{pct:.2f}%)[/{color}]"
 
@@ -309,26 +331,31 @@ def display_portfolio(instruments: List[Dict]) -> None:
 
     console.print(table)
 
+    pal = _value_palette()
+    pos = pal["positive"]
+    neg = pal["negative"]
+    neu = pal["neutral"]
+
     total_pnl = total_market - total_invested
     total_pct = (total_pnl / total_invested * 100) if total_invested else 0.0
-    color     = "green" if total_pnl >= 0 else "red"
+    color     = pos if total_pnl >= 0 else neg
     sign      = "+" if total_pnl >= 0 else ""
 
     if show_eur:
         total_pnl_eur = total_market_eur - total_invested_eur
         total_pct_eur = (total_pnl_eur / total_invested_eur * 100) if total_invested_eur else 0.0
-        eur_color = "green" if total_pnl_eur >= 0 else "red"
+        eur_color = pos if total_pnl_eur >= 0 else neg
         eur_sign  = "+" if total_pnl_eur >= 0 else ""
         eur_note  = "[dim] (partial)[/dim]" if has_eur_gap else ""
-        today_color = "green" if total_today_eur >= 0 else "red"
+        today_color = pos if total_today_eur >= 0 else neg
         today_sign  = "+" if total_today_eur >= 0 else ""
         today_str   = (
             f"[{today_color}]{today_sign}{total_today_eur:,.2f}[/{today_color}]"
             if has_today_data else "[dim]N/A[/dim]"
         )
         summary = (
-            f"EUR Invested: [green]{total_invested_eur:,.2f}[/green]  |  "
-            f"EUR Market Value: [green]{total_market_eur:,.2f}[/green]  |  "
+            f"EUR Invested: [{neu}]{total_invested_eur:,.2f}[/{neu}]  |  "
+            f"EUR Market Value: [{neu}]{total_market_eur:,.2f}[/{neu}]  |  "
             f"EUR P&L: [{eur_color}]{eur_sign}{total_pnl_eur:,.2f} "
             f"({eur_sign}{total_pct_eur:.2f}%)[/{eur_color}]{eur_note}  |  "
             f"EUR Market Today: {today_str}"
@@ -344,15 +371,15 @@ def display_portfolio(instruments: List[Dict]) -> None:
         if rate_parts:
             summary += f"\n[dim]Rates: {'  '.join(rate_parts)}[/dim]"
     else:
-        today_color = "green" if total_today_eur >= 0 else "red"
+        today_color = pos if total_today_eur >= 0 else neg
         today_sign  = "+" if total_today_eur >= 0 else ""
         today_str   = (
             f"[{today_color}]{today_sign}{total_today_eur:,.2f}[/{today_color}]"
             if has_today_data else "[dim]N/A[/dim]"
         )
         summary = (
-            f"Invested: [green]{total_invested:,.2f}[/green]  |  "
-            f"Market Value: [green]{total_market:,.2f}[/green]  |  "
+            f"Invested: [{neu}]{total_invested:,.2f}[/{neu}]  |  "
+            f"Market Value: [{neu}]{total_market:,.2f}[/{neu}]  |  "
             f"P&L: [{color}]{sign}{total_pnl:,.2f} ({sign}{total_pct:.2f}%)[/{color}]  |  "
             f"EUR Market Today: {today_str}"
         )
@@ -601,7 +628,8 @@ def confirm_clear_cache(instruments: List[Dict]) -> bool:
 def _signed_eur(value: Optional[float]) -> str:
     if value is None:
         return "[dim]—[/dim]"
-    color = "green" if value > 0 else ("red" if value < 0 else "white")
+    pal = _value_palette()
+    color = pal["positive"] if value > 0 else (pal["negative"] if value < 0 else pal["neutral"])
     sign = "+" if value > 0 else ""
     return f"[{color}]{sign}{value:,.2f} €[/{color}]"
 
@@ -609,7 +637,8 @@ def _signed_eur(value: Optional[float]) -> str:
 def _signed_pct(value: Optional[float]) -> str:
     if value is None:
         return "[dim]—[/dim]"
-    color = "green" if value > 0 else ("red" if value < 0 else "white")
+    pal = _value_palette()
+    color = pal["positive"] if value > 0 else (pal["negative"] if value < 0 else pal["neutral"])
     sign = "+" if value > 0 else ""
     return f"[{color}]{sign}{value:.2f}%[/{color}]"
 
