@@ -292,3 +292,27 @@ Every report and export emitted by Suite tools includes this same
 signature in its footer. The shipped logo PNGs additionally carry the
 author's signature via steganography for provenance — please do not
 replace or re-encode the logo files.
+
+<!-- LYNX-EP-FOOTER:BEGIN -->
+
+---
+
+## Entry point
+
+New here, or coming back after a while? Read [`index.ep.md`](index.ep.md) (or open [`index.ep.html`](index.ep.html) in a browser) — the standard card that answers what this is, where to look first, and how to run it, in the same shape for every project.
+
+🔴 **DORMANT** · last touched **28 April 2026**
+
+## Ownership
+
+<img src="https://www.cortex-university.com/static/brand/lince-logo.png" alt="Lince" width="96" height="96" align="left" style="margin-right:16px" />
+
+**Lynx Portfolio is proudly part of Lince.**
+
+| Company ID | Headquarters |
+|---|---|
+| 3015071-2 | Helsinki, Finland |
+
+Part of the LINCE company · © All rights reserved
+
+<!-- LYNX-EP-FOOTER:END -->
