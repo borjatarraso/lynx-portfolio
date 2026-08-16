@@ -16,6 +16,11 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict
 
+from lynx_investor_core.debounce import (
+    DEFAULT_COOLDOWN_MS,
+    LAUNCH_COOLDOWN_MS,
+    ClickDebouncer,
+)
 from lynx_investor_core.gui_themes import ThemeCycler, apply_theme
 
 from . import APP_NAME, VERSION, LICENSE, LICENSE_URL, LICENSE_TEXT, ABOUT_LINES, SUITE_LABEL
@@ -364,6 +369,10 @@ class LynxGUI:
 
     def __init__(self, needs_refresh: bool = False,
                  verbose: bool = False) -> None:
+        # Per-key cooldown for toolbar / menu / row buttons. Each gated
+        # action runs at most once per cooldown window so a frantic
+        # double-click can't fire the same action twice.
+        self._click_gate = ClickDebouncer(cooldown_ms=DEFAULT_COOLDOWN_MS)
         self._root = tk.Tk()
         self._root.withdraw()  # hide while building
         self._root.title(f"{APP_NAME} {VERSION}")
@@ -507,7 +516,7 @@ class LynxGUI:
                   font=("Consolas", 9),
                   foreground=_C["fg_dim"],
                   background=_C["surface2"]).pack(side="right", padx=8)
-        ttk.Button(toolbar, text="\u2139 About",
+        ttk.Button(toolbar, text="About",
                    command=self._on_about).pack(side="right", padx=2)
         self._themes_btn = ttk.Button(
             toolbar, text="Themes \u25bc",
@@ -836,16 +845,23 @@ class LynxGUI:
     # ----- Actions -----------------------------------------------------------
 
     def _on_add(self) -> None:
+        if not self._click_gate.allow("on_add"):
+            return
         AddDialog(self._root, self._reload_table)
 
     def _on_edit(self) -> None:
         ticker = self._get_selected_ticker()
-        if ticker:
-            EditDialog(self._root, ticker, self._reload_table)
+        if not ticker:
+            return
+        if not self._click_gate.allow(f"on_edit:{ticker}"):
+            return
+        EditDialog(self._root, ticker, self._reload_table)
 
     def _on_delete(self) -> None:
         ticker = self._get_selected_ticker()
         if not ticker:
+            return
+        if not self._click_gate.allow(f"on_delete:{ticker}"):
             return
         if messagebox.askyesno("Confirm Delete",
                                f"Remove {ticker} from portfolio?",
@@ -860,11 +876,17 @@ class LynxGUI:
         ticker = self._get_selected_ticker()
         if not ticker:
             return
+        # Refresh hits the network — long cooldown.
+        if not self._click_gate.allow(f"refresh_one:{ticker}",
+                                      cooldown_ms=LAUNCH_COOLDOWN_MS):
+            return
         self._set_status(f"Refreshing {ticker}...", "info")
         self._run_in_thread(ops_refresh_instrument, ticker,
                             on_done=self._reload_table)
 
     def _on_refresh_all(self) -> None:
+        if not self._click_gate.allow("refresh_all", cooldown_ms=LAUNCH_COOLDOWN_MS):
+            return
         self._set_status("Refreshing all instruments...", "info")
         self._run_in_thread(ops_refresh_all, on_done=self._reload_table)
 
@@ -873,14 +895,21 @@ class LynxGUI:
         run_gui_egg(self._root)
 
     def _on_import(self) -> None:
+        if not self._click_gate.allow("on_import"):
+            return
         ImportDialog(self._root, self._reload_table)
 
     def _on_detail(self) -> None:
         ticker = self._get_selected_ticker()
-        if ticker:
-            DetailDialog(self._root, ticker)
+        if not ticker:
+            return
+        if not self._click_gate.allow(f"on_detail:{ticker}"):
+            return
+        DetailDialog(self._root, ticker)
 
     def _on_clear_cache(self) -> None:
+        if not self._click_gate.allow("on_clear_cache"):
+            return
         instruments = database.get_all_instruments()
         if not instruments:
             n = cache.delete()
@@ -903,6 +932,8 @@ class LynxGUI:
     # ----- About -------------------------------------------------------------
 
     def _on_about(self) -> None:
+        if not self._click_gate.allow("on_about"):
+            return
         _AboutDialog(self._root)
 
     # ----- Themes menu -------------------------------------------------------
@@ -984,6 +1015,10 @@ class _BaseDialog:
                      width: int, height: int, *,
                      resizable: bool = False,
                      grab: bool = True) -> tk.Toplevel:
+        # Per-dialog click gate so each dialog instance debounces its
+        # own action buttons independently. Subclasses call self._gate.allow(...)
+        # at the top of every handler that fires expensive work.
+        self._gate = ClickDebouncer(cooldown_ms=DEFAULT_COOLDOWN_MS)
         dlg = tk.Toplevel(parent)
         dlg.title(title)
         dlg.configure(bg=_C["surface"])
@@ -1088,6 +1123,8 @@ class AddDialog(_BaseDialog):
         self._dlg.bind("<Return>", lambda _: self._do_add())
 
     def _do_search(self) -> None:
+        if not self._gate.allow("do_search", cooldown_ms=LAUNCH_COOLDOWN_MS):
+            return
         from .validation import sanitise_search_query
         raw = self._search_entry.get().strip()
         if not raw:
@@ -1144,6 +1181,8 @@ class AddDialog(_BaseDialog):
         self._dlg.destroy()
 
     def _do_add(self) -> None:
+        if not self._gate.allow("do_add"):
+            return
         from .validation import (
             validate_ticker, validate_isin, validate_shares, validate_price,
             validate_exchange,
@@ -1270,6 +1309,8 @@ class EditDialog(_BaseDialog):
         self._dlg.bind("<Return>", lambda _: self._do_update())
 
     def _do_update(self) -> None:
+        if not self._gate.allow("do_update"):
+            return
         from .validation import validate_shares, validate_price
         shares_s = self._shares_entry.get().strip()
         price_s  = self._price_entry.get().strip()
@@ -1501,17 +1542,17 @@ class ImportDialog(_BaseDialog):
         self._on_done = on_done
         self._destroyed = False
 
-        self._dlg = self._init_dialog(parent, "Import from JSON", 500, 250)
+        self._dlg = self._init_dialog(parent, "Import portfolio", 540, 260)
         self._dlg.protocol("WM_DELETE_WINDOW", self._on_close)
 
         outer = ttk.Frame(self._dlg, style="Card.TFrame", padding=20)
         outer.pack(fill="both", expand=True)
 
-        ttk.Label(outer, text="Import from JSON",
+        ttk.Label(outer, text="Import from JSON or SQLite database",
                   style="DialogTitle.TLabel").grid(
             row=0, column=0, columnspan=3, sticky="w", pady=(0, 12))
 
-        ttk.Label(outer, text="JSON file", style="FieldLabel.TLabel").grid(
+        ttk.Label(outer, text="Source file", style="FieldLabel.TLabel").grid(
             row=1, column=0, sticky="w", pady=4)
         self._file_entry = ttk.Entry(outer, width=30)
         self._file_entry.grid(row=1, column=1, sticky="ew", padx=(10, 6), pady=4)
@@ -1548,42 +1589,41 @@ class ImportDialog(_BaseDialog):
 
     def _browse(self) -> None:
         path = filedialog.askopenfilename(
-            parent=self._dlg, title="Select JSON file",
-            filetypes=[("JSON files", "*.json"), ("All files", "*.*")])
+            parent=self._dlg, title="Select JSON file or SQLite database",
+            filetypes=[
+                ("Portfolio sources", "*.json *.db *.sqlite *.sqlite3"),
+                ("JSON files", "*.json"),
+                ("SQLite databases", "*.db *.sqlite *.sqlite3"),
+                ("All files", "*.*"),
+            ])
         if path:
             self._file_entry.delete(0, "end")
             self._file_entry.insert(0, path)
 
     def _do_import(self) -> None:
+        if not self._gate.allow("do_import", cooldown_ms=LAUNCH_COOLDOWN_MS):
+            return
+        from .imports import load_instruments_from_file
+
         filepath = self._file_entry.get().strip()
         exchange = self._exchange_entry.get().strip() or None
 
-        if not filepath:
-            self._status_var.set("Please select a file.")
+        rows, err = load_instruments_from_file(filepath)
+        if err is not None:
+            self._status_var.set(err)
+            return
+        if not rows:
+            self._status_var.set("Source file is empty — nothing to import.")
             return
 
-        try:
-            with open(filepath, "r") as f:
-                instruments = json.load(f)
-        except FileNotFoundError:
-            self._status_var.set(f"File not found: {filepath}")
-            return
-        except json.JSONDecodeError as exc:
-            self._status_var.set(f"Invalid JSON: {exc}")
-            return
-
-        if not isinstance(instruments, list):
-            self._status_var.set("JSON must be an array of objects.")
-            return
-
-        self._status_var.set(f"Importing {len(instruments)} instruments...")
+        self._status_var.set(f"Importing {len(rows)} instruments...")
         self._import_btn.configure(state="disabled")
 
         def _run():
-            total = len(instruments)
+            total = len(rows)
             added = skipped = 0
-            for entry in instruments:
-                if not isinstance(entry, dict):
+            for entry in rows:
+                if not isinstance(entry, dict) or not entry:
                     skipped += 1; continue
                 ticker    = entry.get("ticker")
                 shares    = entry.get("shares")

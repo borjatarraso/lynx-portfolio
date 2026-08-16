@@ -1390,7 +1390,7 @@ class EditScreen(Screen):
 # ---------------------------------------------------------------------------
 
 class ImportScreen(Screen):
-    """Import instruments from a JSON file."""
+    """Import instruments from a JSON file or SQLite portfolio database."""
 
     BINDINGS = [
         Binding("escape", "cancel", "Cancel"),
@@ -1399,9 +1399,12 @@ class ImportScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
         with VerticalScroll(classes="form-container"):
-            yield Static("[bold cyan]Import from JSON[/bold cyan]\n", classes="msg-info")
-            yield Label("Path to JSON file")
-            yield Input(placeholder="e.g. portfolio.json", id="inp-file")
+            yield Static(
+                "[bold cyan]Import from JSON or SQLite database[/bold cyan]\n",
+                classes="msg-info",
+            )
+            yield Label("Path to source file  [dim](.json / .db / .sqlite)[/dim]")
+            yield Input(placeholder="e.g. portfolio.json or legacy.db", id="inp-file")
             yield Label("Default exchange suffix  [dim](optional)[/dim]")
             yield Input(placeholder="e.g. DE, SW, AS", id="inp-exchange")
             with Horizontal(classes="btn-row"):
@@ -1417,39 +1420,27 @@ class ImportScreen(Screen):
             self._do_import()
 
     def _do_import(self) -> None:
+        from .imports import load_instruments_from_file
+
         filepath = self.query_one("#inp-file", Input).value.strip()
         exchange = self.query_one("#inp-exchange", Input).value.strip() or None
 
-        if not filepath:
+        rows, err = load_instruments_from_file(filepath)
+        if err is not None:
             self.query_one("#import-status", Static).update(
-                "[bold red]Please enter a file path.[/bold red]"
+                f"[bold red]{err}[/bold red]"
             )
             return
-
-        try:
-            with open(filepath, "r") as f:
-                instruments = json.load(f)
-        except FileNotFoundError:
+        if not rows:
             self.query_one("#import-status", Static).update(
-                f"[bold red]File not found: {filepath}[/bold red]"
-            )
-            return
-        except json.JSONDecodeError as exc:
-            self.query_one("#import-status", Static).update(
-                f"[bold red]Invalid JSON: {exc}[/bold red]"
-            )
-            return
-
-        if not isinstance(instruments, list):
-            self.query_one("#import-status", Static).update(
-                "[bold red]JSON must be an array of objects.[/bold red]"
+                "[bold yellow]Source file is empty — nothing to import.[/bold yellow]"
             )
             return
 
         self.query_one("#import-status", Static).update(
-            f"[bold yellow]Importing {len(instruments)} instruments...[/bold yellow]"
+            f"[bold yellow]Importing {len(rows)} instruments...[/bold yellow]"
         )
-        self._run_import(instruments, exchange)
+        self._run_import(rows, exchange)
 
     @work(thread=True)
     def _run_import(self, instruments: list, exchange: Optional[str]) -> None:

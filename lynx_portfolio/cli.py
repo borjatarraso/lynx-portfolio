@@ -204,39 +204,41 @@ def _search_and_select(name: str) -> str | None:
         display.warn(f"Enter a number between 0 and {len(results)}.")
 
 
-def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
-    """Import instruments from a JSON file."""
-    try:
-        with open(filepath, "r") as f:
-            instruments = json.load(f)
-    except FileNotFoundError:
-        display.err(f"File not found: {filepath}")
+def _is_sqlite_file(filepath: str) -> bool:
+    """Compatibility shim — see :func:`lynx_portfolio.imports.is_sqlite_file`."""
+    from .imports import is_sqlite_file
+    return is_sqlite_file(filepath)
+
+
+def _import_from_file(filepath: str, preferred_exchange: str = None) -> None:
+    """Dispatch *filepath* (JSON or SQLite) through the shared loader.
+
+    Validation, network resolution and per-row reporting happen here so
+    the shared loader stays a pure parser.
+    """
+    from .imports import load_instruments_from_file
+    from .validation import validate_ticker, validate_shares, validate_price
+
+    rows, error = load_instruments_from_file(filepath)
+    if error is not None:
+        display.err(error)
         return
-    except json.JSONDecodeError as exc:
-        display.err(f"Invalid JSON: {exc}")
+    if not rows:
+        display.warn(f"'{filepath}' is empty — nothing to import.")
         return
 
-    if not isinstance(instruments, list):
-        display.err(
-            "JSON file must contain an array of instrument objects. "
-            "See 'lynx-portfolio -c import --help' for the expected format."
-        )
-        return
+    total = len(rows)
+    added = 0
+    skipped = 0
 
-    total    = len(instruments)
-    added    = 0
-    skipped  = 0
-
-    for i, entry in enumerate(instruments, 1):
-        if not isinstance(entry, dict):
+    for i, entry in enumerate(rows, 1):
+        if not entry:
             display.warn(f"  [{i}/{total}] Skipping non-object entry.")
             skipped += 1
             continue
 
-        ticker    = entry.get("ticker")
-        shares    = entry.get("shares")
-        avg_price = entry.get("avg_price")
-
+        ticker = entry.get("ticker")
+        shares = entry.get("shares")
         if not ticker or shares is None:
             display.warn(
                 f"  [{i}/{total}] Skipping entry — "
@@ -245,8 +247,6 @@ def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
             skipped += 1
             continue
 
-        # Validate ticker format
-        from .validation import validate_ticker, validate_shares, validate_price
         ticker_v, err = validate_ticker(str(ticker))
         if err:
             display.warn(f"  [{i}/{total}] Skipping — {err}")
@@ -261,7 +261,7 @@ def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
             continue
         shares = shares_v
 
-        avg_price_v, err = validate_price(avg_price)
+        avg_price_v, err = validate_price(entry.get("avg_price"))
         if err:
             display.warn(f"  [{i}/{total}] Skipping '{ticker}' — {err}")
             skipped += 1
@@ -285,6 +285,18 @@ def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
     display.ok(f"Import complete: {added} added, {skipped} skipped (of {total} total).")
 
 
+def _import_from_json(filepath: str, preferred_exchange: str = None) -> None:
+    """Backwards-compatible alias — JSON imports also flow through the
+    unified dispatcher."""
+    _import_from_file(filepath, preferred_exchange=preferred_exchange)
+
+
+def _import_from_sqlite(filepath: str, preferred_exchange: str = None) -> None:
+    """Backwards-compatible alias — SQLite imports also flow through the
+    unified dispatcher."""
+    _import_from_file(filepath, preferred_exchange=preferred_exchange)
+
+
 # ---------------------------------------------------------------------------
 # Parser
 # ---------------------------------------------------------------------------
@@ -306,14 +318,19 @@ run modes (default: production — wizard runs automatically on first use):
   --devel                      fresh empty DB every run, nothing persisted
   --production                 use the configured persistent database (explicit)
 
-json import format (for 'import --file'):
-  [
-    {"ticker": "AAPL",    "shares": 10,   "avg_price": 150.00},
-    {"ticker": "NESN.SW", "shares": 50,   "avg_price": 110.00, "isin": "CH0038863350"},
-    {"ticker": "VWCE.DE", "shares": 23.5, "avg_price": 70.00,  "exchange": "DE"}
-  ]
-  required fields: ticker, shares, avg_price
-  optional fields: isin, exchange
+import sources (for '--import' or 'import --file'):
+  • JSON file (.json) — array of objects:
+      [
+        {"ticker": "AAPL",    "shares": 10,   "avg_price": 150.00},
+        {"ticker": "NESN.SW", "shares": 50,   "avg_price": 110.00, "isin": "CH0038863350"},
+        {"ticker": "VWCE.DE", "shares": 23.5, "avg_price": 70.00,  "exchange": "DE"}
+      ]
+      required fields: ticker, shares
+      optional fields: avg_price, isin, exchange
+  • SQLite database (.db / .sqlite / .sqlite3) — read-only from the
+    'portfolio' table of a previous-version Lynx-Portfolio DB. Required
+    columns: ticker, shares. Optional: avg_purchase_price, isin,
+    exchange_code, exchange_display.
 
 interface modes (default: interactive REPL):
   -c,  --console         non-interactive one-shot commands (scriptable)
@@ -336,6 +353,7 @@ examples:
   lynx-portfolio -c add --ticker NESN.SW --shares 50 --avg-price 110
   lynx-portfolio -c add --isin CH0038863350 --shares 50 --avg-price 110
   lynx-portfolio --import portfolio.json
+  lynx-portfolio --import legacy_portfolio.db
   lynx-portfolio -c list
   lynx-portfolio -c show --ticker NESN.SW
   lynx-portfolio -c update --ticker AAPL --shares 15
@@ -409,12 +427,14 @@ examples:
     # Bulk import ──────────────────────────────────────────────────────────────
     parser.add_argument(
         "--import", metavar="FILE", dest="import_file_flag",
-        help="Bulk-add instruments from a JSON file (works without -c/-i/-tui)",
+        help="Bulk-add instruments from a JSON file or a previous-version "
+             "Lynx-Portfolio SQLite database (.db / .sqlite). Works without "
+             "-c/-i/-tui",
     )
     parser.add_argument(
         "--exchange", "-e", metavar="SUFFIX", dest="import_exchange_flag",
         help="Default exchange suffix for --import (e.g. SW, DE, V, TO); "
-             "overridden per-entry by the 'exchange' field inside the JSON",
+             "overridden per-entry by the source file's exchange field",
     )
 
     # Vault / encryption ──────────────────────────────────────────────────────
@@ -489,16 +509,19 @@ examples:
     # import
     p_imp = sub.add_parser(
         "import",
-        help="Bulk-add instruments from a JSON file",
+        help="Bulk-add instruments from a JSON file or SQLite database",
         description=(
-            "Import instruments from a JSON file.  The file must contain an array "
-            "of objects with at least 'ticker' and 'shares'.  "
-            "Optional fields: 'avg_price', 'isin', 'exchange'."
+            "Import instruments from a JSON file or a previous-version Lynx "
+            "Portfolio SQLite database (.db / .sqlite / .sqlite3). "
+            "JSON files must contain an array of objects with at least "
+            "'ticker' and 'shares' (optional: 'avg_price', 'isin', "
+            "'exchange'). SQLite files are read read-only from the "
+            "'portfolio' table."
         ),
     )
     p_imp.add_argument(
         "--file", "-f", required=True, dest="import_file",
-        help="Path to the JSON file containing instruments to import",
+        help="Path to the JSON file or SQLite database to import from",
     )
     p_imp.add_argument(
         "--exchange", "-e",
@@ -851,7 +874,7 @@ def run() -> None:
 
     # ── --import flag (works standalone, no subcommand or mode required) ──
     if args.import_file_flag:
-        _import_from_json(
+        _import_from_file(
             args.import_file_flag,
             preferred_exchange=args.import_exchange_flag,
         )
@@ -943,7 +966,7 @@ def _dispatch_subcommand(args, parser, _needs_refresh, verbose) -> None:
         )
 
     elif args.command == "import":
-        _import_from_json(
+        _import_from_file(
             args.import_file,
             preferred_exchange=getattr(args, "exchange", None),
         )
