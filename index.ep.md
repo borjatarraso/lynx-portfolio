@@ -15,7 +15,7 @@ ep_locked: false   # set true and this file is never regenerated
 
 > Show the investments portfolio
 
-🟡 **IDLE** · last touched **16 August 2026** (last commit)
+🟡 **IDLE** · last touched **16 August 2026** (last commit to project files)
 
 ---
 
