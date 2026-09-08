@@ -6,7 +6,7 @@
 <title>Lynx Portfolio — entry point</title>
 <meta name="lynx-ep-version" content="1">
 <meta name="lynx-ep-project" content="lynx-portfolio">
-<meta name="lynx-ep-status" content="DORMANT">
+<meta name="lynx-ep-status" content="IDLE">
 <style>
   :root {
     --ink:#1c1a17; --muted:#6b6560; --line:#e6e0d6; --bg:#fbf9f5;
@@ -25,7 +25,7 @@
   .status { display:inline-flex; align-items:center; gap:.5rem; padding:.28rem .7rem;
     border-radius:999px; font:600 .72rem/1 ui-sans-serif,system-ui,sans-serif;
     letter-spacing:.09em; text-transform:uppercase;
-    color:#842029; background:#f8d7da; border:1px solid #f1aeb5; }
+    color:#664d03; background:#fff3cd; border:1px solid #ffe69c; }
   .touched { font:400 .82rem/1 ui-sans-serif,system-ui,sans-serif; color:var(--muted);
     margin-left:.6rem; }
   h2 { font:600 .76rem/1 ui-sans-serif,system-ui,sans-serif; letter-spacing:.13em;
@@ -74,8 +74,8 @@
   <h1>Lynx Portfolio</h1>
   <p class="subtitle">Show the investments portfolio</p>
   <p>
-    <span class="status">🔴 DORMANT</span>
-    <span class="touched">last touched 28 April 2026 (last commit)</span>
+    <span class="status">🟡 IDLE</span>
+    <span class="touched">last touched 16 August 2026 (last commit)</span>
   </p>
 
   <h2>What this is</h2>
@@ -136,6 +136,7 @@
 
   <h2>Run it</h2>
   <pre><code>cd ~/claude/lince-investor/lynx-portfolio
+./run                                 # project runner
 lynx-portfolio                        # console entry point
 python3 -m lynx_portfolio             # runnable package</code></pre>
 
@@ -147,7 +148,7 @@ python3 -m lynx_portfolio             # runnable package</code></pre>
       <li><code>img/</code> <span class="why">6 entries</span></li>
       <li><code>lynx_portfolio/</code> <span class="why">29 entries</span></li>
       <li><code>lynx_portfolio.egg-info/</code> <span class="why">6 entries</span></li>
-      <li><code>mobile/</code> <span class="why">10 entries</span></li>
+      <li><code>mobile/</code> <span class="why">13 entries</span></li>
       <li><code>tests/</code> <span class="why">13 entries</span></li></ul></div>
     <div><strong>Other documentation</strong><ul>      <li><a href="CHANGELOG.md"><code>CHANGELOG.md</code></a></li></ul></div>
   </div>
@@ -169,7 +170,7 @@ python3 -m lynx_portfolio             # runnable package</code></pre>
 
   <footer>
     Standard entry-point card (<code>index.ep.html</code>, format v1) —
-    generated 2026-08-15 by Lynx Factory.
+    generated 2026-09-08 by Lynx Factory.
   </footer>
 </main>
 </body>

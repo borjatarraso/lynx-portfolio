@@ -2,12 +2,12 @@
 ep_version: 1
 project: lynx-portfolio
 title: Lynx Portfolio
-status: DORMANT
-last_touched: 2026-04-28
-last_touched_text: 28 April 2026
+status: IDLE
+last_touched: 2026-08-16
+last_touched_text: 16 August 2026
 section: sub
 category: investments
-generated: 2026-08-15
+generated: 2026-09-08
 ep_locked: false   # set true and this file is never regenerated
 ---
 
@@ -15,7 +15,7 @@ ep_locked: false   # set true and this file is never regenerated
 
 > Show the investments portfolio
 
-🔴 **DORMANT** · last touched **28 April 2026** (last commit)
+🟡 **IDLE** · last touched **16 August 2026** (last commit)
 
 ---
 
@@ -93,6 +93,7 @@ This project is part of the **Lince Investor Suite**, authored and signed by
 
 ```bash
 cd ~/claude/lince-investor/lynx-portfolio
+./run                                 # project runner
 lynx-portfolio                        # console entry point
 python3 -m lynx_portfolio             # runnable package
 ```
@@ -107,7 +108,7 @@ python3 -m lynx_portfolio             # runnable package
 - `img/` — 6 entries
 - `lynx_portfolio/` — 29 entries
 - `lynx_portfolio.egg-info/` — 6 entries
-- `mobile/` — 10 entries
+- `mobile/` — 13 entries
 - `tests/` — 13 entries
 
 **Other documentation**
@@ -133,4 +134,4 @@ python3 -m lynx_portfolio             # runnable package
 Part of the LINCE company · © All rights reserved
 
 
-<sub>Standard entry-point card (`index.ep.md`, format v1) — generated 2026-08-15 by Lynx Factory. Regenerating overwrites this file unless `ep_locked: true`.</sub>
+<sub>Standard entry-point card (`index.ep.md`, format v1) — generated 2026-09-08 by Lynx Factory. Regenerating overwrites this file unless `ep_locked: true`.</sub>
