@@ -92,7 +92,7 @@ This project is part of the **Lince Investor Suite**, authored and signed by
 ## Run it
 
 ```bash
-cd ~/claude/lince-investor/lynx-portfolio
+cd ~/devel/lince-investor/lynx-portfolio
 ./run                                 # project runner
 lynx-portfolio                        # console entry point
 python3 -m lynx_portfolio             # runnable package
