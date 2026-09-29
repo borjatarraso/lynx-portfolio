@@ -9,6 +9,13 @@ Lynx Portfolio is part of the **Lince Investor** suite. It tracks your
 investment holdings, fetches live market data from Yahoo Finance, converts
 everything to EUR, and shows your real exposure at a glance.
 
+## Quick install
+
+```bash
+make    # create .venv and install the package + its dependencies
+./run   # start with the defaults
+```
+
 ## Features
 
 - **Four interfaces** -- choose what fits your workflow:
